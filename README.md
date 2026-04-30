@@ -74,12 +74,13 @@ Resposta:
 3. Build command: `npm run build`
 4. Output: padrão Next.js
 
+## Deploy automático
 
-## Enxame de agentes (manutenção incremental)
-- `bash scripts/agents/run-agent.sh security`
-- `bash scripts/agents/run-agent.sh quality`
-- `bash scripts/agents/run-agent.sh deps`
-- `bash scripts/agents/run-agent.sh autofix`
-- `bash scripts/agents/orchestrator.sh`
+> Execute na branch `main` para que o script consiga aplicar `pull --rebase` e `push` com segurança.
 
-Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/rotinas de manutenção.
+> O script aplica validações de segurança (incluindo scan de possíveis secrets nas linhas staged) antes do commit/push.
+
+```bash
+chmod +x scripts/deploy-all.sh
+./scripts/deploy-all.sh
+```
