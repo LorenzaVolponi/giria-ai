@@ -58,6 +58,7 @@ Resposta:
 - `bash scripts/release-guard.sh`
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`
+- `bash scripts/auto-pr.sh "mensagem"`
 
 ## Segurança aplicada
 - Sanitização e validação de input em API
@@ -96,3 +97,9 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 ## Observabilidade
 - API v1 retorna `x-request-id` e gera logs JSON por request para auditoria.
 - Use `scripts/api-contract-check.sh` para validar contrato dos endpoints versionados.
+
+
+## Auto commit / Auto PR / Auto merge
+- `scripts/auto-pr.sh` cria commit, push e tenta abrir PR com label `automerge`.
+- Workflow `automerge.yml` habilita merge automático para PRs com label `automerge` (squash).
+- `AUTO_COMMIT=true bash scripts/agents/orchestrator.sh` permite commit automático dos ajustes gerados pelos agentes.
