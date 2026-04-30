@@ -76,6 +76,8 @@ Resposta:
 
 ## Deploy automático
 
+> Execute na branch `main` para que o script consiga aplicar `pull --rebase` e `push` com segurança.
+
 ```bash
 chmod +x scripts/deploy-all.sh
 ./scripts/deploy-all.sh

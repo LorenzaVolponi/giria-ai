@@ -20,7 +20,21 @@ command_exists() {
 
 has_npm_script() {
   local script_name="$1"
-  npm run "$script_name" --silent >/dev/null 2>&1
+  node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); process.exit((p.scripts && p.scripts['${script_name}']) ? 0 : 1);" >/dev/null 2>&1
+}
+
+confirm_default_no() {
+  local prompt="$1"
+  local reply=""
+
+  if [[ -t 0 ]]; then
+    read -r -p "${prompt} (s/N): " reply
+  else
+    warn "Modo não interativo detectado. Resposta padrão: Não."
+    reply="N"
+  fi
+
+  [[ "${reply:-N}" =~ ^[sSyY]$ ]]
 }
 
 log 'Iniciando deploy automatizado...'
@@ -55,7 +69,8 @@ fi
 log 'Remote origin detectado.'
 
 if [[ "$CURRENT_BRANCH" != "main" ]]; then
-  warn "Você está na branch '${CURRENT_BRANCH}'. O push será feito para 'main'."
+  error "A branch atual é '${CURRENT_BRANCH}'. Execute o script na branch 'main' para evitar push acidental."
+  exit 1
 fi
 
 log 'Validando projeto...'
@@ -93,17 +108,13 @@ else
 fi
 
 secret_scan_patterns='(API[_-]?KEY|SECRET|TOKEN|PRIVATE[_-]?KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|BEGIN[[:space:]]+RSA[[:space:]]+PRIVATE[[:space:]]+KEY)'
-if git diff --cached --name-only | grep -q '.'; then
-  :
-fi
-
 if git diff -- . ':!package-lock.json' | grep -Eiq "$secret_scan_patterns"; then
   error 'Foram encontrados possíveis secrets críticos nas alterações locais. Deploy bloqueado.'
   exit 1
 fi
 
 log 'Iniciando fluxo Git automático...'
-git status
+git status --short
 
 git add .
 
@@ -122,8 +133,7 @@ git push origin main
 
 log 'Preparando deploy...'
 if command_exists vercel; then
-  read -r -p 'Vercel CLI detectada. Deseja executar "vercel --prod" agora? (s/N): ' run_vercel
-  if [[ "${run_vercel:-N}" =~ ^[sSyY]$ ]]; then
+  if confirm_default_no 'Vercel CLI detectada. Deseja executar "vercel --prod" agora?'; then
     vercel --prod
   else
     log 'Deploy via Vercel CLI ignorado. O deploy automático via GitHub/Vercel continuará após o push.'
