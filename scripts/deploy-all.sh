@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+TARGET_BRANCH="main"
+AUTO_COMMIT_MESSAGE="chore: deploy automated update"
+
 log() {
   printf '[INFO] %s\n' "$1"
 }
@@ -30,11 +33,29 @@ confirm_default_no() {
   if [[ -t 0 ]]; then
     read -r -p "${prompt} (s/N): " reply
   else
-    warn "Modo não interativo detectado. Resposta padrão: Não."
-    reply="N"
+    warn 'Modo não interativo detectado. Resposta padrão: Não.'
+    reply='N'
   fi
 
   [[ "${reply:-N}" =~ ^[sSyY]$ ]]
+}
+
+scan_staged_secrets() {
+  local secret_scan_patterns
+  local staged_patch
+
+  secret_scan_patterns='(api[_-]?key|secret|token|private[_-]?key|aws_access_key_id|aws_secret_access_key|begin[[:space:]]+rsa[[:space:]]+private[[:space:]]+key)'
+  staged_patch="$(git diff --cached --unified=0 --no-color | sed -n 's/^+//p')"
+
+  if [[ -z "$staged_patch" ]]; then
+    return 0
+  fi
+
+  if printf '%s\n' "$staged_patch" | grep -Eiq "$secret_scan_patterns"; then
+    return 1
+  fi
+
+  return 0
 }
 
 log 'Iniciando deploy automatizado...'
@@ -68,8 +89,8 @@ if ! git remote get-url origin >/dev/null 2>&1; then
 fi
 log 'Remote origin detectado.'
 
-if [[ "$CURRENT_BRANCH" != "main" ]]; then
-  error "A branch atual é '${CURRENT_BRANCH}'. Execute o script na branch 'main' para evitar push acidental."
+if [[ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]]; then
+  error "A branch atual é '${CURRENT_BRANCH}'. Execute o script na branch '${TARGET_BRANCH}' para evitar push acidental."
   exit 1
 fi
 
@@ -107,29 +128,28 @@ else
   warn 'scripts/security-check.sh não encontrado. Etapa ignorada.'
 fi
 
-secret_scan_patterns='(API[_-]?KEY|SECRET|TOKEN|PRIVATE[_-]?KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|BEGIN[[:space:]]+RSA[[:space:]]+PRIVATE[[:space:]]+KEY)'
-if git diff -- . ':!package-lock.json' | grep -Eiq "$secret_scan_patterns"; then
-  error 'Foram encontrados possíveis secrets críticos nas alterações locais. Deploy bloqueado.'
-  exit 1
-fi
-
 log 'Iniciando fluxo Git automático...'
 git status --short
 
 git add .
 
+if ! scan_staged_secrets; then
+  error 'Foram encontrados possíveis secrets críticos nas linhas adicionadas (staged). Deploy bloqueado.'
+  exit 1
+fi
+
 if git diff --cached --quiet; then
   warn 'Nenhuma alteração detectada para commit.'
 else
   log 'Criando commit automático...'
-  git commit -m 'chore: deploy automated update'
+  git commit -m "$AUTO_COMMIT_MESSAGE"
 fi
 
-log 'Sincronizando com origin/main (rebase)...'
-git pull --rebase origin main
+log "Sincronizando com origin/${TARGET_BRANCH} (rebase)..."
+git pull --rebase origin "$TARGET_BRANCH"
 
-log 'Enviando alterações para origin/main...'
-git push origin main
+log "Enviando alterações para origin/${TARGET_BRANCH}..."
+git push origin "$TARGET_BRANCH"
 
 log 'Preparando deploy...'
 if command_exists vercel; then

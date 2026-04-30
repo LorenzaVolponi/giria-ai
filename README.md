@@ -78,6 +78,8 @@ Resposta:
 
 > Execute na branch `main` para que o script consiga aplicar `pull --rebase` e `push` com segurança.
 
+> O script aplica validações de segurança (incluindo scan de possíveis secrets nas linhas staged) antes do commit/push.
+
 ```bash
 chmod +x scripts/deploy-all.sh
 ./scripts/deploy-all.sh
