@@ -3,9 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "bash run-dev.sh",
+    "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production PORT=3000 bun .next/standalone/server.js",
+    "start": "next start",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
