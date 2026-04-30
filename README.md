@@ -73,3 +73,10 @@ Resposta:
 2. Configure variáveis de ambiente
 3. Build command: `npm run build`
 4. Output: padrão Next.js
+
+## Deploy automático
+
+```bash
+chmod +x scripts/deploy-all.sh
+./scripts/deploy-all.sh
+```
