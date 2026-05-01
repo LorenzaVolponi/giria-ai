@@ -29,3 +29,9 @@ if [[ $AUDIT_EXIT -ne 0 ]]; then
 fi
 
 echo "[sec] Recomendações: habilitar Dependabot, revisão periódica de secrets e rotação de chaves."
+
+
+echo "[sec] Verificando ALLOWED_ORIGIN..."
+if [[ -z "${ALLOWED_ORIGIN:-}" ]]; then
+  echo "[sec][WARN] ALLOWED_ORIGIN não definido (defina em produção)."
+fi

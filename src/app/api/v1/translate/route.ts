@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
+import { getRequestId, logApiEvent } from "@/lib/observability";
 
 const rateMap = new Map<string, number[]>();
 const WINDOW_MS = 60_000;
@@ -28,24 +29,40 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+  const requestId = getRequestId(request);
+
   try {
     const ip = getClientIp(request);
     if (limited(ip)) {
-      return withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
+      const limitedResponse = withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
+      limitedResponse.headers.set("Retry-After", "60");
+      limitedResponse.headers.set("x-request-id", requestId);
+      logApiEvent({ requestId, route: "/api/v1/translate", status: 429, durationMs: Date.now() - startedAt, message: "rate_limited" });
+      return limitedResponse;
     }
 
     const body = (await request.json()) as { text?: string; slang?: string };
     const text = sanitizeUserInput(body.text ?? body.slang ?? "", 220);
     if (!text) {
-      return withSecurityHeaders(NextResponse.json({ error: "Envie um texto/gíria para tradução." }, { status: 400 }));
+      const badRequest = withSecurityHeaders(NextResponse.json({ error: "Envie um texto/gíria para tradução." }, { status: 400 }));
+      badRequest.headers.set("x-request-id", requestId);
+      logApiEvent({ requestId, route: "/api/v1/translate", status: 400, durationMs: Date.now() - startedAt, message: "empty_input" });
+      return badRequest;
     }
 
     const result = translateSlang(text);
     const response = NextResponse.json(result);
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
-    return withSecurityHeaders(response);
+    response.headers.set("x-request-id", requestId);
+    const secured = withSecurityHeaders(response);
+    logApiEvent({ requestId, route: "/api/v1/translate", status: 200, durationMs: Date.now() - startedAt, fallbackUsed: result.source !== "local" });
+    return secured;
   } catch {
-    return withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));
+    const errorResponse = withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));
+    errorResponse.headers.set("x-request-id", requestId);
+    logApiEvent({ requestId, route: "/api/v1/translate", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
+    return errorResponse;
   }
 }
