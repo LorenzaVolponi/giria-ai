@@ -3,6 +3,8 @@ import { withSecurityHeaders, getClientIp } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { logApiEvent, getRequestId } from "@/lib/observability";
 import { isSuggestionEligible, listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
+import { listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
+import { notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
