@@ -6,5 +6,8 @@ import { getApiMetrics } from "@/lib/metrics";
 export async function GET(request: NextRequest) {
   const denied = requireAdminToken(request);
   if (denied) return denied;
+import { getApiMetrics } from "@/lib/metrics";
+
+export async function GET() {
   return withSecurityHeaders(NextResponse.json(getApiMetrics()));
 }
