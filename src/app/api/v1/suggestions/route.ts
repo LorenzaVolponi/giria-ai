@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders, getClientIp } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { logApiEvent, getRequestId } from "@/lib/observability";
+import { isSuggestionEligible, listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 import { listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 import { notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.ok) {
       return withSecurityHeaders(NextResponse.json({ error: parsed.reason }, { status: 400 }));
+    }
+
+    const eligibility = await isSuggestionEligible(parsed.normalized.term);
+    if (!eligibility.ok) {
+      return withSecurityHeaders(NextResponse.json({ error: eligibility.reason }, { status: 422 }));
     }
 
     const score = await webSignalScore(parsed.normalized.term);

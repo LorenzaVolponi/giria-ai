@@ -1,3 +1,4 @@
+import { getTerm } from "@/lib/slang-data";
 import { db } from "@/lib/db";
 import { sanitizeUserInput } from "@/lib/security";
 import nodemailer from "nodemailer";
@@ -139,4 +140,37 @@ export async function listApprovedSuggestions(limit = 100) {
         createdAt: r.createdAt,
       }));
   }
+}
+
+
+export async function isSuggestionEligible(termRaw: string) {
+  const term = sanitizeUserInput(termRaw.toLowerCase(), 80);
+  if (!term) return { ok: false as const, reason: "Gíria inválida." };
+
+  if (getTerm(term)) {
+    return { ok: false as const, reason: "Essa gíria já existe no glossário principal." };
+  }
+
+  const vowels = (term.match(/[aeiouáàâãéêíóôõú]/gi) || []).length;
+  if (term.length > 3 && vowels === 0) {
+    return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
+  }
+
+  const blocked = /\b(idiota|otario|otário|xingamento|racista|nazista)\b/i.test(term);
+  if (blocked) {
+    return { ok: false as const, reason: "Termo bloqueado pela moderação automática." };
+  }
+
+  try {
+    const existing = await db.slangSuggestion.findFirst({
+      where: { term: { equals: term, mode: "insensitive" }, status: "approved" },
+      select: { id: true },
+    });
+    if (existing) return { ok: false as const, reason: "Essa gíria já foi enviada e aprovada." };
+  } catch {
+    const inMemory = memorySuggestions.some((x) => x.term.toLowerCase() === term);
+    if (inMemory) return { ok: false as const, reason: "Essa gíria já foi enviada recentemente." };
+  }
+
+  return { ok: true as const, term };
 }
