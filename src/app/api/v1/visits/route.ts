@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as { path?: string };
     const event = buildVisitorEvent(request, body.path || "/");
-    registerVisit(event);
+    await registerVisit(event);
     return withSecurityHeaders(NextResponse.json({ ok: true, id: event.id }));
   } catch {
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao registrar visita." }, { status: 500 }));
@@ -14,5 +14,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return withSecurityHeaders(NextResponse.json(getVisitorStats()));
+  return withSecurityHeaders(NextResponse.json(await getVisitorStats()));
 }

@@ -122,3 +122,8 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 ## Automação total (merge automático)
 - Script local: `scripts/full-auto-maintenance.sh` (lint, build, security-check, agentes, commit, push, PR e auto-merge).
 - Workflow: `auto-fix-and-merge.yml` executa correções automáticas programadas e abre PR com label `automerge`.
+
+
+## Persistência de visitantes
+- `VisitorEvent` persistido em banco via Prisma (com fallback em memória quando DB indisponível).
+- Endpoint `/api/v1/visits` informa fonte de dados (`database` ou `memory`).
