@@ -1,0 +1,48 @@
+name: Resolve Merge Conflicts and Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch a ser sincronizada com main"
+        required: true
+        default: "main"
+      deploy_prod:
+        description: "Fazer deploy em produção após sucesso"
+        required: true
+        default: "false"
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  merge-resolve:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Auto-resolve and sync with main
+        run: bash scripts/resolve-merge-and-deploy.sh main "${SOURCE_BRANCH}"
+        env:
+          CI: true
+          SOURCE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
+          AUTO_RESOLVE_CODE: ${{ vars.AUTO_RESOLVE_CODE || 'false' }}
+      - name: Deploy to Vercel (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' }}
+        run: |
+          npm i -g vercel
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
