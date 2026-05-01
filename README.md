@@ -155,3 +155,7 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Varredura completa de funcionamento
 - Execute `bash scripts/system-sweep.sh` para validar dependências, lint, build, segurança, workflows e endpoints em uma única rotina com relatório em `reports/`.
+
+
+## Sweep automatizada no GitHub
+- Workflow `system-sweep.yml` roda diariamente e manualmente, executa `scripts/system-sweep.sh` e publica relatório como artifact.
