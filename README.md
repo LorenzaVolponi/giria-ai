@@ -165,3 +165,11 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 - Script local: `bash scripts/resolve-merge-and-deploy.sh main`
 - Com deploy: `DEPLOY=true VERCEL_TOKEN=... VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... bash scripts/resolve-merge-and-deploy.sh main`
 - Workflow manual: `merge-conflicts-and-deploy.yml` (resolve rebase + opcional deploy prod).
+
+
+## Governança de dados
+- `scripts/retention-cleanup.sh` remove telemetria antiga (default 90 dias).
+- Workflow `retention-cleanup.yml` executa limpeza diária.
+
+## Proteção de endpoints operacionais
+- `/api/v1/metrics` e `GET /api/v1/visits` podem ser protegidos por `ADMIN_API_TOKEN` via header `x-admin-token`.
