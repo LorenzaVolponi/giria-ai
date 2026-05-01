@@ -26,6 +26,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
+          ref: ${{ github.event.inputs.branch }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -38,6 +39,11 @@ jobs:
           AUTO_RESOLVE_CODE: ${{ vars.AUTO_RESOLVE_CODE || 'false' }}
       - name: Deploy to Vercel (optional)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' }}
+      - run: bash scripts/resolve-merge-and-deploy.sh main
+        env:
+          CI: true
+      - name: Deploy to Vercel (optional)
+        if: ${{ github.event.inputs.deploy_prod == 'true' }}
         run: |
           npm i -g vercel
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
