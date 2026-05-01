@@ -247,10 +247,10 @@ export default function GiriaApp() {
   const [copied, setCopied] = useState(false);
 
   // Favorites state
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>(() => loadFavorites());
 
   // Search history state
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => loadSearchHistory());
 
   // Glossário state
   const [glossarySearch, setGlossarySearch] = useState("");
@@ -270,12 +270,6 @@ export default function GiriaApp() {
 
   // Term of the day (deterministic)
   const termOfDay = getTermOfDay();
-
-  // Load favorites and search history on mount
-  useEffect(() => {
-    setFavorites(loadFavorites());
-    setSearchHistory(loadSearchHistory());
-  }, []);
 
   // Theme toggle
   const toggleTheme = useCallback(() => {
