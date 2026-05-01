@@ -26,6 +26,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
+          ref: ${{ github.event.inputs.branch }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -36,10 +37,18 @@ jobs:
           CI: true
           SOURCE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
           AUTO_RESOLVE_CODE: ${{ vars.AUTO_RESOLVE_CODE || 'false' }}
-      - name: Deploy to Vercel (optional, rate-limit safe)
+      - name: Deploy to Vercel (optional)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' }}
-        run: bash scripts/vercel-safe-deploy.sh
+      - run: bash scripts/resolve-merge-and-deploy.sh main
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CI: true
+      - name: Deploy to Vercel (optional)
+        if: ${{ github.event.inputs.deploy_prod == 'true' }}
+        run: |
+          npm i -g vercel
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
