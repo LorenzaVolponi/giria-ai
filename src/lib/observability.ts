@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
+import { recordApiMetric } from "@/lib/metrics";
 
 export function getRequestId(req: NextRequest): string {
   return req.headers.get("x-request-id") || randomUUID();
@@ -18,5 +19,6 @@ export function logApiEvent(event: {
     ...event,
   };
 
+  recordApiMetric(event.status);
   console.log(JSON.stringify(payload));
 }

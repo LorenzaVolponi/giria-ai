@@ -9,6 +9,7 @@ type VisitsStats = {
   byCountry: Record<string, number>;
   byRegion: Record<string, number>;
   source: "database" | "memory";
+  dailySeries?: Array<{ day: string; count: number }>;
 };
 
 export function TrafficInsightsCard() {
@@ -47,6 +48,13 @@ export function TrafficInsightsCard() {
           <>
             <p><strong>Fonte:</strong> {stats.source === "database" ? "Banco" : "Memória"}</p>
             <p><strong>Total:</strong> {stats.totalVisits} visitas / {stats.uniqueVisitors} únicos</p>
+
+            {stats.dailySeries && stats.dailySeries.length > 0 && (
+              <div>
+                <p className="font-semibold mb-1">Visitas (últimos dias)</p>
+                <p className="text-xs text-muted-foreground">{stats.dailySeries.slice(-7).map((d) => `${d.day}: ${d.count}`).join(" | ")}</p>
+              </div>
+            )}
 
             <div>
               <p className="font-semibold mb-1">Top países</p>

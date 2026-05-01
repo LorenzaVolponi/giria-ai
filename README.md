@@ -30,6 +30,7 @@ Use `.env.example` como base:
 - `POST /api/v1/translate` → traduz texto/gíria
 - `POST /api/v1/visits` → registra visita (IP/país/região/cidade via headers Vercel)
 - `GET /api/v1/visits` → estatísticas agregadas de visitas
+- `GET /api/v1/metrics` → métricas operacionais de API (requisições, erros e taxa)
 - `POST /api/translate` → compatibilidade com frontend atual
 - `POST /api/chat` → assistente de gírias
 
@@ -145,3 +146,12 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Diagnóstico operacional (etapa 5)
 - Página `/diagnostico` agora inclui insights de tráfego com top países/regiões e fonte dos dados (banco/memória).
+
+
+## Observabilidade operacional (etapa 6)
+- Endpoint `/api/v1/metrics` para taxa de erro e volume de requisições.
+- `/diagnostico` agora inclui card de métricas operacionais e série diária de visitas.
+
+
+## Varredura completa de funcionamento
+- Execute `bash scripts/system-sweep.sh` para validar dependências, lint, build, segurança, workflows e endpoints em uma única rotina com relatório em `reports/`.

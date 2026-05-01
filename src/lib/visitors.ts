@@ -69,12 +69,17 @@ export async function getVisitorStats() {
     const regionRows = await db.visitorEvent.groupBy({ by: ["country", "region"], _count: { region: true } });
     const recentRows = await db.visitorEvent.findMany({ orderBy: { createdAt: "desc" }, take: 20 });
 
+    const daily = await db.$queryRawUnsafe<Array<{ day: string; count: number }>>(
+      "SELECT date(createdAt) as day, count(*) as count FROM VisitorEvent GROUP BY date(createdAt) ORDER BY day DESC LIMIT 30"
+    );
+
     return {
       totalVisits,
       uniqueVisitors: unique.length,
       byCountry: Object.fromEntries(countryRows.map((r) => [r.country, r._count.country])),
       byRegion: Object.fromEntries(regionRows.map((r) => [`${r.country}-${r.region}`, r._count.region])),
       recent: recentRows,
+      dailySeries: daily.map((d) => ({ day: d.day, count: Number(d.count) })).reverse(),
       source: "database",
     };
   } catch {
