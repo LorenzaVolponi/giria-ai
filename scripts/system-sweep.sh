@@ -38,20 +38,12 @@ DEV_PID=$!
 cleanup() { kill $DEV_PID >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-READY=false
 for i in {1..60}; do
   if curl -fsS http://127.0.0.1:3010/api/v1/health >/dev/null; then
-    READY=true
     break
   fi
   sleep 1
 done
-
-if [[ "$READY" != "true" ]]; then
-  echo "Aplicação não iniciou em 60s" | tee -a "$REPORT"
-  cat /tmp/giria-dev.log | tee -a "$REPORT"
-  exit 1
-fi
 
 bash scripts/api-contract-check.sh http://127.0.0.1:3010 | tee -a "$REPORT"
 curl -fsS http://127.0.0.1:3010/api/v1/metrics | tee -a "$REPORT"

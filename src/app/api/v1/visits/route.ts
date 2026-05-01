@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildVisitorEvent, getVisitorStats, registerVisit } from "@/lib/visitors";
 import { withSecurityHeaders } from "@/lib/security";
-import { requireAdminToken } from "@/lib/admin-guard";
 import { z } from "zod";
 
 const visitSchema = z.object({ path: z.string().trim().min(1).max(120).optional() });
