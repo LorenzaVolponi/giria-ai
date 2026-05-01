@@ -100,6 +100,7 @@ export async function getVisitorStats() {
       byCountry,
       byRegion,
       recent: memoryVisitorStore.slice(0, 20),
+      dailySeries: Object.entries(byDay).map(([day, count]) => ({ day, count })).sort((a,b) => a.day.localeCompare(b.day)).slice(-30),
       source: "memory",
     };
   }
