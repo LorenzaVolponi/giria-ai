@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders, getClientIp } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { logApiEvent, getRequestId } from "@/lib/observability";
+import { listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 import { notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 
 export async function POST(request: NextRequest) {
@@ -42,4 +43,10 @@ export async function POST(request: NextRequest) {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));
   }
+}
+
+
+export async function GET() {
+  const data = await listApprovedSuggestions(200);
+  return withSecurityHeaders(NextResponse.json({ items: data }));
 }

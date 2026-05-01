@@ -96,3 +96,47 @@ export async function notifyLeadEmail(input: SuggestionInput & { score: number }
     ].join("\n"),
   });
 }
+
+
+export async function listApprovedSuggestions(limit = 100) {
+  try {
+    const rows = await db.slangSuggestion.findMany({
+      where: { status: "approved" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        term: true,
+        meaning: true,
+        context: true,
+        submitterName: true,
+        autoScore: true,
+        createdAt: true,
+      },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      term: r.term,
+      meaning: r.meaning,
+      context: r.context,
+      submitterName: r.submitterName,
+      score: r.autoScore,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  } catch {
+    return memorySuggestions
+      .slice()
+      .reverse()
+      .slice(0, limit)
+      .map((r) => ({
+        id: r.id,
+        term: r.term,
+        meaning: r.meaning,
+        context: r.context || "",
+        submitterName: r.name,
+        score: r.score,
+        createdAt: r.createdAt,
+      }));
+  }
+}
