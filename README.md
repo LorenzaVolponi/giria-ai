@@ -127,3 +127,12 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 ## Persistência de visitantes
 - `VisitorEvent` persistido em banco via Prisma (com fallback em memória quando DB indisponível).
 - Endpoint `/api/v1/visits` informa fonte de dados (`database` ou `memory`).
+
+
+## CI de contrato
+- O workflow `ci.yml` agora sobe a aplicação localmente e executa `scripts/api-contract-check.sh` para validar o contrato dos endpoints `/api/v1/*` em todo PR/push.
+
+
+## Hardening aplicado (etapa 3)
+- CSP e HSTS adicionados no proxy global.
+- Endpoints `/api/v1/translate` e `/api/v1/visits` com validação de payload por schema (`zod`).

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
+import { z } from "zod";
+
+const translateSchema = z.object({
+  text: z.string().trim().min(1).max(220).optional(),
+  slang: z.string().trim().min(1).max(220).optional(),
+});
 
 const rateMap = new Map<string, number[]>();
 const WINDOW_MS = 60_000;
@@ -42,10 +48,12 @@ export async function POST(request: NextRequest) {
       return limitedResponse;
     }
 
-    const body = (await request.json()) as { text?: string; slang?: string };
+    const rawBody = await request.json();
+    const parsed = translateSchema.safeParse(rawBody);
+    const body = parsed.success ? parsed.data : {};
     const text = sanitizeUserInput(body.text ?? body.slang ?? "", 220);
     if (!text) {
-      const badRequest = withSecurityHeaders(NextResponse.json({ error: "Envie um texto/gíria para tradução." }, { status: 400 }));
+      const badRequest = withSecurityHeaders(NextResponse.json({ error: "Envie um texto/gíria válido para tradução." }, { status: 400 }));
       badRequest.headers.set("x-request-id", requestId);
       logApiEvent({ requestId, route: "/api/v1/translate", status: 400, durationMs: Date.now() - startedAt, message: "empty_input" });
       return badRequest;

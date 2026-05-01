@@ -19,5 +19,18 @@ jobs:
         run: npm run lint --if-present
       - name: Build
         run: npm run build
+      - name: Start app for API contract checks
+        run: |
+          npm run dev -- --port 3000 > /tmp/next.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000/api/v1/health >/dev/null; then
+              echo "App pronta para testes de contrato"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "App não iniciou a tempo" && cat /tmp/next.log && exit 1
+      - name: API contract checks
+        run: bash scripts/api-contract-check.sh http://127.0.0.1:3000
       - name: Tests (if exists)
         run: npm test --if-present

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildVisitorEvent, getVisitorStats, registerVisit } from "@/lib/visitors";
 import { withSecurityHeaders } from "@/lib/security";
+import { z } from "zod";
+
+const visitSchema = z.object({ path: z.string().trim().min(1).max(120).optional() });
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { path?: string };
-    const event = buildVisitorEvent(request, body.path || "/");
+    const bodyRaw = await request.json().catch(() => ({}));
+    const parsed = visitSchema.safeParse(bodyRaw);
+    const event = buildVisitorEvent(request, parsed.success ? parsed.data.path || "/" : "/");
     await registerVisit(event);
     return withSecurityHeaders(NextResponse.json({ ok: true, id: event.id }));
   } catch {

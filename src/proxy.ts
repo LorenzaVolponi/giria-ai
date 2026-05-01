@@ -9,6 +9,9 @@ export function proxy(req: NextRequest) {
     res.headers.set(k, v);
   }
 
+  res.headers.set("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://vitals.vercel-insights.com https://va.vercel-scripts.com;");
+  res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+
   if (req.nextUrl.pathname.startsWith("/.env")) {
     return new NextResponse("Not found", { status: 404 });
   }
