@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { withSecurityHeaders } from "@/lib/security";
 
 export async function GET() {
-  return NextResponse.json([]);
+  return withSecurityHeaders(NextResponse.json([]));
 }
 
 export async function DELETE() {
-  return NextResponse.json({ success: true });
+  return withSecurityHeaders(NextResponse.json({ success: true }));
 }
