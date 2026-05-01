@@ -37,3 +37,19 @@ model Translation {
   category      String?
   createdAt     DateTime @default(now())
 }
+
+
+model VisitorEvent {
+  id        String   @id @default(cuid())
+  ipHash    String
+  country   String
+  region    String
+  city      String
+  path      String
+  referer   String
+  userAgent String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([country, region])
+}
