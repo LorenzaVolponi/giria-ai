@@ -61,6 +61,7 @@ Resposta:
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`
 - `bash scripts/auto-pr.sh "mensagem"`
+- `bash scripts/full-auto-maintenance.sh`
 
 ## Segurança aplicada
 - Sanitização e validação de input em API
@@ -111,3 +112,13 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 - Coleta baseada em headers `x-vercel-ip-*` e `x-forwarded-for`.
 - Dados capturados: IP (mascarável futuramente), país, região, cidade, rota e user-agent.
 - Endpoint de leitura atual é in-memory (ideal para MVP); para produção escalável, migrar para banco/KV.
+
+
+## Observabilidade Vercel
+- `@vercel/analytics` ativado no layout global.
+- `@vercel/speed-insights` ativado para métricas de performance do frontend.
+
+
+## Automação total (merge automático)
+- Script local: `scripts/full-auto-maintenance.sh` (lint, build, security-check, agentes, commit, push, PR e auto-merge).
+- Workflow: `auto-fix-and-merge.yml` executa correções automáticas programadas e abre PR com label `automerge`.

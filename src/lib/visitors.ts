@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextRequest } from "next/server";
 import { getClientIp } from "@/lib/security";
 
@@ -24,7 +25,7 @@ export function buildVisitorEvent(req: NextRequest, path = "/"): VisitorEvent {
   const now = new Date().toISOString();
   return {
     id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-    ip: getClientIp(req),
+    ip: createHash("sha256").update(getClientIp(req)).digest("hex"),
     region: header(req, "x-vercel-ip-country-region"),
     country: header(req, "x-vercel-ip-country"),
     city: header(req, "x-vercel-ip-city"),
