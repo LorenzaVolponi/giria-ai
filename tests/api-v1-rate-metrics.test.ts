@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
+import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
 
 function makeRequest(url: string, method: string, body?: unknown, headers?: Record<string, string>) {
   return new NextRequest(url, {
@@ -16,6 +17,7 @@ function makeRequest(url: string, method: string, body?: unknown, headers?: Reco
 
 describe("API v1 rate-limit and metrics", () => {
   beforeEach(() => {
+    resetRateLimitStoreForTests();
     delete process.env.ADMIN_API_TOKEN;
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;

@@ -53,3 +53,8 @@ export async function isRateLimited(
 
   return { limited: recent.length > maxRequests, remaining };
 }
+
+
+export function resetRateLimitStoreForTests() {
+  memoryStore.clear();
+}
