@@ -3,6 +3,8 @@ import { withSecurityHeaders, getClientIp } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { logApiEvent, getRequestId } from "@/lib/observability";
 import { isSuggestionEligible, listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
+import { listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
+import { notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -41,6 +43,15 @@ export async function POST(request: NextRequest) {
 
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: "auto_approved" });
     return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: safeScore, createdAt: saved.createdAt }, { status: 201 }));
+    if (score < 0.3) {
+      return withSecurityHeaders(NextResponse.json({ error: "Sugestão reprovada na validação automática." }, { status: 422 }));
+    }
+
+    const saved = await saveApprovedSuggestion({ ...parsed.normalized, score });
+    await notifyLeadEmail({ ...parsed.normalized, score }).catch(() => null);
+
+    logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: "auto_approved" });
+    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score, createdAt: saved.createdAt }, { status: 201 }));
   } catch {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));

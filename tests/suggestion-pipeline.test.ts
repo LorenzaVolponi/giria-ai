@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isSuggestionEligible, validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
+import { validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
 
 describe("suggestion pipeline validation", () => {
   it("rejects missing fields", () => {
