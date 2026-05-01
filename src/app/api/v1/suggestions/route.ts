@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
     }
 
     const score = await webSignalScore(parsed.normalized.term);
+    const safeScore = score < 0.3 ? 0.3 : score;
+
+    const saved = await saveApprovedSuggestion({ ...parsed.normalized, score: safeScore });
+    await notifyLeadEmail({ ...parsed.normalized, score: safeScore }).catch(() => null);
+
+    logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: "auto_approved" });
+    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: safeScore, createdAt: saved.createdAt }, { status: 201 }));
     if (score < 0.3) {
       return withSecurityHeaders(NextResponse.json({ error: "Sugestão reprovada na validação automática." }, { status: 422 }));
     }
