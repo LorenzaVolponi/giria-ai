@@ -136,3 +136,12 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 ## Hardening aplicado (etapa 3)
 - CSP e HSTS adicionados no proxy global.
 - Endpoints `/api/v1/translate` e `/api/v1/visits` com validação de payload por schema (`zod`).
+
+
+## Rate limit distribuído (etapa 4)
+- `/api/v1/translate` usa Redis (Upstash REST) quando `UPSTASH_REDIS_REST_URL/TOKEN` estão definidos.
+- Fallback automático para memória local quando Redis não está configurado.
+
+
+## Diagnóstico operacional (etapa 5)
+- Página `/diagnostico` agora inclui insights de tráfego com top países/regiões e fonte dos dados (banco/memória).

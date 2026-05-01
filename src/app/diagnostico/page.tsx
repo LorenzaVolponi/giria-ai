@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ApiPlayground } from "@/components/product/api-playground";
 import Script from "next/script";
 import { SystemHealthCard } from "@/components/product/system-health-card";
+import { TrafficInsightsCard } from "@/components/product/traffic-insights-card";
 
 export const metadata: Metadata = {
   title: "Diagnóstico | Gíria AI",
@@ -20,6 +21,7 @@ export default function DiagnosticoPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <SystemHealthCard />
         <ApiPlayground />
+        <TrafficInsightsCard />
       </div>
     </main>
     </>
