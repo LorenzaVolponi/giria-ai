@@ -159,3 +159,25 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Sweep automatizada no GitHub
 - Workflow `system-sweep.yml` roda diariamente e manualmente, executa `scripts/system-sweep.sh` e publica relatório como artifact.
+
+
+## Resolução automática de conflito + deploy
+- Script local: `bash scripts/resolve-merge-and-deploy.sh main`
+- Com deploy: `DEPLOY=true VERCEL_TOKEN=... VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... bash scripts/resolve-merge-and-deploy.sh main`
+- Workflow manual: `merge-conflicts-and-deploy.yml` (resolve rebase + opcional deploy prod).
+
+
+## Governança de dados
+- `scripts/retention-cleanup.sh` remove telemetria antiga (default 90 dias).
+- Workflow `retention-cleanup.yml` executa limpeza diária.
+
+## Proteção de endpoints operacionais
+- `/api/v1/metrics` e `GET /api/v1/visits` podem ser protegidos por `ADMIN_API_TOKEN` via header `x-admin-token`.
+
+
+## Testes de integração API v1
+- `tests/api-v1.test.ts` valida sucesso/erro de `/api/v1/translate` e `/api/v1/visits`, incluindo cenário de proteção com `ADMIN_API_TOKEN`.
+
+
+## Testes de rate-limit e métricas
+- `tests/api-v1-rate-metrics.test.ts` valida burst -> 429 com headers e controle de acesso no `/api/v1/metrics`.

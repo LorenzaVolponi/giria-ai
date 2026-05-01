@@ -94,6 +94,12 @@ export async function getVisitorStats() {
       return acc;
     }, {});
 
+    const byDay = memoryVisitorStore.reduce((acc, v) => {
+      const day = v.at.slice(0,10);
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
     return {
       totalVisits: memoryVisitorStore.length,
       uniqueVisitors: uniqueIps.size,
