@@ -37,6 +37,22 @@ jobs:
           CI: true
           SOURCE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.head_ref }}
           AUTO_RESOLVE_CODE: ${{ vars.AUTO_RESOLVE_CODE || 'false' }}
+      - name: Check deploy cooldown
+        id: cooldown
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' }}
+        run: bash scripts/vercel-deploy-cooldown.sh
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          VERCEL_DEPLOY_COOLDOWN_MINUTES: ${{ vars.VERCEL_DEPLOY_COOLDOWN_MINUTES || '60' }}
+
+      - name: Deploy to Vercel (optional, rate-limit safe)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' && steps.cooldown.outcome != 'failure' }}
+        run: bash scripts/vercel-safe-deploy.sh
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       - name: Deploy to Vercel (optional)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true' }}
       - run: bash scripts/resolve-merge-and-deploy.sh main
