@@ -6,6 +6,7 @@ import {
   type SlangTerm,
   type RiskLevel,
 } from "@/lib/slang-data";
+import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 
 // ---------------------------------------------------------------------------
 // Rate limiting — simple in-memory (best-effort for serverless)
@@ -584,15 +585,12 @@ Nosso dicionário tem **${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos** �
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
+    const ip = getClientIp(request);
     if (isRateLimited(ip)) {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Muitas requisições. Aguarde um momento." },
         { status: 429 }
-      );
+      ));
     }
 
     const body = await request.json();
@@ -608,20 +606,20 @@ export async function POST(request: NextRequest) {
 
     // Support both `messages` (array) and `message` (string) formats
     const allMessages = messages ?? history ?? [];
-    const currentMessage = message ?? allMessages[allMessages.length - 1]?.content ?? "";
+    const currentMessage = sanitizeUserInput(message ?? allMessages[allMessages.length - 1]?.content ?? "", MAX_MESSAGE_LENGTH);
 
     if (!currentMessage || typeof currentMessage !== "string") {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Mensagem é obrigatória" },
         { status: 400 }
-      );
+      ));
     }
 
     if (currentMessage.length > MAX_MESSAGE_LENGTH) {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: `Mensagem muito longa. Máximo ${MAX_MESSAGE_LENGTH} caracteres.` },
         { status: 400 }
-      );
+      ));
     }
 
     // Build conversation context (last N messages for follow-up)
@@ -654,18 +652,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return withSecurityHeaders(NextResponse.json({
       response,
       ...slangData,
-    });
+    }));
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";
     console.error("Chat API error:", message);
 
-    return NextResponse.json(
+    return withSecurityHeaders(NextResponse.json(
       { error: "Ocorreu um erro ao processar sua mensagem. Tente novamente." },
       { status: 500 }
-    );
+    ));
   }
 }
