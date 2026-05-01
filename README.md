@@ -28,6 +28,8 @@ Use `.env.example` como base:
 ## Endpoints de API
 - `GET /api/v1/health` → status do serviço
 - `POST /api/v1/translate` → traduz texto/gíria
+- `POST /api/v1/visits` → registra visita (IP/país/região/cidade via headers Vercel)
+- `GET /api/v1/visits` → estatísticas agregadas de visitas
 - `POST /api/translate` → compatibilidade com frontend atual
 - `POST /api/chat` → assistente de gírias
 
@@ -103,3 +105,9 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 - `scripts/auto-pr.sh` cria commit, push e tenta abrir PR com label `automerge`.
 - Workflow `automerge.yml` habilita merge automático para PRs com label `automerge` (squash).
 - `AUTO_COMMIT=true bash scripts/agents/orchestrator.sh` permite commit automático dos ajustes gerados pelos agentes.
+
+
+## Telemetria de visitantes (Vercel)
+- Coleta baseada em headers `x-vercel-ip-*` e `x-forwarded-for`.
+- Dados capturados: IP (mascarável futuramente), país, região, cidade, rota e user-agent.
+- Endpoint de leitura atual é in-memory (ideal para MVP); para produção escalável, migrar para banco/KV.
