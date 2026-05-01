@@ -42,6 +42,8 @@ READY=false
 for i in {1..60}; do
   if curl -fsS http://127.0.0.1:3010/api/v1/health >/dev/null; then
     READY=true
+for i in {1..60}; do
+  if curl -fsS http://127.0.0.1:3010/api/v1/health >/dev/null; then
     break
   fi
   sleep 1
