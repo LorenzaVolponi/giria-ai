@@ -53,3 +53,23 @@ model VisitorEvent {
   @@index([createdAt])
   @@index([country, region])
 }
+
+
+model SuggestionEvent {
+  id        String   @id @default(cuid())
+  term      String
+  meaning   String
+  context   String
+  name      String
+  contact   String
+  source    String
+  decision  String
+  score     Int
+  reason    String
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([term])
+  @@index([decision])
+}
