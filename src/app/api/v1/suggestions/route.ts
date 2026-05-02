@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { evaluateSuggestion, getRecentSuggestions, notifySuggestionByEmail, saveSuggestion, updateSuggestionDecision, validateSuggestionInput } from "@/lib/suggestions";
+import { evaluateSuggestion, getRecentSuggestions, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
 
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.SUGGESTIONS_ADMIN_TOKEN;
@@ -42,6 +43,7 @@ export async function PATCH(req: NextRequest) {
 
   return withSecurityHeaders(NextResponse.json({ ok: true, updated }));
 }
+import { evaluateSuggestion, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
 
 export async function POST(req: NextRequest) {
   try {

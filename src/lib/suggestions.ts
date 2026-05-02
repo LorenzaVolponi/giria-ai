@@ -16,6 +16,7 @@ export type SuggestionInput = {
 export type SuggestionDecision = "approved_auto" | "needs_review" | "rejected";
 
 export type MemorySuggestion = SuggestionInput & {
+type MemorySuggestion = SuggestionInput & {
   id: string;
   decision: SuggestionDecision;
   score: number;
@@ -220,4 +221,12 @@ export async function findApprovedSuggestion(term: string) {
   }
 
   return memoryStore.find((item) => item.decision === "approved_auto" && normalizeTerm(item.term) === normalized) ?? null;
+  // Placeholder for provider integration (Resend/SES/SendGrid).
+  console.info("[suggestion-email]", {
+    to,
+    subject: `Nova sugestão: ${suggestion.term}`,
+    suggestion,
+  });
+
+  return { sent: true };
 }
