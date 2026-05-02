@@ -14,6 +14,7 @@ export type SuggestionInput = {
 
 export type SuggestionDecision = "approved_auto" | "needs_review" | "rejected";
 
+export type MemorySuggestion = SuggestionInput & {
 type MemorySuggestion = SuggestionInput & {
   id: string;
   decision: SuggestionDecision;
@@ -110,9 +111,59 @@ export async function saveSuggestion(req: NextRequest, input: SuggestionInput, d
   return mem;
 }
 
+export async function getRecentSuggestions(limit = 30, decision?: string) {
+  try {
+    const where = decision ? { decision } : undefined;
+    return await (db as any).suggestionEvent.findMany({ where, orderBy: { createdAt: "desc" }, take: limit });
+  } catch {
+    return memoryStore
+      .filter((item) => (decision ? item.decision === decision : true))
+      .slice(0, limit);
+  }
+}
+
 export async function notifySuggestionByEmail(suggestion: MemorySuggestion) {
   const to = process.env.GITHUB_OWNER_EMAIL;
   if (!to) return { sent: false, reason: "missing_recipient" };
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const from = process.env.NOTIFY_FROM_EMAIL ?? "onboarding@resend.dev";
+
+  if (!resendApiKey) {
+    console.info("[suggestion-email:dry-run]", { to, suggestion });
+    return { sent: false, reason: "missing_resend_api_key" };
+  }
+
+  const html = `
+    <h2>Nova sugestão recebida</h2>
+    <p><b>Termo:</b> ${suggestion.term}</p>
+    <p><b>Significado:</b> ${suggestion.meaning ?? "-"}</p>
+    <p><b>Contexto:</b> ${suggestion.context ?? "-"}</p>
+    <p><b>Nome:</b> ${suggestion.name}</p>
+    <p><b>Contato:</b> ${suggestion.contact}</p>
+    <p><b>Decisão:</b> ${suggestion.decision} (score: ${suggestion.score})</p>
+    <p><b>Motivo:</b> ${suggestion.reason}</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: `Nova sugestão: ${suggestion.term}`,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const payload = await res.text();
+    console.error("[suggestion-email:error]", payload);
+    return { sent: false, reason: "provider_error" };
+  }
 
   // Placeholder for provider integration (Resend/SES/SendGrid).
   console.info("[suggestion-email]", {

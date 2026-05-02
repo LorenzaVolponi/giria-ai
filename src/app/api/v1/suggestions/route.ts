@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
+import { evaluateSuggestion, getRecentSuggestions, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
+
+function isAuthorized(req: NextRequest): boolean {
+  const expected = process.env.SUGGESTIONS_ADMIN_TOKEN;
+  if (!expected) return false;
+  return req.headers.get("x-admin-token") === expected;
+}
+
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return withSecurityHeaders(NextResponse.json({ error: "Não autorizado." }, { status: 401 }));
+  }
+
+  const limit = Math.min(100, Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? "30")));
+  const decision = req.nextUrl.searchParams.get("decision") ?? undefined;
+  const suggestions = await getRecentSuggestions(limit, decision);
+
+  return withSecurityHeaders(NextResponse.json({ suggestions, limit }));
+}
 import { evaluateSuggestion, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
 
 export async function POST(req: NextRequest) {
