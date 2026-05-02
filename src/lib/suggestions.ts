@@ -165,6 +165,55 @@ export async function notifySuggestionByEmail(suggestion: MemorySuggestion) {
     return { sent: false, reason: "provider_error" };
   }
 
+  return { sent: true };
+}
+
+
+export async function updateSuggestionDecision(id: string, decision: SuggestionDecision, reason?: string) {
+  const safeReason = sanitizeUserInput(reason ?? "Decisão manual via painel admin.", 240);
+
+  try {
+    return await (db as any).suggestionEvent.update({
+      where: { id },
+      data: { decision, reason: safeReason },
+    });
+  } catch {
+    const idx = memoryStore.findIndex((item) => item.id === id);
+    if (idx >= 0) {
+      memoryStore[idx] = {
+        ...memoryStore[idx],
+        decision,
+        reason: safeReason,
+      };
+      return memoryStore[idx];
+    }
+
+    return null;
+  }
+}
+
+
+export async function findApprovedSuggestion(term: string) {
+  const normalized = normalizeTerm(term);
+
+  try {
+    const row = await (db as any).suggestionEvent.findFirst({
+      where: {
+        decision: "approved_auto",
+        term: {
+          equals: term,
+          mode: "insensitive",
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (row) return row;
+  } catch {
+    // fallback below
+  }
+
+  return memoryStore.find((item) => item.decision === "approved_auto" && normalizeTerm(item.term) === normalized) ?? null;
   // Placeholder for provider integration (Resend/SES/SendGrid).
   console.info("[suggestion-email]", {
     to,
