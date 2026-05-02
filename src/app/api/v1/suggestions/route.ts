@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
 
   return withSecurityHeaders(NextResponse.json({ suggestions, limit }));
 }
+import { evaluateSuggestion, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
 
 export async function POST(req: NextRequest) {
   try {
