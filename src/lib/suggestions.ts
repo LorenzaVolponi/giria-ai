@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getClientIp, sanitizeUserInput } from "@/lib/security";
+import { getTerm } from "@/lib/slang-data";
 
 export type SuggestionInput = {
   term: string;
@@ -49,6 +50,8 @@ export function validateSuggestionInput(payload: unknown): { ok: true; value: Su
   if (term.length < 2) return { ok: false, error: "Informe uma gíria válida." };
   if (name.length < 2) return { ok: false, error: "Informe seu nome." };
   if (contact.length < 5) return { ok: false, error: "Informe um contato válido." };
+  const contactOk = /@/.test(contact) || /\d{8,}/.test(contact.replace(/\D/g, ""));
+  if (!contactOk) return { ok: false, error: "Contato deve ser e-mail ou telefone válido." };
 
   const value: SuggestionInput = { term, meaning, context, name, contact, source };
   return { ok: true, value };
@@ -56,6 +59,10 @@ export function validateSuggestionInput(payload: unknown): { ok: true; value: Su
 
 export function evaluateSuggestion(input: SuggestionInput): { decision: SuggestionDecision; score: number; reason: string } {
   const normalized = normalizeTerm(input.term);
+
+  if (getTerm(input.term)) {
+    return { decision: "rejected", score: 0, reason: "Termo já existe no glossário." };
+  }
 
   if (blockedPatterns.some((re) => re.test(input.term) || re.test(input.meaning ?? ""))) {
     return { decision: "rejected", score: 5, reason: "Conteúdo detectado como spam/inválido." };
