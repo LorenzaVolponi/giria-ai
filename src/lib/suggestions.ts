@@ -15,6 +15,7 @@ export type SuggestionInput = {
 export type SuggestionDecision = "approved_auto" | "needs_review" | "rejected";
 
 export type MemorySuggestion = SuggestionInput & {
+type MemorySuggestion = SuggestionInput & {
   id: string;
   decision: SuggestionDecision;
   score: number;
@@ -163,6 +164,13 @@ export async function notifySuggestionByEmail(suggestion: MemorySuggestion) {
     console.error("[suggestion-email:error]", payload);
     return { sent: false, reason: "provider_error" };
   }
+
+  // Placeholder for provider integration (Resend/SES/SendGrid).
+  console.info("[suggestion-email]", {
+    to,
+    subject: `Nova sugestão: ${suggestion.term}`,
+    suggestion,
+  });
 
   return { sent: true };
 }
