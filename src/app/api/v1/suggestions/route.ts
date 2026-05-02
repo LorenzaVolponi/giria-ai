@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
-import { evaluateSuggestion, getRecentSuggestions, notifySuggestionByEmail, saveSuggestion, validateSuggestionInput } from "@/lib/suggestions";
+import { evaluateSuggestion, getRecentSuggestions, notifySuggestionByEmail, saveSuggestion, updateSuggestionDecision, validateSuggestionInput } from "@/lib/suggestions";
 
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.SUGGESTIONS_ADMIN_TOKEN;
@@ -19,6 +19,28 @@ export async function GET(req: NextRequest) {
   const suggestions = await getRecentSuggestions(limit, decision);
 
   return withSecurityHeaders(NextResponse.json({ suggestions, limit }));
+}
+
+export async function PATCH(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return withSecurityHeaders(NextResponse.json({ error: "Não autorizado." }, { status: 401 }));
+  }
+
+  const body = await req.json();
+  const id = typeof body?.id === "string" ? body.id : "";
+  const decision = typeof body?.decision === "string" ? body.decision : "";
+  const reason = typeof body?.reason === "string" ? body.reason : undefined;
+
+  if (!id || !["approved_auto", "needs_review", "rejected"].includes(decision)) {
+    return withSecurityHeaders(NextResponse.json({ error: "Payload de atualização inválido." }, { status: 400 }));
+  }
+
+  const updated = await updateSuggestionDecision(id, decision as "approved_auto" | "needs_review" | "rejected", reason);
+  if (!updated) {
+    return withSecurityHeaders(NextResponse.json({ error: "Sugestão não encontrada." }, { status: 404 }));
+  }
+
+  return withSecurityHeaders(NextResponse.json({ ok: true, updated }));
 }
 
 export async function POST(req: NextRequest) {
