@@ -11,9 +11,35 @@ export type SuggestionInput = {
   contact: string;
 };
 
+type ModerationDecision = "allowed" | "blocked" | "needs_human_review";
+
 const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string; score: number }> = [];
 
 const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i];
+
+const prohibitedContentPatterns = [
+  { pattern: /\b(macaco|selvagem|sub-ra[çc]a|ra[çc]a inferior)\b/i, reason: "imputação cultural/racial" },
+  { pattern: /\b(caricatura|estere[oó]tipo|ridiculariz)\w*\b/i, reason: "caricatura/estereótipo" },
+  { pattern: /\b(zomba(?:r|ria)?|deboche|esc[aá]rnio)\b/i, reason: "zombaria" },
+];
+
+const offensiveTermPatterns = [/\b(ot[áa]rio|idiota|retardad[oa]|nazista|racista)\b/i];
+
+const humanReviewPatterns = [/\b(apropria[çc][ãa]o cultural|xenofobia|preconceito|discrimina[çc][ãa]o)\b/i];
+
+function evaluateModerationContent(content: string): { decision: ModerationDecision; reason?: string } {
+  for (const rule of prohibitedContentPatterns) {
+    if (rule.pattern.test(content)) {
+      return { decision: "blocked", reason: `Conteúdo bloqueado por ${rule.reason}.` };
+    }
+  }
+
+  if (humanReviewPatterns.some((pattern) => pattern.test(content))) {
+    return { decision: "needs_human_review", reason: "Caso limítrofe identificado; revisão humana necessária." };
+  }
+
+  return { decision: "allowed" };
+}
 
 export function validateSuggestionPayload(payload: SuggestionInput) {
   const term = sanitizeUserInput(payload.term, 80);
@@ -31,11 +57,16 @@ export function validateSuggestionPayload(payload: SuggestionInput) {
     return { ok: false as const, reason: "Conteúdo inválido ou sem contexto útil." };
   }
 
+  const moderation = evaluateModerationContent(combined);
+  if (moderation.decision === "blocked") {
+    return { ok: false as const, reason: moderation.reason ?? "Conteúdo bloqueado pela moderação automática." };
+  }
+
   if (!/@|\+?\d{8,}/.test(contact)) {
     return { ok: false as const, reason: "Contato inválido. Informe e-mail ou telefone." };
   }
 
-  return { ok: true as const, normalized: { term, meaning, context, name, contact } };
+  return { ok: true as const, normalized: { term, meaning, context, name, contact }, moderation };
 }
 
 export async function webSignalScore(term: string): Promise<number> {
@@ -98,7 +129,6 @@ export async function notifyLeadEmail(input: SuggestionInput & { score: number }
   });
 }
 
-
 export async function listApprovedSuggestions(limit = 100) {
   try {
     const rows = await db.slangSuggestion.findMany({
@@ -142,7 +172,6 @@ export async function listApprovedSuggestions(limit = 100) {
   }
 }
 
-
 export async function isSuggestionEligible(termRaw: string) {
   const term = sanitizeUserInput(termRaw.toLowerCase(), 80);
   if (!term) return { ok: false as const, reason: "Gíria inválida." };
@@ -156,8 +185,7 @@ export async function isSuggestionEligible(termRaw: string) {
     return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
   }
 
-  const blocked = /\b(idiota|otario|otário|xingamento|racista|nazista)\b/i.test(term);
-  if (blocked) {
+  if (offensiveTermPatterns.some((pattern) => pattern.test(term))) {
     return { ok: false as const, reason: "Termo bloqueado pela moderação automática." };
   }
 

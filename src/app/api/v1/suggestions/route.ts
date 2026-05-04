@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders, getClientIp } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { logApiEvent, getRequestId } from "@/lib/observability";
-import { isSuggestionEligible, listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
-import { listApprovedSuggestions, notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
-import { notifyLeadEmail, saveApprovedSuggestion, validateSuggestionPayload, webSignalScore } from "@/lib/suggestion-pipeline";
+import {
+  isSuggestionEligible,
+  listApprovedSuggestions,
+  notifyLeadEmail,
+  saveApprovedSuggestion,
+  validateSuggestionPayload,
+  webSignalScore,
+} from "@/lib/suggestion-pipeline";
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -30,19 +35,22 @@ export async function POST(request: NextRequest) {
       return withSecurityHeaders(NextResponse.json({ error: parsed.reason }, { status: 400 }));
     }
 
+    if (parsed.moderation.decision === "needs_human_review") {
+      logApiEvent({ requestId, route: "/api/v1/suggestions", status: 202, durationMs: Date.now() - startedAt, message: "human_review_required" });
+      return withSecurityHeaders(
+        NextResponse.json(
+          { ok: false, reviewRequired: true, error: parsed.moderation.reason ?? "Sugestão enviada para revisão humana." },
+          { status: 202 },
+        ),
+      );
+    }
+
     const eligibility = await isSuggestionEligible(parsed.normalized.term);
     if (!eligibility.ok) {
       return withSecurityHeaders(NextResponse.json({ error: eligibility.reason }, { status: 422 }));
     }
 
     const score = await webSignalScore(parsed.normalized.term);
-    const safeScore = score < 0.3 ? 0.3 : score;
-
-    const saved = await saveApprovedSuggestion({ ...parsed.normalized, score: safeScore });
-    await notifyLeadEmail({ ...parsed.normalized, score: safeScore }).catch(() => null);
-
-    logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: "auto_approved" });
-    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: safeScore, createdAt: saved.createdAt }, { status: 201 }));
     if (score < 0.3) {
       return withSecurityHeaders(NextResponse.json({ error: "Sugestão reprovada na validação automática." }, { status: 422 }));
     }
@@ -57,7 +65,6 @@ export async function POST(request: NextRequest) {
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));
   }
 }
-
 
 export async function GET() {
   const data = await listApprovedSuggestions(200);
