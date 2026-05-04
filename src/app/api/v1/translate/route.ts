@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
+import { resolveNeutralPreference, setNeutralPreference } from "@/lib/neutral-preferences";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { z } from "zod";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -8,6 +9,9 @@ import { isRateLimited } from "@/lib/rate-limit";
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
   slang: z.string().trim().min(1).max(220).optional(),
+  prefer_neutral: z.boolean().optional(),
+  user_id: z.string().trim().min(1).max(120).optional(),
+  channel: z.string().trim().min(1).max(120).optional(),
 });
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
@@ -50,7 +54,9 @@ export async function POST(request: NextRequest) {
       return badRequest;
     }
 
-    const result = translateSlang(text);
+    setNeutralPreference({ preferNeutral: body.prefer_neutral, userId: body.user_id, channel: body.channel });
+    const preferNeutral = resolveNeutralPreference({ preferNeutral: body.prefer_neutral, userId: body.user_id, channel: body.channel });
+    const result = translateSlang(text, { preferNeutral });
     const response = NextResponse.json(result);
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);

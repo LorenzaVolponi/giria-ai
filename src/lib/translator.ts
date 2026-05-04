@@ -1,8 +1,22 @@
-import { getTerm, searchTerms } from "@/lib/slang-data";
+import { getTerm, searchTerms, type SlangTerm } from "@/lib/slang-data";
 import type { InformalityLevel, TranslationResponse } from "@/types/translation";
 import { sanitizeUserInput } from "@/lib/security";
 
 const MAX_TEXT = 220;
+
+function toCanonicalNeutral(term: SlangTerm): string {
+  return `${term.adultTranslation} Contexto neutro: ${term.context}`;
+}
+
+function fromCanonicalNeutral(canonical: string, preferNeutral: boolean): string {
+  if (preferNeutral) return canonical;
+  return canonical;
+}
+
+function isContextUncertain(exactMatch: boolean, normalized: string): boolean {
+  if (!exactMatch) return true;
+  return normalized.length < 3;
+}
 
 function detectInformality(text: string): InformalityLevel {
   const t = text.toLowerCase();
@@ -11,16 +25,18 @@ function detectInformality(text: string): InformalityLevel {
   return "baixa";
 }
 
-export function translateSlang(input: string): TranslationResponse {
+export function translateSlang(input: string, options?: { preferNeutral?: boolean }): TranslationResponse {
   const normalized = sanitizeUserInput(input.toLowerCase(), MAX_TEXT);
   if (!normalized) throw new Error("EMPTY_INPUT");
 
+  const preferNeutral = options?.preferNeutral ?? true;
   const exact = getTerm(normalized);
   if (exact) {
     return {
       input,
       normalized,
-      traducaoFormal: exact.adultTranslation,
+      versaoNeutraCanonica: toCanonicalNeutral(exact),
+      traducaoFormal: fromCanonicalNeutral(toCanonicalNeutral(exact), preferNeutral),
       explicacaoContextual: exact.context,
       intencaoSocialEmocional: exact.contextNotes || "Comunicação informal do dia a dia.",
       nivelInformalidade: detectInformality(normalized),
@@ -34,7 +50,8 @@ export function translateSlang(input: string): TranslationResponse {
     return {
       input,
       normalized,
-      traducaoFormal: top.adultTranslation,
+      versaoNeutraCanonica: toCanonicalNeutral(top),
+      traducaoFormal: fromCanonicalNeutral(toCanonicalNeutral(top), preferNeutral),
       explicacaoContextual: `Não houve match exato. Melhor aproximação para "${top.term}": ${top.context}`,
       intencaoSocialEmocional: top.contextNotes || "Expressão de grupo/comunidade digital.",
       nivelInformalidade: detectInformality(normalized),
@@ -42,10 +59,14 @@ export function translateSlang(input: string): TranslationResponse {
     };
   }
 
+  const uncertain = isContextUncertain(Boolean(exact), normalized);
   return {
     input,
     normalized,
-    traducaoFormal: "Não encontrei uma tradução exata para essa gíria.",
+    versaoNeutraCanonica: "Não há correspondência canônica confirmada; resposta neutra por segurança de contexto.",
+    traducaoFormal: uncertain
+      ? "Não há correspondência canônica confirmada; resposta neutra por segurança de contexto."
+      : "Não encontrei uma tradução exata para essa gíria.",
     explicacaoContextual: "Pode ser uma variação local, meme novo ou grafia alternativa.",
     intencaoSocialEmocional: "Possível tentativa de humor, aproximação social ou reforço de identidade de grupo.",
     nivelInformalidade: detectInformality(normalized),

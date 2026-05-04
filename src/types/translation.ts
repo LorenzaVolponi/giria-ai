@@ -1,6 +1,7 @@
 export type InformalityLevel = "baixa" | "media" | "alta";
 
 export interface TranslationResponse {
+  versaoNeutraCanonica: string;
   input: string;
   normalized: string;
   traducaoFormal: string;
