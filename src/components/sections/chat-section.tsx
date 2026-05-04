@@ -51,6 +51,10 @@ interface ChatApiResponse {
   synonyms?: string[];
 }
 
+type SpeechPreference = "neutral" | "regional_auto" | "regional_fixed";
+const SPEECH_PREF_KEY = "giria-ai-speech-preference";
+const SPEECH_REGION_KEY = "giria-ai-speech-region";
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -423,11 +427,34 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(
     null
   );
+  const [speechPreference, setSpeechPreference] = useState<SpeechPreference>("neutral");
+  const [selectedRegion, setSelectedRegion] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    const storedPreference = localStorage.getItem(SPEECH_PREF_KEY) as SpeechPreference | null;
+    const storedRegion = localStorage.getItem(SPEECH_REGION_KEY);
+
+    if (storedPreference === "neutral" || storedPreference === "regional_auto" || storedPreference === "regional_fixed") {
+      setSpeechPreference(storedPreference);
+    }
+
+    if (storedRegion) {
+      setSelectedRegion(storedRegion);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(SPEECH_PREF_KEY, speechPreference);
+  }, [speechPreference]);
+
+  useEffect(() => {
+    localStorage.setItem(SPEECH_REGION_KEY, selectedRegion);
+  }, [selectedRegion]);
+
   useEffect(() => {
     if (scrollRef.current) {
       const viewport = scrollRef.current.querySelector(
@@ -451,6 +478,42 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
+
+      const command = trimmed.toLowerCase();
+      if (command.includes("falar mais neutro")) {
+        setSpeechPreference("neutral");
+        setMessages((prev) => [
+          ...prev,
+          { id: generateId(), role: "user", content: trimmed },
+          { id: generateId(), role: "ai", content: "Perfeito! A partir de agora vou responder em modo **neutro**." },
+        ]);
+        setInput("");
+        return;
+      }
+
+      if (command.startsWith("modo regional fixo")) {
+        const region = trimmed.replace(/modo regional fixo/i, "").trim();
+        setSpeechPreference("regional_fixed");
+        if (region) setSelectedRegion(region);
+        setMessages((prev) => [
+          ...prev,
+          { id: generateId(), role: "user", content: trimmed },
+          { id: generateId(), role: "ai", content: `Beleza! Ativei o **modo regional fixo**${region ? ` para **${region}**` : ""}.` },
+        ]);
+        setInput("");
+        return;
+      }
+
+      if (command.includes("modo regional")) {
+        setSpeechPreference("regional_auto");
+        setMessages((prev) => [
+          ...prev,
+          { id: generateId(), role: "user", content: trimmed },
+          { id: generateId(), role: "ai", content: "Fechado! Ativei o **modo regional automático**." },
+        ]);
+        setInput("");
+        return;
+      }
 
       // Add user message
       const userMessage: ChatMessage = {
@@ -476,7 +539,12 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed, history }),
+          body: JSON.stringify({
+            message: trimmed,
+            history,
+            speechPreference,
+            selectedRegion: speechPreference === "regional_fixed" ? selectedRegion : undefined,
+          }),
         });
 
         if (!response.ok) {
@@ -522,7 +590,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
         setIsLoading(false);
       }
     },
-    [isLoading, messages]
+    [isLoading, messages, selectedRegion, speechPreference]
   );
 
   /** Handle form submission */
@@ -619,6 +687,24 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
               onSubmit={handleSubmit}
               className="flex items-center gap-2 max-w-3xl mx-auto"
             >
+              <select
+                value={speechPreference}
+                onChange={(e) => setSpeechPreference(e.target.value as SpeechPreference)}
+                className="h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm dark:border-gray-700 dark:bg-gray-800/50"
+                aria-label="Preferência de fala"
+              >
+                <option value="neutral">Neutro</option>
+                <option value="regional_auto">Regional (auto)</option>
+                <option value="regional_fixed">Regional (fixo)</option>
+              </select>
+              {speechPreference === "regional_fixed" && (
+                <Input
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  placeholder="Região (ex: SP, RJ, BA)"
+                  className="h-11 max-w-[180px] rounded-xl"
+                />
+              )}
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}

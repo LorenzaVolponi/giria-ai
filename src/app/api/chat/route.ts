@@ -205,6 +205,21 @@ type Intent =
   | "out_of_scope"
   | "general_question";
 
+type SpeechPreference = "neutral" | "regional_auto" | "regional_fixed";
+
+function applySpeechPreference(response: string, preference: SpeechPreference, selectedRegion?: string): string {
+  if (preference === "neutral") {
+    return `🗣️ **Modo de fala:** neutro\n\n${response}`;
+  }
+
+  if (preference === "regional_auto") {
+    return `🗣️ **Modo de fala:** regional automático\n\n${response}\n\n_Se quiser fixar um sotaque/região específica, diga algo como: "modo regional fixo SP"._`;
+  }
+
+  const regionLabel = selectedRegion?.trim() || "não definida";
+  return `🗣️ **Modo de fala:** regional fixo (${regionLabel})\n\n${response}\n\n_Quando possível, vou priorizar exemplos e explicações com referência a ${regionLabel}._`;
+}
+
 function detectIntent(message: string): {
   intent: Intent;
   extractedTerms: string[];
@@ -598,10 +613,14 @@ export async function POST(request: NextRequest) {
       messages,
       message,
       history,
+      speechPreference,
+      selectedRegion,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      speechPreference?: SpeechPreference;
+      selectedRegion?: string;
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -642,7 +661,9 @@ export async function POST(request: NextRequest) {
       .filter((m) => m.role && m.content);
 
     // Generate response — no external API needed!
-    const response = buildResponse(currentMessage, recentHistory);
+    const baseResponse = buildResponse(currentMessage, recentHistory);
+    const preference = speechPreference ?? "neutral";
+    const response = applySpeechPreference(baseResponse, preference, selectedRegion);
 
     // Try to extract slang data from the response for rich UI
     let slangData: {
