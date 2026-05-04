@@ -181,3 +181,7 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Testes de rate-limit e métricas
 - `tests/api-v1-rate-metrics.test.ts` valida burst -> 429 com headers e controle de acesso no `/api/v1/metrics`.
+
+## Guia de tom e governança de gírias
+- Documento: `docs/guia-tom-e-governanca-de-girias.md`.
+- Novas gírias exigem revisão em PR conforme seção de governança do guia.
