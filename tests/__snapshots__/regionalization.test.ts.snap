@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`regionalization baseline snapshots > cenário com região 1`] = `
+{
+  "explicacaoContextual": "Usado para elogiar alguém que fez algo muito bem ou se vestiu muito bem. (Contexto regional considerado: SP.)",
+  "input": "slay",
+  "intencaoSocialEmocional": "Do inglês 'slay'. Termo de empoderamento, muito usado para elogiar. Totalmente positivo e encorajador.",
+  "nivelInformalidade": "baixa",
+  "normalized": "slay",
+  "source": "local",
+  "traducaoFormal": "Arrasar / Ser incrível / Impressionar.",
+}
+`;
+
+exports[`regionalization baseline snapshots > cenário de região conflitante 1`] = `
+{
+  "explicacaoContextual": "Usado para elogiar alguém que fez algo muito bem ou se vestiu muito bem. (Conflito de região: pedido RJ, inferido SP. Mantendo resposta neutra.)",
+  "input": "slay",
+  "intencaoSocialEmocional": "Do inglês 'slay'. Termo de empoderamento, muito usado para elogiar. Totalmente positivo e encorajador.",
+  "nivelInformalidade": "baixa",
+  "normalized": "slay",
+  "source": "local",
+  "traducaoFormal": "Arrasar / Ser incrível / Impressionar.",
+}
+`;
+
+exports[`regionalization baseline snapshots > cenário sem região 1`] = `
+{
+  "explicacaoContextual": "Usado para elogiar alguém que fez algo muito bem ou se vestiu muito bem. (Sem confiança suficiente para regionalizar; resposta neutra.)",
+  "input": "slay",
+  "intencaoSocialEmocional": "Do inglês 'slay'. Termo de empoderamento, muito usado para elogiar. Totalmente positivo e encorajador.",
+  "nivelInformalidade": "baixa",
+  "normalized": "slay",
+  "source": "local",
+  "traducaoFormal": "Arrasar / Ser incrível / Impressionar.",
+}
+`;
+
+exports[`regionalization baseline snapshots > congela baseline atual sem regionalização 1`] = `
+{
+  "explicacaoContextual": "Usado para elogiar alguém que fez algo muito bem ou se vestiu muito bem.",
+  "input": "slay",
+  "intencaoSocialEmocional": "Do inglês 'slay'. Termo de empoderamento, muito usado para elogiar. Totalmente positivo e encorajador.",
+  "nivelInformalidade": "baixa",
+  "normalized": "slay",
+  "source": "local",
+  "traducaoFormal": "Arrasar / Ser incrível / Impressionar.",
+}
+`;
+
+exports[`regionalization baseline snapshots > fallback neutro quando confiança de região é baixa 1`] = `
+{
+  "explicacaoContextual": "Usado para elogiar alguém que fez algo muito bem ou se vestiu muito bem. (Sem confiança suficiente para regionalizar; resposta neutra.)",
+  "input": "slay",
+  "intencaoSocialEmocional": "Do inglês 'slay'. Termo de empoderamento, muito usado para elogiar. Totalmente positivo e encorajador.",
+  "nivelInformalidade": "baixa",
+  "normalized": "slay",
+  "source": "local",
+  "traducaoFormal": "Arrasar / Ser incrível / Impressionar.",
+}
+`;
