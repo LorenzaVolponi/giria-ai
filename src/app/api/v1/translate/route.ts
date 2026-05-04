@@ -4,10 +4,20 @@ import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { z } from "zod";
 import { isRateLimited } from "@/lib/rate-limit";
+import { recordRegionalizedResponse } from "@/lib/metrics";
 
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
   slang: z.string().trim().min(1).max(220).optional(),
+  variant: z.string().trim().min(1).max(80).optional(),
+  region: z.string().trim().min(1).max(80).optional(),
+  feedback: z
+    .object({
+      manualCorrection: z.boolean().optional(),
+      rework: z.boolean().optional(),
+      rejected: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
@@ -51,6 +61,15 @@ export async function POST(request: NextRequest) {
     }
 
     const result = translateSlang(text);
+
+    recordRegionalizedResponse({
+      variant: body.variant,
+      region: body.region,
+      hadManualCorrection: body.feedback?.manualCorrection,
+      hadRework: body.feedback?.rework,
+      term: text,
+      rejected: body.feedback?.rejected,
+    });
     const response = NextResponse.json(result);
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
