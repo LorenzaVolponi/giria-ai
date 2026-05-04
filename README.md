@@ -167,6 +167,13 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 - Workflow manual: `merge-conflicts-and-deploy.yml` (resolve rebase + opcional deploy prod).
 
 
+
+## Governança linguística (curadoria contínua)
+- Nomear revisores por macro-região.
+- Rodar revisão quinzenal das novas sugestões.
+- Classificar termos por atualidade e risco de interpretação.
+- Publicar changelog linguístico por versão.
+
 ## Governança de dados
 - `scripts/retention-cleanup.sh` remove telemetria antiga (default 90 dias).
 - Workflow `retention-cleanup.yml` executa limpeza diária.
