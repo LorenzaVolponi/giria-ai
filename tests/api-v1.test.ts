@@ -36,6 +36,18 @@ describe("API v1 integration", () => {
     expect(json).toHaveProperty("intencaoSocialEmocional");
   });
 
+  it("translate returns neutral fallback for ambiguous term with low confidence", async () => {
+    const req = makeRequest("http://localhost/api/v1/translate", "POST", {
+      text: "fechar",
+      context: "marketing",
+      regionConfidence: 0.1,
+    });
+    const res = await translatePost(req);
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.fallbackNeutro).toBe(true);
+  });
+
   it("visits accepts POST and returns stats", async () => {
     const postReq = makeRequest("http://localhost/api/v1/visits", "POST", { path: "/diagnostico" });
     const postRes = await visitsPost(postReq);

@@ -8,6 +8,8 @@ import { isRateLimited } from "@/lib/rate-limit";
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
   slang: z.string().trim().min(1).max(220).optional(),
+  context: z.enum(["humor", "atendimento", "marketing", "comunidade", "educacao"]).optional(),
+  regionConfidence: z.number().min(0).max(1).optional(),
 });
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
@@ -50,14 +52,24 @@ export async function POST(request: NextRequest) {
       return badRequest;
     }
 
-    const result = translateSlang(text);
+    const result = translateSlang(text, {
+      context: body.context,
+      regionConfidence: body.regionConfidence,
+    });
     const response = NextResponse.json(result);
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("x-request-id", requestId);
     response.headers.set("X-RateLimit-Remaining", String(rate.remaining));
     const secured = withSecurityHeaders(response);
-    logApiEvent({ requestId, route: "/api/v1/translate", status: 200, durationMs: Date.now() - startedAt, fallbackUsed: result.source !== "local" });
+    logApiEvent({
+      requestId,
+      route: "/api/v1/translate",
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      fallbackUsed: Boolean(result.fallbackNeutro),
+      fallbackReason: result.fallbackReason,
+    });
     return secured;
   } catch {
     const errorResponse = withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));

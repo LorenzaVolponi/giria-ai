@@ -8,4 +8,6 @@ export interface TranslationResponse {
   intencaoSocialEmocional: string;
   nivelInformalidade: InformalityLevel;
   source: "local" | "external";
+  fallbackNeutro?: boolean;
+  fallbackReason?: string;
 }
