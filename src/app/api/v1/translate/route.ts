@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
+import { assignRegionalizationVariant, recordExperimentEvent } from "@/lib/metrics";
 import { z } from "zod";
 import { isRateLimited } from "@/lib/rate-limit";
 
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
   slang: z.string().trim().min(1).max(220).optional(),
+  satisfaction: z.enum(["positive", "negative"]).optional(),
 });
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
@@ -26,6 +28,8 @@ export async function OPTIONS(req: NextRequest) {
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   const requestId = getRequestId(request);
+  const variant = assignRegionalizationVariant(requestId);
+  const region = request.headers.get("x-vercel-ip-country-region") || request.headers.get("x-region") || "desconhecida";
 
   try {
     const ip = getClientIp(request);
@@ -35,6 +39,7 @@ export async function POST(request: NextRequest) {
       limitedResponse.headers.set("Retry-After", "60");
       limitedResponse.headers.set("X-RateLimit-Remaining", String(rate.remaining));
       limitedResponse.headers.set("x-request-id", requestId);
+      limitedResponse.headers.set("x-experiment-variant", variant);
       logApiEvent({ requestId, route: "/api/v1/translate", status: 429, durationMs: Date.now() - startedAt, message: "rate_limited" });
       return limitedResponse;
     }
@@ -46,15 +51,25 @@ export async function POST(request: NextRequest) {
     if (!text) {
       const badRequest = withSecurityHeaders(NextResponse.json({ error: "Envie um texto/gíria válido para tradução." }, { status: 400 }));
       badRequest.headers.set("x-request-id", requestId);
+      badRequest.headers.set("x-experiment-variant", variant);
       logApiEvent({ requestId, route: "/api/v1/translate", status: 400, durationMs: Date.now() - startedAt, message: "empty_input" });
       return badRequest;
     }
 
     const result = translateSlang(text);
-    const response = NextResponse.json(result);
+
+    recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "comprehension_success" });
+    if (result.source !== "local") recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "rework_repeat_question" });
+    if (body.satisfaction === "positive") recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "satisfaction_positive" });
+    if (result.explicacaoContextual.toLowerCase().includes("não encontrei")) {
+      recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "semantic_error" });
+    }
+
+    const response = NextResponse.json({ ...result, experimentVariant: variant });
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("x-request-id", requestId);
+    response.headers.set("x-experiment-variant", variant);
     response.headers.set("X-RateLimit-Remaining", String(rate.remaining));
     const secured = withSecurityHeaders(response);
     logApiEvent({ requestId, route: "/api/v1/translate", status: 200, durationMs: Date.now() - startedAt, fallbackUsed: result.source !== "local" });
@@ -62,6 +77,7 @@ export async function POST(request: NextRequest) {
   } catch {
     const errorResponse = withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));
     errorResponse.headers.set("x-request-id", requestId);
+    errorResponse.headers.set("x-experiment-variant", variant);
     logApiEvent({ requestId, route: "/api/v1/translate", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return errorResponse;
   }
