@@ -13,4 +13,17 @@ describe("translateSlang", () => {
   it("throws on empty input", () => {
     expect(() => translateSlang("   ")).toThrow();
   });
+
+  it("applies regional variant when region is known", () => {
+    const r = translateSlang("massa", { region: "pt-BR-NE" });
+    expect(r.regionalTermApplied).toBe("arretado");
+    expect(r.regionalization?.usedFallback).toBe(false);
+  });
+
+  it("keeps base term when region is unknown", () => {
+    const r = translateSlang("massa", { region: "pt-BR-XX" });
+    expect(r.regionalTermApplied).toBe("massa");
+    expect(r.regionalization?.usedFallback).toBe(true);
+  });
+
 });

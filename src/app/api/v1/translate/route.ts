@@ -8,6 +8,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
   slang: z.string().trim().min(1).max(220).optional(),
+  region: z.string().trim().min(2).max(32).optional(),
 });
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
@@ -50,7 +51,8 @@ export async function POST(request: NextRequest) {
       return badRequest;
     }
 
-    const result = translateSlang(text);
+    const region = body.region ?? request.headers.get("x-region") ?? undefined;
+    const result = translateSlang(text, { region });
     const response = NextResponse.json(result);
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
