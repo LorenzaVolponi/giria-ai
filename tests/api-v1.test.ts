@@ -34,6 +34,7 @@ describe("API v1 integration", () => {
     expect(json).toHaveProperty("traducaoFormal");
     expect(json).toHaveProperty("explicacaoContextual");
     expect(json).toHaveProperty("intencaoSocialEmocional");
+    expect(json).toHaveProperty("slangLevel", "light");
   });
 
   it("visits accepts POST and returns stats", async () => {

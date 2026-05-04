@@ -8,6 +8,12 @@ describe("translateSlang", () => {
     expect(r).toHaveProperty("explicacaoContextual");
     expect(r).toHaveProperty("intencaoSocialEmocional");
     expect(r).toHaveProperty("nivelInformalidade");
+    expect(r).toHaveProperty("slangLevel", "light");
+  });
+
+  it("forces none on sensitive context", () => {
+    const r = translateSlang("slay", { slangLevel: "regional", context: "suporte jurídico" });
+    expect(r.slangLevel).toBe("none");
   });
 
   it("throws on empty input", () => {

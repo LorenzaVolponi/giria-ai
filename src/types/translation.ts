@@ -1,4 +1,5 @@
 export type InformalityLevel = "baixa" | "media" | "alta";
+export type SlangLevel = "none" | "light" | "regional" | "heavy";
 
 export interface TranslationResponse {
   input: string;
@@ -7,5 +8,6 @@ export interface TranslationResponse {
   explicacaoContextual: string;
   intencaoSocialEmocional: string;
   nivelInformalidade: InformalityLevel;
+  slangLevel: SlangLevel;
   source: "local" | "external";
 }
