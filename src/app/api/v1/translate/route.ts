@@ -57,13 +57,13 @@ export async function POST(request: NextRequest) {
     }
 
     const result = translateSlang(text);
+    const hasSemanticError = result.explicacaoContextual.toLowerCase().includes("não encontrei");
+    const isComprehensionSuccess = result.source === "local" && !hasSemanticError;
 
-    recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "comprehension_success" });
-    if (result.source !== "local") recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "rework_repeat_question" });
-    if (body.satisfaction === "positive") recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "satisfaction_positive" });
-    if (result.explicacaoContextual.toLowerCase().includes("não encontrei")) {
-      recordExperimentEvent({ region, slangLevel: result.nivelInformalidade, variant, event: "semantic_error" });
-    }
+    if (isComprehensionSuccess) recordExperimentEvent({ requestId, region, slangLevel: result.nivelInformalidade, variant, event: "comprehension_success" });
+    if (result.source !== "local") recordExperimentEvent({ requestId, region, slangLevel: result.nivelInformalidade, variant, event: "rework_repeat_question" });
+    if (body.satisfaction === "positive") recordExperimentEvent({ requestId, region, slangLevel: result.nivelInformalidade, variant, event: "satisfaction_positive" });
+    if (hasSemanticError) recordExperimentEvent({ requestId, region, slangLevel: result.nivelInformalidade, variant, event: "semantic_error" });
 
     const response = NextResponse.json({ ...result, experimentVariant: variant });
     const origin = request.headers.get("origin") || "";

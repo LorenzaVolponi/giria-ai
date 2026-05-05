@@ -5,6 +5,7 @@ type OutcomeEvent = "comprehension_success" | "rework_repeat_question" | "satisf
 
 type ExperimentEvent = {
   ts: string;
+  requestId: string;
   region: string;
   slangLevel: string;
   variant: ExperimentVariant;
@@ -65,11 +66,11 @@ export function getRegionalizationExperimentMetrics(windowDays = 14) {
     region: string;
     slangLevel: string;
     variant: ExperimentVariant;
-    total: number;
-    comprehension: number;
-    rework: number;
-    satisfaction: number;
-    semanticErrors: number;
+    requestIds: Set<string>;
+    comprehensionRequests: Set<string>;
+    reworkRequests: Set<string>;
+    satisfactionRequests: Set<string>;
+    semanticErrorRequests: Set<string>;
   }>();
 
   for (const e of filtered) {
@@ -78,29 +79,44 @@ export function getRegionalizationExperimentMetrics(windowDays = 14) {
       region: e.region,
       slangLevel: e.slangLevel,
       variant: e.variant,
-      total: 0,
-      comprehension: 0,
-      rework: 0,
-      satisfaction: 0,
-      semanticErrors: 0,
+      requestIds: new Set<string>(),
+      comprehensionRequests: new Set<string>(),
+      reworkRequests: new Set<string>(),
+      satisfactionRequests: new Set<string>(),
+      semanticErrorRequests: new Set<string>(),
     };
 
-    current.total += 1;
-    if (e.event === "comprehension_success") current.comprehension += 1;
-    if (e.event === "rework_repeat_question") current.rework += 1;
-    if (e.event === "satisfaction_positive") current.satisfaction += 1;
-    if (e.event === "semantic_error") current.semanticErrors += 1;
+    current.requestIds.add(e.requestId);
+    if (e.event === "comprehension_success") current.comprehensionRequests.add(e.requestId);
+    if (e.event === "rework_repeat_question") current.reworkRequests.add(e.requestId);
+    if (e.event === "satisfaction_positive") current.satisfactionRequests.add(e.requestId);
+    if (e.event === "semantic_error") current.semanticErrorRequests.add(e.requestId);
 
     grouped.set(key, current);
   }
 
-  const rows = Array.from(grouped.values()).map((g) => ({
-    ...g,
-    comprehensionRate: g.total > 0 ? Number((g.comprehension / g.total).toFixed(4)) : 0,
-    reworkRate: g.total > 0 ? Number((g.rework / g.total).toFixed(4)) : 0,
-    satisfactionRate: g.total > 0 ? Number((g.satisfaction / g.total).toFixed(4)) : 0,
-    semanticErrorRate: g.total > 0 ? Number((g.semanticErrors / g.total).toFixed(4)) : 0,
-  }));
+  const rows = Array.from(grouped.values()).map((g) => {
+    const total = g.requestIds.size;
+    const comprehension = g.comprehensionRequests.size;
+    const rework = g.reworkRequests.size;
+    const satisfaction = g.satisfactionRequests.size;
+    const semanticErrors = g.semanticErrorRequests.size;
+
+    return {
+      region: g.region,
+      slangLevel: g.slangLevel,
+      variant: g.variant,
+      total,
+      comprehension,
+      rework,
+      satisfaction,
+      semanticErrors,
+      comprehensionRate: total > 0 ? Number((comprehension / total).toFixed(4)) : 0,
+      reworkRate: total > 0 ? Number((rework / total).toFixed(4)) : 0,
+      satisfactionRate: total > 0 ? Number((satisfaction / total).toFixed(4)) : 0,
+      semanticErrorRate: total > 0 ? Number((semanticErrors / total).toFixed(4)) : 0,
+    };
+  });
 
   const promotionCandidates = rows
     .filter((row) => row.variant === "regionalizacao_ativa")
