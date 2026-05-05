@@ -308,7 +308,11 @@ export default function QuizSection({ onSearchTerm }: QuizSectionProps) {
   // --- Handle timer running out ---
   useEffect(() => {
     if (phase === "playing" && timeRemaining === 0 && !isAnswerLocked && currentQuestion) {
-      handleAnswerTimeout();
+      const timeoutId = window.setTimeout(() => {
+        handleAnswerTimeout();
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
   }, [timeRemaining, phase, isAnswerLocked, currentQuestion, handleAnswerTimeout]);
 
