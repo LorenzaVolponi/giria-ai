@@ -13,7 +13,8 @@
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "predeploy:guard": "bash scripts/predeploy-guard.sh",
-    "deploy:safe": "bash scripts/deploy-safe.sh"
+    "deploy:safe": "bash scripts/deploy-safe.sh",
+    "recover:build": "bash scripts/recover-build.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
