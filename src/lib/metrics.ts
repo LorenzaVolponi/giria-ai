@@ -66,11 +66,11 @@ export function getRegionalizationExperimentMetrics(windowDays = 14) {
     region: string;
     slangLevel: string;
     variant: ExperimentVariant;
-    total: number;
-    comprehension: number;
-    rework: number;
-    satisfaction: number;
-    semanticErrors: number;
+    requestIds: Set<string>;
+    comprehensionRequests: Set<string>;
+    reworkRequests: Set<string>;
+    satisfactionRequests: Set<string>;
+    semanticErrorRequests: Set<string>;
   }>();
 
   for (const e of filtered) {
@@ -79,38 +79,44 @@ export function getRegionalizationExperimentMetrics(windowDays = 14) {
       region: e.region,
       slangLevel: e.slangLevel,
       variant: e.variant,
-      total: 0,
-      comprehension: 0,
-      rework: 0,
-      satisfaction: 0,
-      semanticErrors: 0,
+      requestIds: new Set<string>(),
+      comprehensionRequests: new Set<string>(),
+      reworkRequests: new Set<string>(),
+      satisfactionRequests: new Set<string>(),
+      semanticErrorRequests: new Set<string>(),
     };
+
+    current.requestIds.add(e.requestId);
+    if (e.event === "comprehension_success") current.comprehensionRequests.add(e.requestId);
+    if (e.event === "rework_repeat_question") current.reworkRequests.add(e.requestId);
+    if (e.event === "satisfaction_positive") current.satisfactionRequests.add(e.requestId);
+    if (e.event === "semantic_error") current.semanticErrorRequests.add(e.requestId);
 
     grouped.set(key, current);
   }
 
-  for (const [key, g] of grouped.entries()) {
-    const keyEvents = filtered.filter((e) => `${e.region}::${e.slangLevel}::${e.variant}` === key);
-    const requestIds = new Set(keyEvents.map((e) => e.requestId));
-    const comprehensionRequests = new Set(keyEvents.filter((e) => e.event === "comprehension_success").map((e) => e.requestId));
-    const reworkRequests = new Set(keyEvents.filter((e) => e.event === "rework_repeat_question").map((e) => e.requestId));
-    const satisfactionRequests = new Set(keyEvents.filter((e) => e.event === "satisfaction_positive").map((e) => e.requestId));
-    const semanticErrorRequests = new Set(keyEvents.filter((e) => e.event === "semantic_error").map((e) => e.requestId));
+  const rows = Array.from(grouped.values()).map((g) => {
+    const total = g.requestIds.size;
+    const comprehension = g.comprehensionRequests.size;
+    const rework = g.reworkRequests.size;
+    const satisfaction = g.satisfactionRequests.size;
+    const semanticErrors = g.semanticErrorRequests.size;
 
-    g.total = requestIds.size;
-    g.comprehension = comprehensionRequests.size;
-    g.rework = reworkRequests.size;
-    g.satisfaction = satisfactionRequests.size;
-    g.semanticErrors = semanticErrorRequests.size;
-  }
-
-  const rows = Array.from(grouped.values()).map((g) => ({
-    ...g,
-    comprehensionRate: g.total > 0 ? Number((g.comprehension / g.total).toFixed(4)) : 0,
-    reworkRate: g.total > 0 ? Number((g.rework / g.total).toFixed(4)) : 0,
-    satisfactionRate: g.total > 0 ? Number((g.satisfaction / g.total).toFixed(4)) : 0,
-    semanticErrorRate: g.total > 0 ? Number((g.semanticErrors / g.total).toFixed(4)) : 0,
-  }));
+    return {
+      region: g.region,
+      slangLevel: g.slangLevel,
+      variant: g.variant,
+      total,
+      comprehension,
+      rework,
+      satisfaction,
+      semanticErrors,
+      comprehensionRate: total > 0 ? Number((comprehension / total).toFixed(4)) : 0,
+      reworkRate: total > 0 ? Number((rework / total).toFixed(4)) : 0,
+      satisfactionRate: total > 0 ? Number((satisfaction / total).toFixed(4)) : 0,
+      semanticErrorRate: total > 0 ? Number((semanticErrors / total).toFixed(4)) : 0,
+    };
+  });
 
   const promotionCandidates = rows
     .filter((row) => row.variant === "regionalizacao_ativa")
