@@ -5,6 +5,7 @@ type OutcomeEvent = "comprehension_success" | "rework_repeat_question" | "satisf
 
 type ExperimentEvent = {
   ts: string;
+  requestId: string;
   region: string;
   slangLevel: string;
   variant: ExperimentVariant;
@@ -85,13 +86,22 @@ export function getRegionalizationExperimentMetrics(windowDays = 14) {
       semanticErrors: 0,
     };
 
-    current.total += 1;
-    if (e.event === "comprehension_success") current.comprehension += 1;
-    if (e.event === "rework_repeat_question") current.rework += 1;
-    if (e.event === "satisfaction_positive") current.satisfaction += 1;
-    if (e.event === "semantic_error") current.semanticErrors += 1;
-
     grouped.set(key, current);
+  }
+
+  for (const [key, g] of grouped.entries()) {
+    const keyEvents = filtered.filter((e) => `${e.region}::${e.slangLevel}::${e.variant}` === key);
+    const requestIds = new Set(keyEvents.map((e) => e.requestId));
+    const comprehensionRequests = new Set(keyEvents.filter((e) => e.event === "comprehension_success").map((e) => e.requestId));
+    const reworkRequests = new Set(keyEvents.filter((e) => e.event === "rework_repeat_question").map((e) => e.requestId));
+    const satisfactionRequests = new Set(keyEvents.filter((e) => e.event === "satisfaction_positive").map((e) => e.requestId));
+    const semanticErrorRequests = new Set(keyEvents.filter((e) => e.event === "semantic_error").map((e) => e.requestId));
+
+    g.total = requestIds.size;
+    g.comprehension = comprehensionRequests.size;
+    g.rework = reworkRequests.size;
+    g.satisfaction = satisfactionRequests.size;
+    g.semanticErrors = semanticErrorRequests.size;
   }
 
   const rows = Array.from(grouped.values()).map((g) => ({
