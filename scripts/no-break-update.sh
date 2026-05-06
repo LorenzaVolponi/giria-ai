@@ -21,6 +21,10 @@ if [[ "${STRICT_GIT_CLEAN}" == "1" ]]; then
   fi
 else
   echo "[no-break-update][WARN] STRICT_GIT_CLEAN=0: ignorando working tree suja."
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "[no-break-update][ERRO] Repositório com alterações locais. Commit/stash antes de atualizar."
+  git status --short
+  exit 1
 fi
 
 if rg -n "^(<<<<<<<|=======|>>>>>>>)" --glob '!package-lock.json' . >/dev/null; then
@@ -48,6 +52,11 @@ for i in {1..60}; do
   if (( i == 1 || i % 10 == 0 )); then
     echo "[no-break-update] Aguardando app iniciar (${i}/60)..."
   fi
+for _ in {1..60}; do
+  if curl -fsS "${BASE_URL}/api/v1/health" >/dev/null; then
+    READY=true
+    break
+  fi
   sleep 1
 done
 
@@ -68,6 +77,10 @@ if [[ "${STRICT_GIT_CLEAN}" == "1" ]]; then
     git status --short
     exit 1
   fi
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "[no-break-update][ERRO] Após checks, o repositório ficou com alterações locais."
+  git status --short
+  exit 1
 fi
 
 echo "[no-break-update] Gate concluído com sucesso ✅"
