@@ -27,6 +27,7 @@ Use `.env.example` como base:
 
 ## Endpoints de API
 - `GET /api/v1/health` → status do serviço
+- `GET /api/health` → alias de compatibilidade para healthcheck
 - `POST /api/v1/translate` → traduz texto/gíria
 - `POST /api/v1/visits` → registra visita (IP/país/região/cidade via headers Vercel)
 - `GET /api/v1/visits` → estatísticas agregadas de visitas
@@ -60,6 +61,7 @@ Resposta:
 - `bash scripts/bootstrap-audit.sh`
 - `bash scripts/release-guard.sh`
 - `bash scripts/no-break-update.sh`
+- `STRICT_GIT_CLEAN=0 bash scripts/no-break-update.sh` (modo local: ignora alterações não commitadas)
 - `bash scripts/full-quality-gate.sh`
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`

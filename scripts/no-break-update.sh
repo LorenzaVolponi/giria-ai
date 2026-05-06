@@ -6,12 +6,21 @@ cd "$(dirname "$0")/.."
 PORT="${PORT:-3020}"
 BASE_URL="http://127.0.0.1:${PORT}"
 LOG_FILE="/tmp/giria-no-break-update.log"
+STRICT_GIT_CLEAN="${STRICT_GIT_CLEAN:-1}"
 
 echo "[no-break-update] Iniciando gate de atualização segura..."
 
 # Evita warning do npm sobre chaves de config legadas via env.
 unset npm_config_http_proxy npm_config_https_proxy
 
+if [[ "${STRICT_GIT_CLEAN}" == "1" ]]; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "[no-break-update][ERRO] Repositório com alterações locais. Commit/stash antes de atualizar."
+    git status --short
+    exit 1
+  fi
+else
+  echo "[no-break-update][WARN] STRICT_GIT_CLEAN=0: ignorando working tree suja."
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "[no-break-update][ERRO] Repositório com alterações locais. Commit/stash antes de atualizar."
   git status --short
@@ -62,6 +71,12 @@ bash scripts/api-contract-check.sh "${BASE_URL}"
 curl -fsS "${BASE_URL}/api/v1/metrics" >/dev/null
 curl -fsS "${BASE_URL}/api/v1/visits" >/dev/null
 
+if [[ "${STRICT_GIT_CLEAN}" == "1" ]]; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "[no-break-update][ERRO] Após checks, o repositório ficou com alterações locais."
+    git status --short
+    exit 1
+  fi
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "[no-break-update][ERRO] Após checks, o repositório ficou com alterações locais."
   git status --short
