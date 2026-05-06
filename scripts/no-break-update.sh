@@ -57,4 +57,10 @@ bash scripts/api-contract-check.sh "${BASE_URL}"
 curl -fsS "${BASE_URL}/api/v1/metrics" >/dev/null
 curl -fsS "${BASE_URL}/api/v1/visits" >/dev/null
 
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "[no-break-update][ERRO] Após checks, o repositório ficou com alterações locais."
+  git status --short
+  exit 1
+fi
+
 echo "[no-break-update] Gate concluído com sucesso ✅"
