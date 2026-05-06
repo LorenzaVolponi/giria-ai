@@ -59,6 +59,8 @@ Resposta:
 - `bash scripts/auto-update.sh`
 - `bash scripts/bootstrap-audit.sh`
 - `bash scripts/release-guard.sh`
+- `bash scripts/no-break-update.sh`
+- `bash scripts/full-quality-gate.sh`
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`
 - `bash scripts/auto-pr.sh "mensagem"`

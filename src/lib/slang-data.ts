@@ -21,6 +21,7 @@ import { EXTRA_SLANG_DATA_15 } from './slang-extra-15';
 import { EXTRA_SLANG_DATA_16 } from './slang-extra-16';
 import { EXTRA_SLANG_DATA_17 } from './slang-extra-17';
 import { EXTRA_SLANG_DATA_18 } from './slang-extra-18';
+import { REGIONAL_SLANG_DATA } from './slang-regional';
 
 export type RiskLevel = "green" | "yellow" | "orange" | "red";
 export type PopularityStatus = "ativo" | "em_queda" | "regional" | "internacional";
@@ -8808,6 +8809,7 @@ const rawSlangData: SlangTerm[] = [
   ...(Array.isArray(EXTRA_SLANG_DATA_16) ? EXTRA_SLANG_DATA_16 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_17) ? EXTRA_SLANG_DATA_17 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_18) ? EXTRA_SLANG_DATA_18 : []),
+  ...(Array.isArray(REGIONAL_SLANG_DATA) ? REGIONAL_SLANG_DATA : []),
 ];
 
 // Deduplicate by lowercase term name (keep first occurrence)
@@ -8847,6 +8849,7 @@ export function searchTerms(query: string): SlangTerm[] {
       s.meaning.toLowerCase().includes(q) ||
       s.adultTranslation.toLowerCase().includes(q) ||
       s.category.toLowerCase().includes(q) ||
+      s.region.toLowerCase().includes(q) ||
       safeVariations(s.variations).some((v) => v.toLowerCase().includes(q))
   );
 }
@@ -8857,4 +8860,10 @@ export function getTermsByCategory(category: string): SlangTerm[] {
 
 export function getTermsByRisk(level: RiskLevel): SlangTerm[] {
   return SLANG_DATA.filter((s) => s.riskLevel === level);
+}
+
+export function getTermsByRegion(region: string): SlangTerm[] {
+  const q = region.toLowerCase().trim();
+  if (!q) return [];
+  return SLANG_DATA.filter((s) => s.region.toLowerCase().includes(q));
 }

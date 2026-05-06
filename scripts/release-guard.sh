@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "[release-guard] Iniciando gate de release..."
+unset npm_config_http_proxy npm_config_https_proxy
 
 npm install
 npm run lint
