@@ -43,6 +43,11 @@ for i in {1..60}; do
   if (( i == 1 || i % 10 == 0 )); then
     echo "[no-break-update] Aguardando app iniciar (${i}/60)..."
   fi
+for _ in {1..60}; do
+  if curl -fsS "${BASE_URL}/api/v1/health" >/dev/null; then
+    READY=true
+    break
+  fi
   sleep 1
 done
 
