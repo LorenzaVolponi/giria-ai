@@ -9,6 +9,9 @@ LOG_FILE="/tmp/giria-no-break-update.log"
 
 echo "[no-break-update] Iniciando gate de atualização segura..."
 
+# Evita warning do npm sobre chaves de config legadas via env.
+unset npm_config_http_proxy npm_config_https_proxy
+
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "[no-break-update][ERRO] Repositório com alterações locais. Commit/stash antes de atualizar."
   git status --short

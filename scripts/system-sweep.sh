@@ -9,6 +9,7 @@ log() { echo "$1" | tee -a "$REPORT"; }
 
 log "# System Sweep"
 log "Data: $(date -Iseconds)"
+unset npm_config_http_proxy npm_config_https_proxy
 
 log "\n## 1) Dependências e ambiente"
 node -v | tee -a "$REPORT"
