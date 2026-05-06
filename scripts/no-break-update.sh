@@ -35,6 +35,14 @@ cleanup() { kill "${APP_PID}" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 READY=false
+for i in {1..60}; do
+  if curl -fsS "${BASE_URL}/api/v1/health" >/dev/null 2>&1; then
+    READY=true
+    break
+  fi
+  if (( i == 1 || i % 10 == 0 )); then
+    echo "[no-break-update] Aguardando app iniciar (${i}/60)..."
+  fi
 for _ in {1..60}; do
   if curl -fsS "${BASE_URL}/api/v1/health" >/dev/null; then
     READY=true
@@ -53,5 +61,11 @@ bash scripts/api-contract-check.sh "${BASE_URL}"
 
 curl -fsS "${BASE_URL}/api/v1/metrics" >/dev/null
 curl -fsS "${BASE_URL}/api/v1/visits" >/dev/null
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "[no-break-update][ERRO] Após checks, o repositório ficou com alterações locais."
+  git status --short
+  exit 1
+fi
 
 echo "[no-break-update] Gate concluído com sucesso ✅"
