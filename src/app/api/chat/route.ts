@@ -604,6 +604,20 @@ export async function POST(request: NextRequest) {
       history?: Array<{ role: string; content: string }>;
     };
 
+    if (messages !== undefined && !Array.isArray(messages)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`messages` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
+    if (history !== undefined && !Array.isArray(history)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`history` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
     // Support both `messages` (array) and `message` (string) formats
     const allMessages = messages ?? history ?? [];
     const currentMessage = sanitizeUserInput(message ?? allMessages[allMessages.length - 1]?.content ?? "", MAX_MESSAGE_LENGTH);
