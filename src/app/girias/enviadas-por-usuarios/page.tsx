@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { listSuggestionsByStatus } from "@/lib/suggestion-pipeline";
 import { UserSuggestionForm } from "@/components/product/user-suggestion-form";
+import { SuggestionModerationPanel } from "@/components/product/suggestion-moderation-panel";
 
 export const metadata: Metadata = {
   title: "Enviadas por usuários | Gíria AI",
@@ -17,6 +18,7 @@ export default async function UserSubmittedSlangsPage() {
 
       <div className="mt-6"><UserSuggestionForm /></div>
 
+      <SuggestionModerationPanel initialPending={pending as Array<{ id: string; term: string; meaning: string; context?: string; submitterName: string; score: number; status: "pending" | "approved" | "rejected" }>} />
       <section className="mt-8">
         <h2 className="text-xl font-semibold">Aguardando validação ({pending.length})</h2>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">
