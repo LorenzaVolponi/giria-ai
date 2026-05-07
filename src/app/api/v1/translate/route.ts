@@ -3,6 +3,9 @@ import { buildCorsPreflight, handleTranslatePost } from "@/lib/translate-endpoin
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
+import { createInMemoryRateLimiter } from "@/lib/rate-limit";
+
+const rateLimiter = createInMemoryRateLimiter(60_000, 25);
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { z } from "zod";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -25,6 +28,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const ip = getClientIp(request);
+    if (rateLimiter.isLimited(ip)) {
+      return withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
     const rate = await isRateLimited(ip, 25, 60);
     if (rate.limited) {
       const limitedResponse = withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
