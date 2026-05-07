@@ -14,10 +14,5 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - name: Lint (if exists)
-        run: npm run lint --if-present
-      - name: Build
-        run: npm run build
-      - name: Tests (if exists)
-        run: npm test --if-present
+      - name: No-break update gate
+        run: PORT=3000 bash scripts/no-break-update.sh
