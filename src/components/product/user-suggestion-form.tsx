@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export function UserSuggestionForm() {
   const [submitterName, setSubmitterName] = useState("");
@@ -12,14 +12,29 @@ export function UserSuggestionForm() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const legacyContact = useMemo(() => submitterEmail || submitterWhatsapp, [submitterEmail, submitterWhatsapp]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
 
+    const payload = {
+      submitterName,
+      submitterWhatsapp,
+      submitterEmail,
+      term,
+      meaning,
+      context,
+      // Backward compatibility for consumers ainda no contrato antigo
+      name: submitterName,
+      contact: legacyContact,
+    };
+
     const res = await fetch("/api/v1/suggestions", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
       body: JSON.stringify({ submitterName, submitterWhatsapp, submitterEmail, term, meaning, context }),
     }).catch(() => null);
 
@@ -38,6 +53,17 @@ export function UserSuggestionForm() {
   return (
     <form onSubmit={onSubmit} className="rounded-lg border p-4 space-y-3">
       <h2 className="text-lg font-semibold">Enviar sugestão de gíria</h2>
+      <input className="w-full rounded border p-2" placeholder="Seu nome" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} required autoComplete="name" />
+      <input
+        className="w-full rounded border p-2"
+        placeholder="WhatsApp (+5511999999999)"
+        value={submitterWhatsapp}
+        onChange={(e) => setSubmitterWhatsapp(e.target.value)}
+        required
+        inputMode="tel"
+        autoComplete="tel"
+      />
+      <input className="w-full rounded border p-2" placeholder="Seu email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required type="email" autoComplete="email" />
       <input className="w-full rounded border p-2" placeholder="Seu nome" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="WhatsApp (+5511999999999)" value={submitterWhatsapp} onChange={(e) => setSubmitterWhatsapp(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Seu email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required />
