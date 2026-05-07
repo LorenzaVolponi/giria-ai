@@ -18,6 +18,9 @@ export default async function UserSubmittedSlangsPage() {
 
       <div className="mt-6"><UserSuggestionForm /></div>
 
+      {process.env.NEXT_PUBLIC_ENABLE_MODERATION_PANEL === "true" ? (
+        <SuggestionModerationPanel initialPending={pending as Array<{ id: string; term: string; meaning: string; context?: string; submitterName: string; score: number; status: "pending" | "approved" | "rejected" }>} />
+      ) : null}
       <SuggestionModerationPanel initialPending={pending as Array<{ id: string; term: string; meaning: string; context?: string; submitterName: string; score: number; status: "pending" | "approved" | "rejected" }>} />
       <section className="mt-8">
         <h2 className="text-xl font-semibold">Aguardando validação ({pending.length})</h2>
