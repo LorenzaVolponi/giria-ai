@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type SuggestionItem = {
   id: string;
@@ -35,6 +36,9 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
     }, 15000);
     return () => clearInterval(id);
   }, []);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
   async function moderate(id: string, status: "approved" | "rejected") {
     if (!adminToken) return setMessage("Informe o token admin para moderar.");
     setBusyId(id);
@@ -56,6 +60,8 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
 
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
     await reloadPending();
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
   }
 
   return (
