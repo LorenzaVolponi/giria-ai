@@ -7,16 +7,52 @@ on:
         description: "URL do ambiente para smoke test"
         required: true
         default: "https://example.vercel.app"
+  push:
+    branches: [main]
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: health check
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve target URL
+        id: target
         run: |
-          curl -fsS "${{ github.event.inputs.target_url }}/api/v1/health"
-      - name: translate check
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "base_url=${{ github.event.inputs.target_url }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_url=${{ vars.PRODUCTION_BASE_URL }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate target URL
         run: |
-          curl -fsS -X POST "${{ github.event.inputs.target_url }}/api/v1/translate" \
-            -H 'content-type: application/json' \
-            -d '{"text":"slay"}'
+          if [ -z "${{ steps.target.outputs.base_url }}" ]; then
+            echo "PRODUCTION_BASE_URL não configurada em Settings > Variables"
+            exit 1
+          fi
+
+      - name: Run smoke script
+        env:
+          BASE_URL: ${{ steps.target.outputs.base_url }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+        run: |
+          bash scripts/post-deploy-smoke.sh "$BASE_URL"
+
+
+      - name: Notify smoke failure (Slack webhook optional)
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          BASE_URL: ${{ steps.target.outputs.base_url }}
+        run: |
+          payload=$(cat <<JSON
+          {
+            "text": "❌ Post Deploy Smoke falhou em ${BASE_URL} no repo ${{ github.repository }} (run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          }
+          JSON
+          )
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
