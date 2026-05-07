@@ -176,6 +176,31 @@ export async function moderateSuggestionStatus(id: string, status: Exclude<Valid
   if (!safeId) throw new Error("ID inválido");
   return db.validatedSlang.update({ where: { id: safeId }, data: { status } });
 }
+
+export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
+  if (input.status !== "approved") return { promoted: false as const };
+  try {
+    const existing = await db.translation.findFirst({
+      where: { slang: { equals: input.term, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existing) return { promoted: false as const, reason: "already_exists" as const };
+
+    await db.translation.create({
+      data: {
+        slang: input.term,
+        translation: input.meaning,
+        context: input.context || "geral",
+        category: "user-validated",
+        example: `Sugestão validada enviada por ${input.submitterName}`,
+      },
+    });
+    return { promoted: true as const };
+  } catch {
+    return { promoted: false as const, reason: "db_unavailable" as const };
+  }
+}
+
 export async function processSuggestion(input: SuggestionInput) {
   const webScore = await webSignalScore(input.term);
   const llmEval = await localLlmEvaluate(input);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSuggestionEligible, validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
+import { autoPromoteApprovedSlang, isSuggestionEligible, validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
 
 describe("suggestion pipeline validation", () => {
   it("rejects missing fields", () => {
@@ -32,5 +32,18 @@ describe("suggestion pipeline validation", () => {
       submitterEmail: "ana@email.com",
     });
     expect(parsed.ok).toBe(false);
+  });
+
+  it("does not promote pending suggestions", async () => {
+    const promoted = await autoPromoteApprovedSlang({
+      term: "farmar aura",
+      meaning: "tentar ganhar moral",
+      context: "rede social",
+      submitterName: "Ana",
+      submitterWhatsapp: "+5511988887777",
+      submitterEmail: "ana@email.com",
+      status: "pending",
+    });
+    expect(promoted.promoted).toBe(false);
   });
 });

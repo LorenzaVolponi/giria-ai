@@ -3,6 +3,7 @@ import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import {
+  autoPromoteApprovedSlang,
   isSuggestionEligible,
   listApprovedSuggestions,
   listSuggestionsByStatus,
@@ -45,10 +46,11 @@ export async function POST(request: NextRequest) {
     const processed = await processSuggestion(parsed.normalized);
 
     const saved = await saveValidatedSlang({ ...parsed.normalized, meaning: processed.adjustedMeaning, score: processed.totalScore, status: processed.status, evidence: processed.evidence });
+    const promoted = await autoPromoteApprovedSlang({ ...parsed.normalized, meaning: processed.adjustedMeaning, status: processed.status });
     await notifyLeadEmail({ ...parsed.normalized, meaning: processed.adjustedMeaning, score: processed.totalScore, status: processed.status, contextCategory: parsed.normalized.context || "geral" }).catch(() => null);
 
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: `status_${processed.status}` });
-    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: processed.totalScore, status: processed.status, createdAt: saved.createdAt }, { status: 201 }));
+    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt }, { status: 201 }));
   } catch {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));
