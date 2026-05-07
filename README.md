@@ -202,8 +202,6 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 - Workflow `post-deploy-smoke.yml` roda manualmente e também após push na `main`.
 - Configure `PRODUCTION_BASE_URL` em **Settings > Variables > Actions**.
 - Configure `ADMIN_API_TOKEN` em **Settings > Secrets and variables > Actions > Secrets** (opcional para checks admin).
-- Opcional: configure `SLACK_WEBHOOK_URL` para notificação automática quando o smoke falhar.
-- Sem Slack, o workflow cria issue automaticamente com label `incident` e `post-deploy-smoke`.
 
 ## Debug de deploy Vercel
 - Inspecionar logs de um deploy específico:
