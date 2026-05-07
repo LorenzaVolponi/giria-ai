@@ -35,6 +35,7 @@ export function UserSuggestionForm() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
+      body: JSON.stringify({ submitterName, submitterWhatsapp, submitterEmail, term, meaning, context }),
     }).catch(() => null);
 
     setLoading(false);
@@ -63,6 +64,9 @@ export function UserSuggestionForm() {
         autoComplete="tel"
       />
       <input className="w-full rounded border p-2" placeholder="Seu email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required type="email" autoComplete="email" />
+      <input className="w-full rounded border p-2" placeholder="Seu nome" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} required />
+      <input className="w-full rounded border p-2" placeholder="WhatsApp (+5511999999999)" value={submitterWhatsapp} onChange={(e) => setSubmitterWhatsapp(e.target.value)} required />
+      <input className="w-full rounded border p-2" placeholder="Seu email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Gíria" value={term} onChange={(e) => setTerm(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Significado" value={meaning} onChange={(e) => setMeaning(e.target.value)} required />
       <textarea className="w-full rounded border p-2" placeholder="Contexto de uso (opcional)" value={context} onChange={(e) => setContext(e.target.value)} rows={3} />
