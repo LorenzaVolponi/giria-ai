@@ -17,6 +17,11 @@ describe("suggestion pipeline validation", () => {
     expect(parsed.ok).toBe(false);
   });
 
+  it("rejects consonant-heavy artificial term", async () => {
+    const parsed = await isSuggestionEligible("bcdfghjklmna");
+    expect(parsed.ok).toBe(false);
+  });
+
   it("accepts valid suggestion", () => {
     const parsed = validateSuggestionPayload({ term: "farmar aura", meaning: "tentar ganhar moral", context: "rede social", submitterName: "Ana", submitterWhatsapp: "+5511988887777", submitterEmail: "ana@email.com" });
     expect(parsed.ok).toBe(true);

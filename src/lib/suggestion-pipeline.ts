@@ -206,7 +206,7 @@ export async function processSuggestion(input: SuggestionInput) {
   const llmEval = await localLlmEvaluate(input);
   const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
   const totalScore = Math.min(1, webScore + 0.2 + llmEval.confidenceBoost);
-  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : "pending";
+  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : totalScore < 0.35 ? "rejected" : "pending";
 
   return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
 }
