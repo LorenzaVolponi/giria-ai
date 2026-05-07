@@ -21,6 +21,7 @@ npm run start
 
 ## Variáveis de ambiente
 Use `.env.example` como base:
+Copie e ajuste as variáveis com `cp .env.example .env`.
 - `ALLOWED_ORIGIN`: origem permitida para CORS no endpoint versionado
 - `TRANSLATION_PROVIDER`: reservado para integração futura com IA externa
 - `OPENAI_API_KEY`: reservado para integração futura
@@ -107,6 +108,7 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Pós-deploy e rollback
 - Workflow manual `Post Deploy Smoke` para validar `/api/v1/health` e `/api/v1/translate`.
+- Script `bash scripts/post-deploy-smoke.sh <base_url>` para smoke pós-deploy (health/translate/suggestions/admin).
 - Script `scripts/rollback.sh` para retorno controlado a commit estável (com confirmação explícita).
 
 
