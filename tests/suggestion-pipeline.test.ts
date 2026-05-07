@@ -3,12 +3,12 @@ import { isSuggestionEligible, validateSuggestionPayload } from "../src/lib/sugg
 
 describe("suggestion pipeline validation", () => {
   it("rejects missing fields", () => {
-    const parsed = validateSuggestionPayload({ term: "", meaning: "", name: "", contact: "" });
+    const parsed = validateSuggestionPayload({ term: "", meaning: "", submitterName: "", submitterWhatsapp: "", submitterEmail: "" });
     expect(parsed.ok).toBe(false);
   });
 
   it("rejects obvious garbage", () => {
-    const parsed = validateSuggestionPayload({ term: "kkkkkkkkk", meaning: "asdf", name: "Foo", contact: "foo@bar.com" });
+    const parsed = validateSuggestionPayload({ term: "kkkkkkkkk", meaning: "asdf", submitterName: "Foo", submitterWhatsapp: "+5511999999999", submitterEmail: "foo@bar.com" });
     expect(parsed.ok).toBe(false);
   });
 
@@ -18,7 +18,7 @@ describe("suggestion pipeline validation", () => {
   });
 
   it("accepts valid suggestion", () => {
-    const parsed = validateSuggestionPayload({ term: "farmar aura", meaning: "tentar ganhar moral", context: "rede social", name: "Ana", contact: "ana@email.com" });
+    const parsed = validateSuggestionPayload({ term: "farmar aura", meaning: "tentar ganhar moral", context: "rede social", submitterName: "Ana", submitterWhatsapp: "+5511988887777", submitterEmail: "ana@email.com" });
     expect(parsed.ok).toBe(true);
   });
 });
