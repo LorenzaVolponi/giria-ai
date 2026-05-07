@@ -10,6 +10,8 @@ max_attempts=3
 attempt=1
 
 npm i -g vercel >/dev/null 2>&1
+export VERCEL_ORG_ID VERCEL_PROJECT_ID
+vercel pull --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null
 
 while [[ $attempt -le $max_attempts ]]; do
   echo "[vercel-safe-deploy] Tentativa ${attempt}/${max_attempts}..."
@@ -20,6 +22,13 @@ while [[ $attempt -le $max_attempts ]]; do
 
   if [[ $code -eq 0 ]]; then
     echo "$output"
+    deploy_url=$(echo "$output" | grep -Eo 'https://[^ ]+\.vercel\.app' | tail -n1 || true)
+    if [[ -n "$deploy_url" ]]; then
+      echo "[vercel-safe-deploy] Validando rotas públicas em $deploy_url ..."
+      curl -fsS "$deploy_url/" >/dev/null
+      curl -fsS "$deploy_url/api/v1/health" >/dev/null
+      curl -fsS "$deploy_url/health" >/dev/null
+    fi
     echo "[vercel-safe-deploy] Deploy concluído com sucesso."
     exit 0
   fi

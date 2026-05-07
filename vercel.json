@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    { "source": "/health", "destination": "/api/v1/health" },
+    { "source": "/api/healthz", "destination": "/api/v1/health" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "x-release-channel", "value": "stable" }
+      ]
+    }
+  ]
+}
