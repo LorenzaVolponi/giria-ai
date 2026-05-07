@@ -31,9 +31,6 @@ export async function POST(request: NextRequest) {
       submitterName: payload.submitterName || payload.name || "",
       submitterWhatsapp: payload.submitterWhatsapp || "",
       submitterEmail: payload.submitterEmail || (payload.contact?.includes("@") ? payload.contact : "") || "",
-      submitterName: payload.submitterName || "",
-      submitterWhatsapp: payload.submitterWhatsapp || "",
-      submitterEmail: payload.submitterEmail || "",
     });
 
     if (!parsed.ok) {
