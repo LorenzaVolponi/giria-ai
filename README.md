@@ -21,9 +21,16 @@ npm run start
 
 ## Variáveis de ambiente
 Use `.env.example` como base:
+Copie e ajuste as variáveis com `cp .env.example .env`.
 - `ALLOWED_ORIGIN`: origem permitida para CORS no endpoint versionado
 - `TRANSLATION_PROVIDER`: reservado para integração futura com IA externa
 - `OPENAI_API_KEY`: reservado para integração futura
+- `DATABASE_URL`: conexão do Prisma (SQLite/Postgres, conforme ambiente)
+- `ADMIN_API_TOKEN`: token de moderação/admin (API e sessão admin)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: envio de e-mail de lead
+- `OLLAMA_URL`, `OLLAMA_MODEL`: opcional, avaliação local de gírias por LLM
+- `NEXT_PUBLIC_ENABLE_MODERATION_PANEL`: `true` para exibir painel de moderação no frontend
+- `PRODUCTION_BASE_URL` (GitHub Actions Variable): URL usada no smoke automático pós-push na `main`.
 
 ## Endpoints de API
 - `GET /api/v1/health` → status do serviço
@@ -64,6 +71,7 @@ Resposta:
 - `STRICT_GIT_CLEAN=0 bash scripts/no-break-update.sh` (modo local: ignora alterações não commitadas)
 - `bash scripts/full-quality-gate.sh`
 - `bash scripts/vercel-safe-deploy.sh` (deploy em produção com validação de rotas públicas)
+- `bash scripts/vercel-preflight.sh` (check de env obrigatória + test + build antes do deploy)
 - `bash scripts/restore-stable-version.sh` (restaura o commit estável `2f428f9` com backup automático)
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`
@@ -101,6 +109,7 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Pós-deploy e rollback
 - Workflow manual `Post Deploy Smoke` para validar `/api/v1/health` e `/api/v1/translate`.
+- Script `bash scripts/post-deploy-smoke.sh <base_url>` para smoke pós-deploy (health/translate/suggestions/admin).
 - Script `scripts/rollback.sh` para retorno controlado a commit estável (com confirmação explícita).
 
 
@@ -187,3 +196,15 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 
 ## Testes de rate-limit e métricas
 - `tests/api-v1-rate-metrics.test.ts` valida burst -> 429 com headers e controle de acesso no `/api/v1/metrics`.
+
+
+## Smoke pós-deploy automático
+- Workflow `post-deploy-smoke.yml` roda manualmente e também após push na `main`.
+- Configure `PRODUCTION_BASE_URL` em **Settings > Variables > Actions**.
+- Configure `ADMIN_API_TOKEN` em **Settings > Secrets and variables > Actions > Secrets** (opcional para checks admin).
+
+## Debug de deploy Vercel
+- Inspecionar logs de um deploy específico:
+  - `npx vercel inspect <deployment_id> --logs`
+- Se pedir login, rode primeiro `npx vercel login` no ambiente local autenticado.
+- Em CI/automação, configure `VERCEL_TOKEN` + `VERCEL_ORG_ID` + `VERCEL_PROJECT_ID`.
