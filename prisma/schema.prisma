@@ -37,3 +37,34 @@ model Translation {
   category      String?
   createdAt     DateTime @default(now())
 }
+
+
+model VisitorEvent {
+  id        String   @id @default(cuid())
+  ipHash    String
+  country   String
+  region    String
+  city      String
+  path      String
+  referer   String
+  userAgent String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([country, region])
+}
+
+
+model SlangSuggestion {
+  id               String   @id @default(cuid())
+  term             String
+  meaning          String
+  context          String
+  submitterName    String
+  submitterContact String
+  autoScore        Float
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+
+  @@index([status, createdAt])
+}
