@@ -68,3 +68,21 @@ model SlangSuggestion {
 
   @@index([status, createdAt])
 }
+
+
+model ValidatedSlang {
+  id                String   @id @default(cuid())
+  term              String
+  meaning           String
+  context           String
+  submitterName     String
+  submitterWhatsapp String
+  submitterEmail    String
+  score             Float
+  status            String   @default("pending")
+  evidence          String
+  createdAt         DateTime @default(now())
+
+  @@index([term, status])
+  @@index([createdAt])
+}
