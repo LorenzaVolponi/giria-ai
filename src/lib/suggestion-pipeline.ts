@@ -7,61 +7,88 @@ export type SuggestionInput = {
   term: string;
   meaning: string;
   context?: string;
-  name: string;
-  contact: string;
+  submitterName: string;
+  submitterWhatsapp: string;
+  submitterEmail: string;
 };
 
-const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string; score: number }> = [];
+type ValidationStatus = "pending" | "approved" | "rejected";
 
-const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i];
+const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string; score: number; status: ValidationStatus }> = [];
+
+const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i, /[^\p{L}\p{N}\s.,!?@+\-_/()]/giu];
+const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|porra)\b/i;
 
 export function validateSuggestionPayload(payload: SuggestionInput) {
-  const term = sanitizeUserInput(payload.term, 80);
+  const term = sanitizeUserInput(payload.term, 80).toLowerCase();
   const meaning = sanitizeUserInput(payload.meaning, 320);
   const context = sanitizeUserInput(payload.context ?? "", 320);
-  const name = sanitizeUserInput(payload.name, 120);
-  const contact = sanitizeUserInput(payload.contact, 160);
+  const submitterName = sanitizeUserInput(payload.submitterName, 120);
+  const submitterWhatsapp = sanitizeUserInput(payload.submitterWhatsapp, 40);
+  const submitterEmail = sanitizeUserInput(payload.submitterEmail, 120).toLowerCase();
 
-  if (!term || !meaning || !name || !contact) {
+  if (!term || !meaning || !submitterName || !submitterWhatsapp || !submitterEmail) {
     return { ok: false as const, reason: "Campos obrigatórios ausentes." };
   }
 
   const combined = `${term} ${meaning} ${context}`;
-  if (bannedPatterns.some((p) => p.test(combined))) {
-    return { ok: false as const, reason: "Conteúdo inválido ou sem contexto útil." };
+  if (bannedPatterns.some((p) => p.test(combined)) || blockedTerms.test(combined)) {
+    return { ok: false as const, reason: "Conteúdo inválido ou ofensivo detectado." };
   }
 
-  if (!/@|\+?\d{8,}/.test(contact)) {
-    return { ok: false as const, reason: "Contato inválido. Informe e-mail ou telefone." };
+  if (!/^\+?[1-9]\d{9,14}$/.test(submitterWhatsapp.replace(/\D/g, ""))) {
+    return { ok: false as const, reason: "WhatsApp inválido. Use DDI + DDD + número." };
   }
 
-  return { ok: true as const, normalized: { term, meaning, context, name, contact } };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitterEmail)) {
+    return { ok: false as const, reason: "Email inválido." };
+  }
+
+  return { ok: true as const, normalized: { term, meaning, context, submitterName, submitterWhatsapp, submitterEmail } };
 }
 
 export async function webSignalScore(term: string): Promise<number> {
-  const q = encodeURIComponent(`gíria ${term}`);
+  const q = encodeURIComponent(`gíria brasileira ${term} significado`);
   const res = await fetch(`https://duckduckgo.com/html/?q=${q}`, { cache: "no-store" }).catch(() => null);
   if (!res?.ok) return 0;
   const html = (await res.text()).toLowerCase();
-  const hits = (html.match(new RegExp(term.toLowerCase(), "g")) || []).length;
-  if (hits >= 8) return 1;
-  if (hits >= 3) return 0.6;
-  if (hits >= 1) return 0.3;
-  return 0;
+
+  const termHits = (html.match(new RegExp(term.toLowerCase(), "g")) || []).length;
+  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk/gi) || []).length;
+
+  let score = 0;
+  if (termHits >= 3) score += 0.5;
+  else if (termHits >= 1) score += 0.25;
+  if (socialHits >= 2) score += 0.3;
+  if (/gíria|dicionário|significado/.test(html)) score += 0.2;
+
+  return Math.min(1, score);
 }
 
-export async function saveApprovedSuggestion(input: SuggestionInput & { score: number }) {
+async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeaning: string; confidenceBoost: number }> {
+  const endpoint = process.env.OLLAMA_URL || "http://127.0.0.1:11434/api/generate";
+  const model = process.env.OLLAMA_MODEL || "mistral";
+
+  const prompt = `Avalie a gíria brasileira e melhore o significado de forma objetiva. Responda JSON com keys adjustedMeaning e confidenceBoost (0-0.2). Gíria: ${input.term}; Significado: ${input.meaning}; Contexto: ${input.context ?? ""}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model, prompt, stream: false, format: "json" }),
+  }).catch(() => null);
+
+  if (!res?.ok) return { adjustedMeaning: input.meaning, confidenceBoost: 0 };
+  const data = (await res.json().catch(() => ({}))) as { response?: string };
+  const parsed = JSON.parse(data.response || "{}");
+  const adjustedMeaning = sanitizeUserInput(parsed.adjustedMeaning || input.meaning, 320);
+  const confidenceBoost = Math.max(0, Math.min(0.2, Number(parsed.confidenceBoost) || 0));
+  return { adjustedMeaning, confidenceBoost };
+}
+
+export async function saveValidatedSlang(input: SuggestionInput & { score: number; status: ValidationStatus; evidence: string[] }) {
   try {
-    const saved = await db.slangSuggestion.create({
-      data: {
-        term: input.term,
-        meaning: input.meaning,
-        context: input.context || "",
-        submitterName: input.name,
-        submitterContact: input.contact,
-        autoScore: input.score,
-        status: "approved",
-      },
+    const saved = await db.validatedSlang.create({
+      data: { ...input, evidence: JSON.stringify(input.evidence) },
     });
     return { id: saved.id, createdAt: saved.createdAt.toISOString() };
   } catch {
@@ -72,105 +99,68 @@ export async function saveApprovedSuggestion(input: SuggestionInput & { score: n
   }
 }
 
-export async function notifyLeadEmail(input: SuggestionInput & { score: number }) {
+export async function notifyLeadEmail(input: SuggestionInput & { score: number; status: ValidationStatus; contextCategory: string }) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const from = process.env.SMTP_FROM || user;
-
   if (!host || !user || !pass || !from) return;
 
   const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
-
   await transporter.sendMail({
     from,
     to: "007aibr@gmail.com",
-    subject: "LEAD GÍRIA AI, COM AS INFORMAÇÕES DO CONTATO",
+    subject: "📨 Novo Lead - Sugestão de Gíria",
     text: [
-      `Nome: ${input.name}`,
-      `Contato: ${input.contact}`,
+      "📨 Novo Lead - Sugestão de Gíria",
+      "",
       `Gíria: ${input.term}`,
       `Significado: ${input.meaning}`,
-      `Contexto: ${input.context || "(vazio)"}`,
-      `Score automação: ${input.score}`,
+      `Contexto: ${input.contextCategory}`,
+      "",
+      "👤 Submitter Info:",
+      `Nome: ${input.submitterName}`,
+      `WhatsApp: ${input.submitterWhatsapp}`,
+      `Email: ${input.submitterEmail}`,
+      "",
+      `Status de Validação: ${input.status}`,
+      `Confiança: ${Math.round(input.score * 100)}%`,
     ].join("\n"),
   });
 }
 
-
 export async function listApprovedSuggestions(limit = 100) {
   try {
-    const rows = await db.slangSuggestion.findMany({
-      where: { status: "approved" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        term: true,
-        meaning: true,
-        context: true,
-        submitterName: true,
-        autoScore: true,
-        createdAt: true,
-      },
-    });
-
-    return rows.map((r) => ({
-      id: r.id,
-      term: r.term,
-      meaning: r.meaning,
-      context: r.context,
-      submitterName: r.submitterName,
-      score: r.autoScore,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    const rows = await db.validatedSlang.findMany({ where: { status: "approved" }, orderBy: { createdAt: "desc" }, take: limit });
+    return rows.map((r) => ({ ...r, evidence: JSON.parse(r.evidence || "[]"), createdAt: r.createdAt.toISOString() }));
   } catch {
-    return memorySuggestions
-      .slice()
-      .reverse()
-      .slice(0, limit)
-      .map((r) => ({
-        id: r.id,
-        term: r.term,
-        meaning: r.meaning,
-        context: r.context || "",
-        submitterName: r.name,
-        score: r.score,
-        createdAt: r.createdAt,
-      }));
+    return memorySuggestions.filter((x) => x.status === "approved").slice().reverse().slice(0, limit);
   }
 }
 
+export async function processSuggestion(input: SuggestionInput) {
+  const webScore = await webSignalScore(input.term);
+  const llmEval = await localLlmEvaluate(input);
+  const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
+  const totalScore = Math.min(1, webScore + 0.2 + llmEval.confidenceBoost);
+  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : "pending";
+
+  return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
+}
 
 export async function isSuggestionEligible(termRaw: string) {
   const term = sanitizeUserInput(termRaw.toLowerCase(), 80);
   if (!term) return { ok: false as const, reason: "Gíria inválida." };
-
-  if (getTerm(term)) {
-    return { ok: false as const, reason: "Essa gíria já existe no glossário principal." };
-  }
+  if (getTerm(term)) return { ok: false as const, reason: "Essa gíria já existe no glossário principal." };
 
   const vowels = (term.match(/[aeiouáàâãéêíóôõú]/gi) || []).length;
-  if (term.length > 3 && vowels === 0) {
-    return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
-  }
-
-  const blocked = /\b(idiota|otario|otário|xingamento|racista|nazista)\b/i.test(term);
-  if (blocked) {
-    return { ok: false as const, reason: "Termo bloqueado pela moderação automática." };
-  }
+  if (term.length > 3 && vowels === 0) return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
 
   try {
-    const existing = await db.slangSuggestion.findFirst({
-      where: { term: { equals: term, mode: "insensitive" }, status: "approved" },
-      select: { id: true },
-    });
-    if (existing) return { ok: false as const, reason: "Essa gíria já foi enviada e aprovada." };
-  } catch {
-    const inMemory = memorySuggestions.some((x) => x.term.toLowerCase() === term);
-    if (inMemory) return { ok: false as const, reason: "Essa gíria já foi enviada recentemente." };
-  }
+    const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term, mode: "insensitive" }, status: { in: ["approved", "pending"] } }, select: { id: true } });
+    if (existing) return { ok: false as const, reason: "Essa gíria já foi enviada." };
+  } catch {}
 
   return { ok: true as const, term };
 }
