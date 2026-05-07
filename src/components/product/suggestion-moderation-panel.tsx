@@ -12,9 +12,9 @@ type SuggestionItem = {
   status: "pending" | "approved" | "rejected";
 };
 
-export function SuggestionModerationPanel({ initialPending }: { initialPending: SuggestionItem[] }) {
+export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
   const [token, setToken] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated);
   const [items, setItems] = useState(initialPending);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -88,9 +88,21 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
     <section className="mt-8 rounded-lg border p-4">
       <h3 className="text-lg font-semibold">Moderação manual (admin)</h3>
       <p className="text-sm text-muted-foreground mt-1">Faça login admin uma vez e modere com sessão segura via cookie HttpOnly.</p>
-      <div className="mt-3 flex gap-2">
-        <input className="w-full rounded border p-2" placeholder="ADMIN_API_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} type="password" />
-        <button className="rounded bg-black px-4 py-2 text-white" type="button" onClick={() => void login()}>Entrar</button>
+      {!isAuthenticated ? (
+        <div className="mt-3 flex gap-2">
+          <input className="w-full rounded border p-2" placeholder="ADMIN_API_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} type="password" />
+          <button className="rounded bg-black px-4 py-2 text-white" type="button" onClick={() => void login()}>Entrar</button>
+        </div>
+      ) : null}
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
+          <option value="pending">Pendentes</option>
+          <option value="approved">Aprovadas</option>
+          <option value="rejected">Rejeitadas</option>
+          <option value="all">Todas</option>
+        </select>
+        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
+        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-4">
         <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
