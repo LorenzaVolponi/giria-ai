@@ -6,9 +6,9 @@ import {
   isSuggestionEligible,
   listApprovedSuggestions,
   notifyLeadEmail,
-  saveApprovedSuggestion,
+  processSuggestion,
+  saveValidatedSlang,
   validateSuggestionPayload,
-  webSignalScore,
 } from "@/lib/suggestion-pipeline";
 
 export async function POST(request: NextRequest) {
@@ -27,8 +27,9 @@ export async function POST(request: NextRequest) {
       term: payload.term || "",
       meaning: payload.meaning || "",
       context: payload.context || "",
-      name: payload.name || "",
-      contact: payload.contact || "",
+      submitterName: payload.submitterName || "",
+      submitterWhatsapp: payload.submitterWhatsapp || "",
+      submitterEmail: payload.submitterEmail || "",
     });
 
     if (!parsed.ok) {
@@ -40,14 +41,13 @@ export async function POST(request: NextRequest) {
       return withSecurityHeaders(NextResponse.json({ error: eligibility.reason }, { status: 422 }));
     }
 
-    const score = await webSignalScore(parsed.normalized.term);
-    const safeScore = score < 0.3 ? 0.3 : score;
+    const processed = await processSuggestion(parsed.normalized);
 
-    const saved = await saveApprovedSuggestion({ ...parsed.normalized, score: safeScore });
-    await notifyLeadEmail({ ...parsed.normalized, score: safeScore }).catch(() => null);
+    const saved = await saveValidatedSlang({ ...parsed.normalized, meaning: processed.adjustedMeaning, score: processed.totalScore, status: processed.status, evidence: processed.evidence });
+    await notifyLeadEmail({ ...parsed.normalized, meaning: processed.adjustedMeaning, score: processed.totalScore, status: processed.status, contextCategory: parsed.normalized.context || "geral" }).catch(() => null);
 
-    logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: "auto_approved" });
-    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: safeScore, createdAt: saved.createdAt }, { status: 201 }));
+    logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: `status_${processed.status}` });
+    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: processed.totalScore, status: processed.status, createdAt: saved.createdAt }, { status: 201 }));
   } catch {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));
