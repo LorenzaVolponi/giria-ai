@@ -1,6 +1,5 @@
-import { NextRequest } from "next/server";
-import { buildCorsPreflight, handleTranslatePost } from "@/lib/translate-endpoint";
 import { NextRequest, NextResponse } from "next/server";
+import { buildCorsPreflight, handleTranslatePost } from "@/lib/translate-endpoint";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
@@ -19,7 +18,6 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return handleTranslatePost(request);
   const startedAt = Date.now();
   const requestId = getRequestId(request);
 
