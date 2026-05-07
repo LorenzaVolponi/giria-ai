@@ -79,6 +79,13 @@ async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeani
 
   if (!res?.ok) return { adjustedMeaning: input.meaning, confidenceBoost: 0 };
   const data = (await res.json().catch(() => ({}))) as { response?: string };
+  const parsed = (() => {
+    try {
+      return JSON.parse(data.response || "{}");
+    } catch {
+      return {};
+    }
+  })() as { adjustedMeaning?: string; confidenceBoost?: number };
   const parsed = JSON.parse(data.response || "{}");
   const adjustedMeaning = sanitizeUserInput(parsed.adjustedMeaning || input.meaning, 320);
   const confidenceBoost = Math.max(0, Math.min(0.2, Number(parsed.confidenceBoost) || 0));
