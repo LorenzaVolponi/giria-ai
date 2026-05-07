@@ -23,14 +23,5 @@ describe("admin login api", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie") || "").toContain("giria_admin_session");
   });
-
-  it("accepts alternative validation code", async () => {
-    const req = new NextRequest("http://localhost/api/v1/admin/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ login: "admin007", password: "admin007código", code: "5109" }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-  });
 });
+

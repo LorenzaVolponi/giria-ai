@@ -104,6 +104,16 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
         <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
+          <option value="pending">Pendentes</option>
+          <option value="approved">Aprovadas</option>
+          <option value="rejected">Rejeitadas</option>
+          <option value="all">Todas</option>
+        </select>
+        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
+        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
+      </div>
 
       <button className="mt-3 rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
         {loading ? "Atualizando..." : "Atualizar pendentes"}

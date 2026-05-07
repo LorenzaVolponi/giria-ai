@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSessionResponse } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 
-const ADMIN_LOGIN = process.env.ADMIN_LOGIN || "admin007";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin007código";
-const ADMIN_CODES = new Set((process.env.ADMIN_CODES || "6390,5109").split(",").map((x) => x.trim()).filter(Boolean));
+const ADMIN_LOGIN = "admin007";
+const ADMIN_PASSWORD = "admin007código";
+const ADMIN_CODES = new Set(["6390", "5109"]);
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { login?: string; password?: string; code?: string };
@@ -18,3 +18,4 @@ export async function POST(request: NextRequest) {
 
   return createAdminSessionResponse(true);
 }
+
