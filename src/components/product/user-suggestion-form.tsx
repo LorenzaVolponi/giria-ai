@@ -3,8 +3,9 @@
 import { useState } from "react";
 
 export function UserSuggestionForm() {
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [submitterName, setSubmitterName] = useState("");
+  const [submitterWhatsapp, setSubmitterWhatsapp] = useState("");
+  const [submitterEmail, setSubmitterEmail] = useState("");
   const [term, setTerm] = useState("");
   const [meaning, setMeaning] = useState("");
   const [context, setContext] = useState("");
@@ -19,22 +20,16 @@ export function UserSuggestionForm() {
     const res = await fetch("/api/v1/suggestions", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, contact, term, meaning, context }),
+      body: JSON.stringify({ submitterName, submitterWhatsapp, submitterEmail, term, meaning, context }),
     }).catch(() => null);
 
     setLoading(false);
-    if (!res) {
-      setStatus("Erro de rede. Tente novamente.");
-      return;
-    }
+    if (!res) return setStatus("Erro de rede. Tente novamente.");
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setStatus(data?.error || "Não foi possível enviar a sugestão.");
-      return;
-    }
+    if (!res.ok) return setStatus(data?.error || "Não foi possível enviar a sugestão.");
 
-    setStatus("Sugestão enviada e validada com sucesso!");
+    setStatus(`Sugestão enviada! Status: ${data.status}. Confiança: ${Math.round((data.score || 0) * 100)}%`);
     setTerm("");
     setMeaning("");
     setContext("");
@@ -43,8 +38,9 @@ export function UserSuggestionForm() {
   return (
     <form onSubmit={onSubmit} className="rounded-lg border p-4 space-y-3">
       <h2 className="text-lg font-semibold">Enviar sugestão de gíria</h2>
-      <input className="w-full rounded border p-2" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} required />
-      <input className="w-full rounded border p-2" placeholder="Seu contato (email/telefone)" value={contact} onChange={(e) => setContact(e.target.value)} required />
+      <input className="w-full rounded border p-2" placeholder="Seu nome" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} required />
+      <input className="w-full rounded border p-2" placeholder="WhatsApp (+5511999999999)" value={submitterWhatsapp} onChange={(e) => setSubmitterWhatsapp(e.target.value)} required />
+      <input className="w-full rounded border p-2" placeholder="Seu email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Gíria" value={term} onChange={(e) => setTerm(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Significado" value={meaning} onChange={(e) => setMeaning(e.target.value)} required />
       <textarea className="w-full rounded border p-2" placeholder="Contexto de uso (opcional)" value={context} onChange={(e) => setContext(e.target.value)} rows={3} />
