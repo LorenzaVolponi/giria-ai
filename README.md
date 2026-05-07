@@ -30,6 +30,7 @@ Copie e ajuste as variáveis com `cp .env.example .env`.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: envio de e-mail de lead
 - `OLLAMA_URL`, `OLLAMA_MODEL`: opcional, avaliação local de gírias por LLM
 - `NEXT_PUBLIC_ENABLE_MODERATION_PANEL`: `true` para exibir painel de moderação no frontend
+- `PRODUCTION_BASE_URL` (GitHub Actions Variable): URL usada no smoke automático pós-push na `main`.
 
 ## Endpoints de API
 - `GET /api/v1/health` → status do serviço
@@ -196,6 +197,11 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
 ## Testes de rate-limit e métricas
 - `tests/api-v1-rate-metrics.test.ts` valida burst -> 429 com headers e controle de acesso no `/api/v1/metrics`.
 
+
+## Smoke pós-deploy automático
+- Workflow `post-deploy-smoke.yml` roda manualmente e também após push na `main`.
+- Configure `PRODUCTION_BASE_URL` em **Settings > Variables > Actions**.
+- Configure `ADMIN_API_TOKEN` em **Settings > Secrets and variables > Actions > Secrets** (opcional para checks admin).
 
 ## Debug de deploy Vercel
 - Inspecionar logs de um deploy específico:
