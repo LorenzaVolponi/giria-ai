@@ -5,6 +5,7 @@ import { getRequestId, logApiEvent } from "@/lib/observability";
 import {
   isSuggestionEligible,
   listApprovedSuggestions,
+  listSuggestionsByStatus,
   notifyLeadEmail,
   processSuggestion,
   saveValidatedSlang,
@@ -57,7 +58,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  const data = await listApprovedSuggestions(200);
+export async function GET(request?: NextRequest) {
+  const status = request?.nextUrl.searchParams.get("status") || "approved";
+  const limit = Number(request?.nextUrl.searchParams.get("limit") || 200);
+  const data = status === "approved" ? await listApprovedSuggestions(limit) : await listSuggestionsByStatus(status as "pending" | "rejected" | "approved" | "all", limit);
   return withSecurityHeaders(NextResponse.json({ items: data }));
 }

@@ -146,6 +146,26 @@ export async function listApprovedSuggestions(limit = 100) {
   }
 }
 
+
+export async function listSuggestionsByStatus(status: ValidationStatus | "all" = "all", limit = 100) {
+  try {
+    const rows = await db.validatedSlang.findMany({
+      where: status === "all" ? undefined : { status },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return rows.map((r) => ({ ...r, evidence: JSON.parse(r.evidence || "[]"), createdAt: r.createdAt.toISOString() }));
+  } catch {
+    const base = status === "all" ? memorySuggestions : memorySuggestions.filter((x) => x.status === status);
+    return base.slice().reverse().slice(0, limit);
+  }
+}
+
+export async function moderateSuggestionStatus(id: string, status: Exclude<ValidationStatus, "pending">) {
+  const safeId = sanitizeUserInput(id, 80);
+  if (!safeId) throw new Error("ID inválido");
+  return db.validatedSlang.update({ where: { id: safeId }, data: { status } });
+}
 export async function processSuggestion(input: SuggestionInput) {
   const webScore = await webSignalScore(input.term);
   const llmEval = await localLlmEvaluate(input);
