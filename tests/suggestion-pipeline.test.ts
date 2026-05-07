@@ -21,4 +21,16 @@ describe("suggestion pipeline validation", () => {
     const parsed = validateSuggestionPayload({ term: "farmar aura", meaning: "tentar ganhar moral", context: "rede social", submitterName: "Ana", submitterWhatsapp: "+5511988887777", submitterEmail: "ana@email.com" });
     expect(parsed.ok).toBe(true);
   });
+
+  it("rejects oversized text payloads", () => {
+    const parsed = validateSuggestionPayload({
+      term: "g".repeat(41),
+      meaning: "m".repeat(281),
+      context: "c".repeat(281),
+      submitterName: "Ana",
+      submitterWhatsapp: "+5511988887777",
+      submitterEmail: "ana@email.com",
+    });
+    expect(parsed.ok).toBe(false);
+  });
 });

@@ -192,7 +192,9 @@ export async function isSuggestionEligible(termRaw: string) {
   if (getTerm(term)) return { ok: false as const, reason: "Essa gíria já existe no glossário principal." };
 
   const vowels = (term.match(/[aeiouáàâãéêíóôõú]/gi) || []).length;
+  const consonants = (term.match(/[bcdfghjklmnpqrstvwxyzç]/gi) || []).length;
   if (term.length > 3 && vowels === 0) return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
+  if (term.length >= 6 && consonants > vowels * 4) return { ok: false as const, reason: "Termo suspeito: padrão de escrita artificial." };
 
   try {
     const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term, mode: "insensitive" }, status: { in: ["approved", "pending"] } }, select: { id: true } });
