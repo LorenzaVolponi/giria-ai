@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+import { buildCorsPreflight, handleTranslatePost } from "@/lib/translate-endpoint";
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
@@ -13,17 +15,11 @@ const translateSchema = z.object({
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
 
 export async function OPTIONS(req: NextRequest) {
-  const res = new NextResponse(null, { status: 204 });
-  const origin = req.headers.get("origin") || "";
-  if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
-  }
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  return withSecurityHeaders(res);
+  return buildCorsPreflight(req);
 }
 
 export async function POST(request: NextRequest) {
+  return handleTranslatePost(request);
   const startedAt = Date.now();
   const requestId = getRequestId(request);
 
