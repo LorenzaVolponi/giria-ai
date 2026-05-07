@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { translateSlang } from "@/lib/translator";
+import { createInMemoryRateLimiter } from "@/lib/rate-limit";
 
-const rateMap = new Map<string, number[]>();
-const WINDOW_MS = 60_000;
-const MAX_REQ = 25;
-
-function limited(ip: string) {
-  const now = Date.now();
-  const arr = (rateMap.get(ip) || []).filter((v) => now - v < WINDOW_MS);
-  arr.push(now);
-  rateMap.set(ip, arr);
-  return arr.length > MAX_REQ;
-}
-
+const rateLimiter = createInMemoryRateLimiter(60_000, 25);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
 
 export async function OPTIONS(req: NextRequest) {
@@ -30,7 +20,7 @@ export async function OPTIONS(req: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    if (limited(ip)) {
+    if (rateLimiter.isLimited(ip)) {
       return withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
     }
 
