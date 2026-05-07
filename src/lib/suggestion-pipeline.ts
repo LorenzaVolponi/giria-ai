@@ -43,25 +43,36 @@ export function validateSuggestionPayload(payload: SuggestionInput) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitterEmail)) {
     return { ok: false as const, reason: "Email inválido." };
   }
+  if (term.length > 40 || meaning.length > 280 || context.length > 280) {
+    return { ok: false as const, reason: "Texto muito longo para validação automática." };
+  }
 
   return { ok: true as const, normalized: { term, meaning, context, submitterName, submitterWhatsapp, submitterEmail } };
 }
 
 export async function webSignalScore(term: string): Promise<number> {
-  const q = encodeURIComponent(`gíria brasileira ${term} significado`);
-  const res = await fetch(`https://duckduckgo.com/html/?q=${q}`, { cache: "no-store" }).catch(() => null);
-  if (!res?.ok) return 0;
-  const html = (await res.text()).toLowerCase();
+  const sources = [
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(`gíria brasileira ${term} significado`)}`,
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(`${term} tiktok gíria`)}`,
+  ];
+  const htmlBlocks = await Promise.all(
+    sources.map(async (url) => {
+      const res = await fetch(url, { cache: "no-store" }).catch(() => null);
+      if (!res?.ok) return "";
+      return (await res.text()).toLowerCase();
+    }),
+  );
+  const html = htmlBlocks.join("\n");
+  if (!html.trim()) return 0;
 
   const termHits = (html.match(new RegExp(term.toLowerCase(), "g")) || []).length;
-  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk/gi) || []).length;
+  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk|kwai/gi) || []).length;
+  const glossaryHits = (html.match(/gíria|giria|dicionário|dicionario|significado|expressão/gi) || []).length;
 
   let score = 0;
-  if (termHits >= 3) score += 0.5;
-  else if (termHits >= 1) score += 0.25;
-  if (socialHits >= 2) score += 0.3;
-  if (/gíria|dicionário|significado/.test(html)) score += 0.2;
-
+  if (termHits >= 3) score += 0.5; // encontrado na internet
+  if (socialHits >= 2) score += 0.3; // contexto social
+  if (glossaryHits >= 2) score += 0.2; // padrão linguístico
   return Math.min(1, score);
 }
 

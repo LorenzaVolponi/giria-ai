@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       meaning: payload.meaning || "",
       context: payload.context || "",
       submitterName: payload.submitterName || payload.name || "",
-      submitterWhatsapp: payload.submitterWhatsapp || "",
+      submitterWhatsapp: payload.submitterWhatsapp || payload.submitterContact || payload.contact || "",
       submitterEmail: payload.submitterEmail || (payload.contact?.includes("@") ? payload.contact : "") || "",
     });
 
