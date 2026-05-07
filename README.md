@@ -63,6 +63,7 @@ Resposta:
 - `bash scripts/no-break-update.sh`
 - `STRICT_GIT_CLEAN=0 bash scripts/no-break-update.sh` (modo local: ignora alterações não commitadas)
 - `bash scripts/full-quality-gate.sh`
+- `bash scripts/vercel-safe-deploy.sh` (deploy em produção com validação de rotas públicas)
 - `bash scripts/rollback.sh`
 - `bash scripts/api-contract-check.sh [base_url]`
 - `bash scripts/auto-pr.sh "mensagem"`
