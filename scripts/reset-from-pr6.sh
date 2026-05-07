@@ -14,9 +14,24 @@ TARGET_COMMIT="2f428f9"
 TARGET_LABEL="Merge pull request #5"
 DRY_RUN="false"
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN="true"
+if (( $# > 1 )); then
+  echo "Erro: argumento(s) não suportado(s): $*"
+  echo "Uso: scripts/reset-from-pr6.sh [--dry-run]"
+  exit 1
 fi
+
+case "${1:-}" in
+  "")
+    ;;
+  --dry-run)
+    DRY_RUN="true"
+    ;;
+  *)
+    echo "Erro: argumento não suportado: $1"
+    echo "Uso: scripts/reset-from-pr6.sh [--dry-run]"
+    exit 1
+    ;;
+esac
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "Erro: execute este script dentro de um repositório git."
