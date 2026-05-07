@@ -19,6 +19,9 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
+  const [minScore, setMinScore] = useState(0);
+  const [termQuery, setTermQuery] = useState("");
 
   async function login() {
     setMessage(null);
@@ -36,7 +39,8 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
 
   async function reloadPending() {
     setLoading(true);
-    const res = await fetch("/api/v1/suggestions?status=pending&limit=80", { cache: "no-store" }).catch(() => null);
+    const statusParam = statusFilter === "all" ? "all" : statusFilter;
+    const res = await fetch(`/api/v1/suggestions?status=${statusParam}&limit=120`, { cache: "no-store" }).catch(() => null);
     setLoading(false);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[] };
@@ -44,11 +48,15 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
   }
 
   useEffect(() => {
+    void reloadPending();
+  }, [statusFilter]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       void reloadPending();
     }, 15000);
     return () => clearInterval(id);
-  }, []);
+  }, [statusFilter]);
 
   async function moderate(id: string, status: "approved" | "rejected") {
     if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
@@ -84,6 +92,17 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
         <input className="w-full rounded border p-2" placeholder="ADMIN_API_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} type="password" />
         <button className="rounded bg-black px-4 py-2 text-white" type="button" onClick={() => void login()}>Entrar</button>
       </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
+          <option value="pending">Pendentes</option>
+          <option value="approved">Aprovadas</option>
+          <option value="rejected">Rejeitadas</option>
+          <option value="all">Todas</option>
+        </select>
+        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
+        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
+      </div>
+
       <button className="mt-3 rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
         {loading ? "Atualizando..." : "Atualizar pendentes"}
       </button>
@@ -91,7 +110,14 @@ export function SuggestionModerationPanel({ initialPending }: { initialPending: 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {items.map((item) => (
+        {items
+          .filter((item) => item.score >= minScore)
+          .filter((item) => {
+            const q = termQuery.trim().toLowerCase();
+            if (!q) return true;
+            return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+          })
+          .map((item) => (
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
