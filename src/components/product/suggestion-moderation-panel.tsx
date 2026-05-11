@@ -121,6 +121,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       delete next[id];
       return next;
     });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
   }
 
@@ -145,12 +146,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
-    if (!selectedIds.length) return;
-    for (const id of selectedIds) {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    for (const id of pendingIds) {
       // eslint-disable-next-line no-await-in-loop
       await moderate(id, status);
     }
     setSelectedIds([]);
+    await reloadPending();
   }
 
   function exportFilteredCsv() {
@@ -261,6 +264,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
+          <li key={item.id} className="rounded border p-3 transition-all duration-200">
+            <div className="flex items-start justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  disabled={item.status !== "pending"}
+                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? Array.from(new Set([...prev, item.id])) : prev.filter((x) => x !== item.id))}
+                />
+                Selecionar
+              </label>
+              <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
+            </div>
+            <p className="font-medium mt-2">{item.term}</p>
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
@@ -269,9 +286,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex gap-2">
-              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
-              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
             </div>
             <input
