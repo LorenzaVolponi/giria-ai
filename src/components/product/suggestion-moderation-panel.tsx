@@ -35,6 +35,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
 
   async function reloadPending() {
     setLoading(true);
@@ -64,7 +69,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
