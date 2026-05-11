@@ -11,6 +11,7 @@ import {
   notifyLeadEmail,
   processSuggestion,
   saveValidatedSlang,
+  trackSuggestionIngress,
   validateSuggestionPayload,
 } from "@/lib/suggestion-pipeline";
 
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: `status_${processed.status}` });
     const responsePayload = { id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt };
+    trackSuggestionIngress(ip, processed.status);
     if (idemKey) {
       idempotencyCache.set(`${ip}:${idemKey}`, { expiresAt: Date.now() + 10 * 60_000, fingerprint, payload: responsePayload });
     }

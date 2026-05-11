@@ -20,6 +20,7 @@ const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\
 const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|porra)\b/i;
 const webScoreCache = new Map<string, { score: number; expiresAt: number }>();
 const revalidateCooldown = new Map<string, number>();
+const ingressByIp = new Map<string, { total: number; approved: number; rejected: number; pending: number; lastAt: number }>();
 
 async function retry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 150): Promise<T> {
   let lastErr: unknown;
@@ -243,6 +244,22 @@ export function parseModerationEvidence(evidence: string[]) {
       return { status, actor, at, reason };
     })
     .filter((x) => x.status && x.at);
+}
+
+export function trackSuggestionIngress(ip: string, status: "approved" | "rejected" | "pending") {
+  const key = sanitizeUserInput(ip, 80) || "unknown";
+  const current = ingressByIp.get(key) || { total: 0, approved: 0, rejected: 0, pending: 0, lastAt: 0 };
+  current.total += 1;
+  current[status] += 1;
+  current.lastAt = Date.now();
+  ingressByIp.set(key, current);
+}
+
+export function listIngressIpMetrics(limit = 15) {
+  return Array.from(ingressByIp.entries())
+    .map(([ip, stats]) => ({ ip, ...stats }))
+    .sort((a, b) => b.total - a.total || b.lastAt - a.lastAt)
+    .slice(0, limit);
 }
 
 export async function moderateSuggestionStatus(
