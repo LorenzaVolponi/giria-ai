@@ -32,6 +32,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
 
@@ -76,6 +77,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
   }, [items]);
+
+  useEffect(() => {
+    if (!undoExpiresAt) return;
+    const timeout = window.setTimeout(() => {
+      setLastAction(null);
+      setUndoExpiresAt(null);
+    }, Math.max(0, undoExpiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [undoExpiresAt]);
 
 
 
@@ -143,6 +153,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     }
 
     if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setUndoExpiresAt(Date.now() + 10000);
     setItems((prev) => prev
       .map((item) => (item.id === id ? { ...item, status } : item))
       .filter((item) => statusFilter === "all" || item.status === statusFilter));
@@ -182,6 +193,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       : prev));
     setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
     setLastAction(null);
+    setUndoExpiresAt(null);
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
@@ -198,6 +210,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setSelectedIds([]);
     await reloadPending();
     setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
   }
 
   function toggleSelectAllPage(pageIds: string[]) {
@@ -282,6 +295,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
           Rejeitar selecionadas
         </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
+          Limpar seleção
+        </button>
       </div>
 
       {batchProgress.running || batchProgress.done ? (
@@ -315,6 +331,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
         <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
         <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
         <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
       </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
