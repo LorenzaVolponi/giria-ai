@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminCsrf, requireAdminToken } from "@/lib/admin-guard";
+import { requireAdminCsrf, requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { moderateSuggestionStatus } from "@/lib/suggestion-pipeline";
 import { appendAdminAudit } from "@/lib/admin-audit";
@@ -7,6 +7,8 @@ import { appendAdminAudit } from "@/lib/admin-audit";
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["moderator", "owner"]);
+  if (forbidden) return forbidden;
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
 

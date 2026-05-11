@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminCsrf, requireAdminToken } from "@/lib/admin-guard";
+import { requireAdminCsrf, requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -8,6 +8,8 @@ import { appendAdminAudit } from "@/lib/admin-audit";
 export async function POST(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["moderator", "owner"]);
+  if (forbidden) return forbidden;
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
   const ip = getClientIp(request);
@@ -22,6 +24,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["moderator", "owner"]);
+  if (forbidden) return forbidden;
 
   const jobId = request.nextUrl.searchParams.get("jobId") || "";
   const job = getRevalidateJob(jobId);
