@@ -25,16 +25,19 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
   const pageSize = 12;
 
   async function reloadPending() {
     setLoading(true);
     const statusParam = statusFilter === "all" ? "all" : statusFilter;
-    const res = await fetch(`/api/v1/suggestions?status=${statusParam}&limit=120`, { cache: "no-store" }).catch(() => null);
+    const res = await fetch(`/api/v1/suggestions?status=${statusParam}&limit=120&includeSummary=true`, { cache: "no-store" }).catch(() => null);
     setLoading(false);
     if (!res?.ok) return;
-    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[] };
+    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
     setItems(Array.isArray(data.items) ? data.items : []);
+    setSummary(data.summary || null);
   }
 
   useEffect(() => {
@@ -62,10 +65,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setBusyId(id);
     setMessage(null);
 
+    const reason = (rejectReasonById[id] || "").trim();
+    if (status === "rejected" && !reason) {
+      setBusyId(null);
+      return setMessage("Informe um motivo para rejeitar.");
+    }
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     }).catch(() => null);
 
     setBusyId(null);
@@ -127,6 +135,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
         <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
       </div>
+      {summary ? (
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4">
+          <p className="rounded border p-2">Pendentes: <strong>{summary.pending}</strong></p>
+          <p className="rounded border p-2">Aprovadas: <strong>{summary.approved}</strong></p>
+          <p className="rounded border p-2">Rejeitadas: <strong>{summary.rejected}</strong></p>
+          <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
@@ -167,6 +183,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
             </div>
+            <input
+              className="mt-2 w-full rounded border p-2 text-xs"
+              value={rejectReasonById[item.id] || ""}
+              onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
+              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+            />
           </li>
         ))}
       </ul>

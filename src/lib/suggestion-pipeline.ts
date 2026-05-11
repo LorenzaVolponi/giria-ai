@@ -219,6 +219,32 @@ export async function getSuggestionStatusCounts() {
   }
 }
 
+export async function getSuggestionById(id: string) {
+  const safeId = sanitizeUserInput(id, 80);
+  if (!safeId) return null;
+  try {
+    const row = await db.validatedSlang.findUnique({ where: { id: safeId } });
+    if (!row) return null;
+    return { ...row, evidence: JSON.parse(row.evidence || "[]"), createdAt: row.createdAt.toISOString() };
+  } catch {
+    return memorySuggestions.find((x) => x.id === safeId) || null;
+  }
+}
+
+export function parseModerationEvidence(evidence: string[]) {
+  return evidence
+    .filter((x) => x.startsWith("mod:"))
+    .map((entry) => {
+      const parts = entry.split(":");
+      const status = parts[1] || "";
+      const actor = parts[2] || "admin";
+      const at = parts[3] || "";
+      const reason = parts.slice(4).join(":");
+      return { status, actor, at, reason };
+    })
+    .filter((x) => x.status && x.at);
+}
+
 export async function moderateSuggestionStatus(
   id: string,
   status: Exclude<ValidationStatus, "pending">,

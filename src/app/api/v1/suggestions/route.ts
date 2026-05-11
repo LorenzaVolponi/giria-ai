@@ -88,8 +88,23 @@ export async function GET(request?: NextRequest) {
   const rawLimit = Number(request?.nextUrl.searchParams.get("limit") || 200);
   const limit = Number.isFinite(rawLimit) ? Math.min(300, Math.max(1, Math.floor(rawLimit))) : 200;
   const includeSummary = request?.nextUrl.searchParams.get("includeSummary") === "true";
+  const from = request?.nextUrl.searchParams.get("from");
+  const to = request?.nextUrl.searchParams.get("to");
 
-  const data = status === "approved" ? await listApprovedSuggestions(limit) : await listSuggestionsByStatus(status, limit);
+  const base = status === "approved" ? await listApprovedSuggestions(limit) : await listSuggestionsByStatus(status, limit);
+  const fromTs = from ? Date.parse(from) : NaN;
+  const toTs = to ? Date.parse(to) : NaN;
+  const hasFrom = Number.isFinite(fromTs);
+  const hasTo = Number.isFinite(toTs);
+  const data = (hasFrom || hasTo)
+    ? base.filter((item) => {
+        const ts = Date.parse(String(item.createdAt || ""));
+        if (!Number.isFinite(ts)) return false;
+        if (hasFrom && ts < fromTs) return false;
+        if (hasTo && ts > toTs) return false;
+        return true;
+      })
+    : base;
   const summary = includeSummary ? await getSuggestionStatusCounts() : undefined;
   return withSecurityHeaders(NextResponse.json({ items: data, ...(summary ? { summary } : {}) }));
 }
