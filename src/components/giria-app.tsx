@@ -595,6 +595,7 @@ export default function GiriaApp() {
     },
     {
       id: "sugestoes",
+      id: "sobre",
       label: "Sugestões",
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",
