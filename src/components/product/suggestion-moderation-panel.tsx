@@ -82,8 +82,45 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected") {
-    if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.target as HTMLElement)?.tagName === "INPUT" || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      if (event.key.toLowerCase() === "a") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "approved");
+      }
+      if (event.key.toLowerCase() === "r") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "rejected");
+      }
+      if (event.shiftKey && event.key.toLowerCase() === "a") {
+        void moderateBatch("approved");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [items, selectedIds]);
+  function statusBadge(status: SuggestionItem["status"]) {
+    if (status === "approved") return "Aprovada";
+    if (status === "rejected") return "Rejeitada";
+    return "Pendente";
+  }
+
+  function statusBadgeClass(status: SuggestionItem["status"]) {
+    if (status === "approved") return "bg-emerald-100 text-emerald-700";
+    if (status === "rejected") return "bg-rose-100 text-rose-700";
+    return "bg-amber-100 text-amber-700";
+  }
+  async function loadHistory(id: string) {
+    const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { history?: Array<{ status: string; actor: string; at: string; reason?: string }> };
+    setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
+  }
+
+  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+    if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
@@ -99,18 +136,158 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     }).catch(() => null);
 
     setBusyId(null);
-    if (!res) return setMessage("Erro de rede ao moderar.");
+    if (!res) { setMessage("Erro de rede ao moderar."); return false; }
     if (res.status === 401) {
       setIsAuthenticated(false);
-      return setMessage("Sessão expirada. Faça login novamente.");
+      setMessage("Sessão expirada. Faça login novamente.");
+      return false;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setMessage(data?.error || "Falha ao moderar item.");
+      setMessage(data?.error || "Falha ao moderar item.");
+      return false;
     }
 
+    if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setUndoExpiresAt(Date.now() + 10000);
+    setItems((prev) => prev
+      .map((item) => (item.id === id ? { ...item, status } : item))
+      .filter((item) => statusFilter === "all" || item.status === statusFilter));
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          approved: status === "approved" ? prev.approved + 1 : prev.approved,
+          rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+        }
+      : prev));
+    setRejectReasonById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+    return true;
+  }
+
+  function undoLastAction() {
+    if (!lastAction) return;
+    const { id, snapshot } = lastAction;
+    setItems((prev) => {
+      const exists = prev.some((item) => item.id === id);
+      const next = exists ? prev.map((item) => (item.id === id ? snapshot : item)) : [snapshot, ...prev];
+      return next.filter((item) => statusFilter === "all" || item.status === statusFilter);
+    });
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: prev.pending + (snapshot.status === "pending" ? 1 : 0),
+          approved: Math.max(0, prev.approved - (lastAction.toStatus === "approved" ? 1 : 0)),
+          rejected: Math.max(0, prev.rejected - (lastAction.toStatus === "rejected" ? 1 : 0)),
+        }
+      : prev));
+    setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
+    setLastAction(null);
+    setUndoExpiresAt(null);
+  }
+
+  async function moderateBatch(status: "approved" | "rejected") {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
+    for (const id of pendingIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await moderate(id, status);
+      if (!ok) failed += 1;
+      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
+    }
+    setSelectedIds([]);
     await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
+  }
+
+  function toggleSelectAllPage(pageIds: string[]) {
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds])));
+  }
+
+  function selectAllFiltered(filteredIds: string[]) {
+    setSelectedIds(Array.from(new Set(filteredIds)));
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {
