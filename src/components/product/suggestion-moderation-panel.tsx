@@ -104,8 +104,77 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       return setMessage(data?.error || "Falha ao moderar item.");
     }
 
+    if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setItems((prev) => prev
+      .map((item) => (item.id === id ? { ...item, status } : item))
+      .filter((item) => statusFilter === "all" || item.status === statusFilter));
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          approved: status === "approved" ? prev.approved + 1 : prev.approved,
+          rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+        }
+      : prev));
+    setRejectReasonById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
-    await reloadPending();
+  }
+
+  function undoLastAction() {
+    if (!lastAction) return;
+    const { id, snapshot } = lastAction;
+    setItems((prev) => {
+      const exists = prev.some((item) => item.id === id);
+      const next = exists ? prev.map((item) => (item.id === id ? snapshot : item)) : [snapshot, ...prev];
+      return next.filter((item) => statusFilter === "all" || item.status === statusFilter);
+    });
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: prev.pending + (snapshot.status === "pending" ? 1 : 0),
+          approved: Math.max(0, prev.approved - (lastAction.toStatus === "approved" ? 1 : 0)),
+          rejected: Math.max(0, prev.rejected - (lastAction.toStatus === "rejected" ? 1 : 0)),
+        }
+      : prev));
+    setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
+    setLastAction(null);
+  }
+
+  async function moderateBatch(status: "approved" | "rejected") {
+    if (!selectedIds.length) return;
+    for (const id of selectedIds) {
+      // eslint-disable-next-line no-await-in-loop
+      await moderate(id, status);
+    }
+    setSelectedIds([]);
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {
@@ -165,7 +234,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </div>
       ) : null}
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
         </button>
