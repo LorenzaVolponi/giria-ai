@@ -19,3 +19,9 @@ describe("regional slang support", () => {
     expect(results.some((t) => t.term === "tri massa")).toBe(true);
   });
 });
+
+
+it("includes North region entries", () => {
+  const norteTerms = getTermsByRegion("norte");
+  expect(norteTerms.some((t) => t.term === "pai d'égua")).toBe(true);
+});
