@@ -30,8 +30,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
   const pageSize = 12;
 
   async function reloadPending() {
@@ -72,19 +70,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
 
-
-
-  function statusBadge(status: SuggestionItem["status"]) {
-    if (status === "approved") return "Aprovada";
-    if (status === "rejected") return "Rejeitada";
-    return "Pendente";
-  }
-
-  function statusBadgeClass(status: SuggestionItem["status"]) {
-    if (status === "approved") return "bg-emerald-100 text-emerald-700";
-    if (status === "rejected") return "bg-rose-100 text-rose-700";
-    return "bg-amber-100 text-amber-700";
-  }
   async function loadHistory(id: string) {
     const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
@@ -98,11 +83,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    const snapshot = items.find((item) => item.id === id);
+    if (status === "rejected" && !reason) {
+      setBusyId(null);
+      return setMessage("Informe um motivo para rejeitar.");
+    }
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, reason: reason || undefined }),
+      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     }).catch(() => null);
 
     setBusyId(null);
@@ -189,6 +177,30 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     URL.revokeObjectURL(url);
   }
 
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="mt-8 rounded-lg border p-4">
       <h3 className="text-lg font-semibold">Moderação manual (admin)</h3>
@@ -229,15 +241,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
           Exportar CSV
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
-          Desfazer última ação
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
-          Aprovar selecionadas
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
-          Rejeitar selecionadas
-        </button>
       </div>
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
@@ -249,8 +252,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             const q = termQuery.trim().toLowerCase();
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-          })
-          .sort((a, b) => b.score - a.score || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          });
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -259,26 +261,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
-          <li key={item.id} className="rounded border p-3 transition-all duration-200">
-            <div className="flex items-start justify-between gap-2">
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item.id)}
-                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id))}
-                />
-                Selecionar
-              </label>
-              <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
-            </div>
-            <p className="font-medium mt-2">{item.term}</p>
+          <li key={item.id} className="rounded border p-3">
+            <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
             {item.context ? <p className="text-xs text-muted-foreground mt-1">Contexto: {item.context}</p> : null}
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
@@ -287,7 +278,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (opcional)"
+              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
