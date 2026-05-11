@@ -26,6 +26,15 @@ export default function AdminPage() {
     setMessage("Login admin efetuado.");
   }
 
+  async function handleLogout() {
+    await fetch("/api/v1/admin/session", { method: "DELETE" }).catch(() => null);
+    setOk(false);
+    setLogin("");
+    setPassword("");
+    setCode("");
+    setMessage("Sessão encerrada.");
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="text-3xl font-bold">Admin privado</h1>
@@ -40,7 +49,15 @@ export default function AdminPage() {
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         </form>
       ) : (
-        <SuggestionModerationPanel initialPending={[]} initialAuthenticated />
+        <>
+          <div className="mt-6 flex items-center justify-between rounded border p-3">
+            <p className="text-sm text-muted-foreground">Você está autenticada no painel privado.</p>
+            <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void handleLogout()}>
+              Sair
+            </button>
+          </div>
+          <SuggestionModerationPanel initialPending={[]} initialAuthenticated />
+        </>
       )}
     </main>
   );
