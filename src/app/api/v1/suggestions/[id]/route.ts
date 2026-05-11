@@ -14,10 +14,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (status !== "approved" && status !== "rejected") {
     return withSecurityHeaders(NextResponse.json({ error: "Status inválido. Use approved ou rejected." }, { status: 400 }));
   }
-  if (status === "rejected" && !body.reason?.trim()) {
-    return withSecurityHeaders(NextResponse.json({ error: "Motivo é obrigatório para rejeição." }, { status: 400 }));
-  }
-
   try {
     await moderateSuggestionStatus(id, status, { actor: "admin007", reason: body.reason });
     return withSecurityHeaders(NextResponse.json({ ok: true, id, status }));
