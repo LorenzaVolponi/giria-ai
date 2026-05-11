@@ -31,6 +31,10 @@ export function validateSuggestionPayload(payload: SuggestionInput) {
   if (!term || !meaning || !submitterName || !submitterWhatsapp || !submitterEmail) {
     return { ok: false as const, reason: "Campos obrigatórios ausentes." };
   }
+  const lettersInTerm = (term.match(/\p{L}/gu) || []).length;
+  if (lettersInTerm < 2) {
+    return { ok: false as const, reason: "Gíria inválida: informe ao menos 2 letras." };
+  }
 
   const combined = `${term} ${meaning} ${context}`;
   if (bannedPatterns.some((p) => p.test(combined)) || blockedTerms.test(combined)) {
@@ -182,6 +186,25 @@ export async function listSuggestionsByStatus(status: ValidationStatus | "all" =
 export async function moderateSuggestionStatus(id: string, status: Exclude<ValidationStatus, "pending">) {
   const safeId = sanitizeUserInput(id, 80);
   if (!safeId) throw new Error("ID inválido");
+  try {
+    const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
+    if (status === "approved") {
+      await autoPromoteApprovedSlang({
+        term: updated.term,
+        meaning: updated.meaning,
+        context: updated.context,
+        submitterName: updated.submitterName,
+        submitterWhatsapp: updated.submitterWhatsapp,
+        submitterEmail: updated.submitterEmail,
+        status: "approved",
+      });
+    }
+    return updated;
+  } catch {
+    const idx = memorySuggestions.findIndex((x) => x.id === safeId);
+    if (idx === -1) throw new Error("Sugestão não encontrada");
+    memorySuggestions[idx] = { ...memorySuggestions[idx], status };
+    return memorySuggestions[idx];
   const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
   if (status === "approved") {
     await autoPromoteApprovedSlang({

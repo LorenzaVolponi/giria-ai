@@ -27,6 +27,18 @@ describe("suggestion pipeline validation", () => {
     expect(parsed.ok).toBe(true);
   });
 
+  it("rejects term without real letters", () => {
+    const parsed = validateSuggestionPayload({
+      term: ".",
+      meaning: "texto válido",
+      context: "",
+      submitterName: "Ana",
+      submitterWhatsapp: "1199999999",
+      submitterEmail: "ana@email.com",
+    });
+    expect(parsed.ok).toBe(false);
+  });
+
   it("accepts punctuation-rich meaning/context", () => {
     const parsed = validateSuggestionPayload({
       term: "lá ele",
