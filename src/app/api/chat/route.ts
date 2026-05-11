@@ -41,6 +41,7 @@ if (typeof globalThis !== "undefined") {
 // ---------------------------------------------------------------------------
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
+const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
@@ -100,10 +101,11 @@ function lookupTerm(query: string): SlangTerm[] {
   const exact = index.get(normalized);
   if (exact && exact.length > 0) return exact;
 
-  // Contains match: term contains query or query contains term
+  // Contains match: term contains query (avoid reverse match to reduce false positives)
   const contains: SlangTerm[] = [];
+  if (normalized.length < 3) return [];
   for (const [key, terms] of index.entries()) {
-    if (key.includes(normalized) || normalized.includes(key)) {
+    if (key.includes(normalized)) {
       contains.push(...terms);
     }
   }
@@ -446,10 +448,16 @@ function detectIntent(message: string): {
 
     // Also try meaningful words for fuzzy match
     for (const word of meaningfulWords) {
+      if (word.length < 4) continue;
       if (foundTerms.some((f) => normalize(f) === normalize(word))) continue;
       const results = lookupTerm(word);
       if (results.length > 0) {
-        foundTerms.push(results[0].term);
+        const best = results[0];
+        const normalizedWord = normalize(word);
+        const normalizedBest = normalize(best.term);
+        if (normalizedBest.includes(normalizedWord) || normalizedWord.includes(normalizedBest)) {
+          foundTerms.push(best.term);
+        }
       }
     }
   }
@@ -588,6 +596,7 @@ Algumas possibilidades:
 3. **Pode ser regional** — algumas gírias são específicas de certas regiões
 
 ${closest.length > 0 ? `Talvez você quis dizer: ${closest.map((t) => `"${t.term}"`).join(", ")}.` : ""}
+Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
       return formatTermCard(results[0]);
@@ -601,7 +610,8 @@ Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
 - *"O que significa [gíria]?"*
 - *"Explique [termo]"*
 
-Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadastrados! 📚`;
+Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadastrados! 📚
+Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       }
       const terms = Array.from(found.values());
       const response = formatMultiTermResponse(terms);
