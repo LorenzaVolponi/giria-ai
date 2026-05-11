@@ -10,10 +10,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const term = getTerm(decodeURIComponent(slug));
   if (!term) return { title: "Gíria não encontrada | Gíria AI" };
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const url = `${site}/girias/${encodeURIComponent(term.term)}`;
 
   return {
     title: `${term.term}: significado e contexto | Gíria AI`,
-    description: term.context,
+    description: `${term.term}: ${term.meaning}. Contexto: ${term.context}`,
+    keywords: [term.term, "o que significa", "gíria", "giria", "significado", "gírias brasileiras"],
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${term.term}: o que significa? | Gíria AI`,
+      description: `${term.meaning} — ${term.context}`,
+      url,
+      type: "article",
+    },
+    twitter: {
+      card: "summary",
+      title: `${term.term}: o que significa?`,
+      description: `${term.meaning} — ${term.context}`,
+    },
   };
 }
 
@@ -24,6 +39,19 @@ export default async function GiriaDetalhePage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "DefinedTerm",
+            name: term.term,
+            description: term.meaning,
+            inDefinedTermSet: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias`,
+            url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/${encodeURIComponent(term.term)}`,
+          }),
+        }}
+      />
       <h1 className="text-3xl font-bold">{term.term}</h1>
       <p className="mt-4 text-lg">{term.adultTranslation}</p>
       <section className="mt-6 space-y-3 rounded-lg border p-5">
