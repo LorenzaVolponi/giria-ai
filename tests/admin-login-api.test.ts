@@ -50,4 +50,22 @@ describe("admin login api", () => {
     const sessionRes = await GET(sessionReq);
     expect(sessionRes.status).toBe(200);
   });
+
+  it("rate limits repeated invalid attempts", async () => {
+    for (let i = 0; i < 5; i += 1) {
+      const req = new NextRequest("http://localhost/api/v1/admin/login", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.77" },
+        body: JSON.stringify({ login: "x", password: "y", code: "0000" }),
+      });
+      await POST(req);
+    }
+    const blockedReq = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.77" },
+      body: JSON.stringify({ login: "x", password: "y", code: "0000" }),
+    });
+    const blockedRes = await POST(blockedReq);
+    expect(blockedRes.status).toBe(429);
+  });
 });

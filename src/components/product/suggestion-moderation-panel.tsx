@@ -22,6 +22,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [minScore, setMinScore] = useState(0);
+  const [termQuery, setTermQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
@@ -39,6 +43,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   useEffect(() => {
     void reloadPending();
   }, [statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, minScore, termQuery]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -93,6 +101,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
         <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
       </div>
+      </div>
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+        <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
+        <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
+        <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
+      </div>
 
       <button className="mt-3 rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
         {loading ? "Atualizando..." : "Atualizar sugestões"}
@@ -100,7 +114,22 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
+      {(() => {
+        const filtered = items
+          .filter((item) => item.score >= minScore)
+          .filter((item) => {
+            const q = termQuery.trim().toLowerCase();
+            if (!q) return true;
+            return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+          });
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const safePage = Math.min(page, totalPages);
+        const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+        return (
+          <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {paged.map((item) => (
         {items
           .filter((item) => item.score >= minScore)
           .filter((item) => {
@@ -124,6 +153,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           </li>
         ))}
       </ul>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <p>Página {safePage} de {totalPages} · {filtered.length} itens filtrados</p>
+        <div className="flex gap-2">
+          <button className="rounded border px-2 py-1 disabled:opacity-50" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Anterior
+          </button>
+          <button className="rounded border px-2 py-1 disabled:opacity-50" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            Próxima
+          </button>
+        </div>
+      </div>
+          </>
+        );
+      })()}
     </section>
   );
 }
