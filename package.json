@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ci:check": "npm run test -- tests/admin-login-api.test.ts tests/suggestion-pipeline.test.ts tests/suggestions-api.test.ts && npm run build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -75,6 +76,7 @@
     "react-resizable-panels": "^3.0.3",
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.4",
+    "redis": "^4.7.1",
     "sharp": "^0.34.3",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
