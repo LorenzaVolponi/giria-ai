@@ -18,6 +18,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly",
     priority: 0.8,
   }));
+  const intentRoutes: MetadataRoute.Sitemap = SLANG_DATA.slice(0, 2000).map((term) => ({
+    url: `${site}/o-que-significa/${encodeURIComponent(term.term)}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.75,
+  }));
 
-  return [...staticRoutes, ...slangRoutes];
+  return [...staticRoutes, ...slangRoutes, ...intentRoutes];
 }
