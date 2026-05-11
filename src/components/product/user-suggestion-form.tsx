@@ -22,6 +22,7 @@ export function UserSuggestionForm() {
     const payload = {
       submitterName,
       submitterWhatsapp,
+      submitterContact: submitterWhatsapp,
       submitterEmail,
       term,
       meaning,

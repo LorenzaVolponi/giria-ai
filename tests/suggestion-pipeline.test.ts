@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSuggestionEligible, validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
+import { autoPromoteApprovedSlang, isSuggestionEligible, validateSuggestionPayload } from "../src/lib/suggestion-pipeline";
 
 describe("suggestion pipeline validation", () => {
   it("rejects missing fields", () => {
@@ -17,8 +17,38 @@ describe("suggestion pipeline validation", () => {
     expect(parsed.ok).toBe(false);
   });
 
+  it("rejects consonant-heavy artificial term", async () => {
+    const parsed = await isSuggestionEligible("bcdfghjklmna");
+    expect(parsed.ok).toBe(false);
+  });
+
   it("accepts valid suggestion", () => {
     const parsed = validateSuggestionPayload({ term: "farmar aura", meaning: "tentar ganhar moral", context: "rede social", submitterName: "Ana", submitterWhatsapp: "+5511988887777", submitterEmail: "ana@email.com" });
     expect(parsed.ok).toBe(true);
+  });
+
+  it("rejects oversized text payloads", () => {
+    const parsed = validateSuggestionPayload({
+      term: "g".repeat(41),
+      meaning: "m".repeat(281),
+      context: "c".repeat(281),
+      submitterName: "Ana",
+      submitterWhatsapp: "+5511988887777",
+      submitterEmail: "ana@email.com",
+    });
+    expect(parsed.ok).toBe(false);
+  });
+
+  it("does not promote pending suggestions", async () => {
+    const promoted = await autoPromoteApprovedSlang({
+      term: "farmar aura",
+      meaning: "tentar ganhar moral",
+      context: "rede social",
+      submitterName: "Ana",
+      submitterWhatsapp: "+5511988887777",
+      submitterEmail: "ana@email.com",
+      status: "pending",
+    });
+    expect(promoted.promoted).toBe(false);
   });
 });
