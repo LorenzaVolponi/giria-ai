@@ -22,6 +22,7 @@ export function UserSuggestionForm() {
     const payload = {
       submitterName,
       submitterWhatsapp,
+      submitterContact: submitterWhatsapp,
       submitterEmail,
       term,
       meaning,
@@ -43,7 +44,7 @@ export function UserSuggestionForm() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return setStatus(data?.error || "Não foi possível enviar a sugestão.");
 
-    setStatus(`Sugestão enviada! Status: ${data.status}. Confiança: ${Math.round((data.score || 0) * 100)}%`);
+    setStatus("Sugestão enviada com sucesso! Nossa validação automática já recebeu seu envio.");
     setTerm("");
     setMeaning("");
     setContext("");
