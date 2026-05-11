@@ -12,8 +12,10 @@ export default function AdminPage() {
   const [dash, setDash] = useState<{
     summary?: { pending: number; approved: number; rejected: number; all: number };
     topIps?: Array<{ ip: string; total: number; approved: number; rejected: number; pending: number; lastAt: number }>;
+    alerts?: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
+  const [auditPreview, setAuditPreview] = useState<Array<{ at: string; action: string; ip?: string }>>([]);
 
   function getCsrfToken() {
     const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
@@ -36,6 +38,11 @@ export default function AdminPage() {
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
+    const auditRes = await fetch("/api/v1/admin/audit?limit=6", { cache: "no-store" }).catch(() => null);
+    if (auditRes?.ok) {
+      const auditData = (await auditRes.json().catch(() => ({}))) as { items?: Array<{ at: string; action: string; ip?: string }> };
+      setAuditPreview(Array.isArray(auditData.items) ? auditData.items : []);
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -119,6 +126,22 @@ export default function AdminPage() {
               </div>
             </section>
           </div>
+          <section className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold">Alertas operacionais</h2>
+            <div className="space-y-2 text-sm">
+              {(dash.alerts || []).map((a) => (
+                <p key={a.code} className={`rounded border p-2 ${a.level === "critical" ? "border-rose-300 bg-rose-50" : a.level === "warning" ? "border-amber-300 bg-amber-50" : "border-emerald-300 bg-emerald-50"}`}>
+                  <strong>{a.level.toUpperCase()}</strong> · {a.message}
+                </p>
+              ))}
+            </div>
+            <h3 className="mt-4 mb-2 font-semibold">Últimos eventos de auditoria</h3>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {auditPreview.map((e, idx) => (
+                <p key={`${e.at}-${idx}`}>{new Date(e.at).toLocaleString("pt-BR")} · {e.action} · {e.ip || "sem-ip"}</p>
+              ))}
+            </div>
+          </section>
           <SuggestionModerationPanel initialPending={[]} initialAuthenticated />
         </>
       )}
