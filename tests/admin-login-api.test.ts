@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "../src/app/api/v1/admin/login/route";
 import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
-import { GET } from "../src/app/api/v1/admin/session/route";
 
 describe("admin login api", () => {
   it("rejects invalid credentials", async () => {

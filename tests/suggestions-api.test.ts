@@ -63,6 +63,61 @@ describe("suggestions api", () => {
     expect(data).toHaveProperty("promoted", true);
   });
 
+  it("replays idempotent POST with same response payload", async () => {
+    vi.spyOn(pipeline, "validateSuggestionPayload").mockReturnValue({
+      ok: true,
+      normalized: {
+        term: "chave",
+        meaning: "muito bom",
+        context: "funk",
+        submitterName: "Ana",
+        submitterWhatsapp: "+5511999999999",
+        submitterEmail: "ana@email.com",
+      },
+    });
+    vi.spyOn(pipeline, "isSuggestionEligible").mockResolvedValue({ ok: true, term: "chave" });
+    vi.spyOn(pipeline, "processSuggestion").mockResolvedValue({
+      adjustedMeaning: "muito bom",
+      totalScore: 0.9,
+      status: "approved",
+      evidence: ["web:0.90", "llm:0.00"],
+    });
+    const saveSpy = vi.spyOn(pipeline, "saveValidatedSlang").mockResolvedValue({ id: "idem_1", createdAt: "2026-05-11T00:00:00.000Z" });
+    vi.spyOn(pipeline, "autoPromoteApprovedSlang").mockResolvedValue({ promoted: true });
+    vi.spyOn(pipeline, "notifyLeadEmail").mockResolvedValue();
+
+    const body = JSON.stringify({
+      term: "chave",
+      meaning: "muito bom",
+      context: "funk",
+      submitterName: "Ana",
+      submitterContact: "+5511999999999",
+      submitterEmail: "ana@email.com",
+    });
+
+    const req1 = new NextRequest("http://localhost/api/v1/suggestions", {
+      method: "POST",
+      body,
+      headers: { "content-type": "application/json", "idempotency-key": "abc-123" },
+    });
+    const res1 = await POST(req1);
+    const data1 = await res1.json();
+
+    const req2 = new NextRequest("http://localhost/api/v1/suggestions", {
+      method: "POST",
+      body,
+      headers: { "content-type": "application/json", "idempotency-key": "abc-123" },
+    });
+    const res2 = await POST(req2);
+    const data2 = await res2.json();
+
+    expect(res1.status).toBe(201);
+    expect(res2.status).toBe(200);
+    expect(data2).toHaveProperty("idempotentReplay", true);
+    expect(data2.id).toBe(data1.id);
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("returns summary when requested and normalizes invalid query params", async () => {
     vi.spyOn(pipeline, "listApprovedSuggestions").mockResolvedValue([]);
     vi.spyOn(pipeline, "getSuggestionStatusCounts").mockResolvedValue({

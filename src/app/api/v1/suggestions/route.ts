@@ -14,6 +14,8 @@ import {
   validateSuggestionPayload,
 } from "@/lib/suggestion-pipeline";
 
+const idempotencyCache = new Map<string, { expiresAt: number; payload: { id: string; score: number; status: string; promoted: boolean; createdAt: string } }>();
+
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   const requestId = getRequestId(request);
@@ -23,6 +25,14 @@ export async function POST(request: NextRequest) {
     const rate = await isRateLimited(`suggestion:${ip}`, 10, 60);
     if (rate.limited) {
       return withSecurityHeaders(NextResponse.json({ error: "Muitas sugestões em pouco tempo." }, { status: 429 }));
+    }
+    const idemKey = request.headers.get("idempotency-key")?.trim();
+    if (idemKey) {
+      const cacheKey = `${ip}:${idemKey}`;
+      const hit = idempotencyCache.get(cacheKey);
+      if (hit && hit.expiresAt > Date.now()) {
+        return withSecurityHeaders(NextResponse.json({ ok: true, ...hit.payload, idempotentReplay: true }, { status: 200 }));
+      }
     }
 
     const payload = (await request.json().catch(() => ({}))) as Record<string, string>;
@@ -51,7 +61,11 @@ export async function POST(request: NextRequest) {
     await notifyLeadEmail({ ...parsed.normalized, meaning: processed.adjustedMeaning, score: processed.totalScore, status: processed.status, contextCategory: parsed.normalized.context || "geral" }).catch(() => null);
 
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: `status_${processed.status}` });
-    return withSecurityHeaders(NextResponse.json({ ok: true, id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt }, { status: 201 }));
+    const responsePayload = { id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt };
+    if (idemKey) {
+      idempotencyCache.set(`${ip}:${idemKey}`, { expiresAt: Date.now() + 10 * 60_000, payload: responsePayload });
+    }
+    return withSecurityHeaders(NextResponse.json({ ok: true, ...responsePayload }, { status: 201 }));
   } catch {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 500, durationMs: Date.now() - startedAt, message: "internal_error" });
     return withSecurityHeaders(NextResponse.json({ error: "Falha ao processar sugestão." }, { status: 500 }));

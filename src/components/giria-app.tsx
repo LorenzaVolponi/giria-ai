@@ -287,18 +287,6 @@ export default function GiriaApp() {
     }, 60000);
     return () => clearInterval(id);
   }, [activeTab, loadCommunity]);
-  const [chatOpen, setChatOpen] = useState(false);
-  const chatInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const loadCommunity = async () => {
-      const res = await fetch("/api/v1/suggestions?status=approved&limit=60", { cache: "no-store" }).catch(() => null);
-      if (!res?.ok) return;
-      const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }> };
-      if (Array.isArray(data.items)) setCommunityItems(data.items);
-    };
-    void loadCommunity();
-  }, []);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -619,7 +607,6 @@ export default function GiriaApp() {
     },
     {
       id: "sugestoes",
-      id: "sobre",
       label: "Sugestões",
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",

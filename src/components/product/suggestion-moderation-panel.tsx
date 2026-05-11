@@ -26,9 +26,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [termQuery, setTermQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 12;
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
-  const [minScore, setMinScore] = useState(0);
-  const [termQuery, setTermQuery] = useState("");
 
   async function reloadPending() {
     setLoading(true);
@@ -139,16 +136,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           Exportar CSV
         </button>
       </div>
-      </div>
-      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-        <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
-        <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
-        <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
-      </div>
-
-      <button className="mt-3 rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
-        {loading ? "Atualizando..." : "Atualizar sugestões"}
-      </button>
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
@@ -168,14 +155,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
-        {items
-          .filter((item) => item.score >= minScore)
-          .filter((item) => {
-            const q = termQuery.trim().toLowerCase();
-            if (!q) return true;
-            return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-          })
-          .map((item) => (
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>

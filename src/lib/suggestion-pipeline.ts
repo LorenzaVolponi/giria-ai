@@ -21,6 +21,21 @@ const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|p
 const webScoreCache = new Map<string, { score: number; expiresAt: number }>();
 const revalidateCooldown = new Map<string, number>();
 
+async function retry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 150): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("retry_failed");
+}
+
 export function validateSuggestionPayload(payload: SuggestionInput) {
   const term = sanitizeUserInput(payload.term, 80).toLowerCase();
   const meaning = sanitizeUserInput(payload.meaning, 320);
@@ -67,7 +82,7 @@ export async function webSignalScore(term: string): Promise<number> {
   ];
   const htmlBlocks = await Promise.all(
     sources.map(async (url) => {
-      const res = await fetch(url, { cache: "no-store" }).catch(() => null);
+      const res = await retry(async () => fetch(url, { cache: "no-store" }), 2, 120).catch(() => null);
       if (!res?.ok) return "";
       return (await res.text()).toLowerCase();
     }),
@@ -86,7 +101,6 @@ export async function webSignalScore(term: string): Promise<number> {
   const finalScore = Math.min(1, score);
   webScoreCache.set(cacheKey, { score: finalScore, expiresAt: Date.now() + 6 * 60 * 60_000 });
   return finalScore;
-  return Math.min(1, score);
 }
 
 async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeaning: string; confidenceBoost: number }> {
@@ -138,26 +152,31 @@ export async function notifyLeadEmail(input: SuggestionInput & { score: number; 
   if (!host || !user || !pass || !from) return;
 
   const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
-  await transporter.sendMail({
-    from,
-    to: "007aibr@gmail.com",
-    subject: "📨 Novo Lead - Sugestão de Gíria",
-    text: [
-      "📨 Novo Lead - Sugestão de Gíria",
-      "",
-      `Gíria: ${input.term}`,
-      `Significado: ${input.meaning}`,
-      `Contexto: ${input.contextCategory}`,
-      "",
-      "👤 Submitter Info:",
-      `Nome: ${input.submitterName}`,
-      `WhatsApp: ${input.submitterWhatsapp}`,
-      `Email: ${input.submitterEmail}`,
-      "",
-      `Status de Validação: ${input.status}`,
-      `Confiança: ${Math.round(input.score * 100)}%`,
-    ].join("\n"),
-  });
+  await retry(
+    async () =>
+      transporter.sendMail({
+        from,
+        to: "007aibr@gmail.com",
+        subject: "📨 Novo Lead - Sugestão de Gíria",
+        text: [
+          "📨 Novo Lead - Sugestão de Gíria",
+          "",
+          `Gíria: ${input.term}`,
+          `Significado: ${input.meaning}`,
+          `Contexto: ${input.contextCategory}`,
+          "",
+          "👤 Submitter Info:",
+          `Nome: ${input.submitterName}`,
+          `WhatsApp: ${input.submitterWhatsapp}`,
+          `Email: ${input.submitterEmail}`,
+          "",
+          `Status de Validação: ${input.status}`,
+          `Confiança: ${Math.round(input.score * 100)}%`,
+        ].join("\n"),
+      }),
+    2,
+    200,
+  );
 }
 
 export async function listApprovedSuggestions(limit = 100) {
@@ -200,11 +219,20 @@ export async function getSuggestionStatusCounts() {
   }
 }
 
-export async function moderateSuggestionStatus(id: string, status: Exclude<ValidationStatus, "pending">) {
+export async function moderateSuggestionStatus(
+  id: string,
+  status: Exclude<ValidationStatus, "pending">,
+  moderation?: { actor?: string; reason?: string },
+) {
   const safeId = sanitizeUserInput(id, 80);
   if (!safeId) throw new Error("ID inválido");
+  const actor = sanitizeUserInput(moderation?.actor || "admin", 80);
+  const reason = sanitizeUserInput(moderation?.reason || "", 180);
+  const event = `mod:${status}:${actor}:${new Date().toISOString()}${reason ? `:${reason}` : ""}`;
   try {
-    const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
+    const current = await db.validatedSlang.findUnique({ where: { id: safeId }, select: { evidence: true } });
+    const evidence = JSON.stringify([...(JSON.parse(current?.evidence || "[]") as string[]), event].slice(-30));
+    const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status, evidence } });
     if (status === "approved") {
       await autoPromoteApprovedSlang({
         term: updated.term,
@@ -249,77 +277,12 @@ export async function autoPromoteApprovedSlang(input: SuggestionInput & { meanin
   }
 }
 
-  const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
-  if (status === "approved") {
-    await autoPromoteApprovedSlang({
-      term: updated.term,
-      meaning: updated.meaning,
-      context: updated.context,
-      submitterName: updated.submitterName,
-      submitterWhatsapp: updated.submitterWhatsapp,
-      submitterEmail: updated.submitterEmail,
-      status: "approved",
-    });
-  }
-  return updated;
-}
-
-export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
-  if (input.status !== "approved") return { promoted: false as const };
-  try {
-    const existing = await db.translation.findFirst({
-      where: { slang: { equals: input.term, mode: "insensitive" } },
-      select: { id: true },
-    });
-    if (existing) return { promoted: false as const, reason: "already_exists" as const };
-
-    await db.translation.create({
-      data: {
-        slang: input.term,
-        translation: input.meaning,
-        context: input.context || "geral",
-        category: "user-validated",
-        example: `Sugestão validada enviada por ${input.submitterName}`,
-      },
-    });
-    return { promoted: true as const };
-  } catch {
-    return { promoted: false as const, reason: "db_unavailable" as const };
-  }
-}
-
-export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
-  if (input.status !== "approved") return { promoted: false as const };
-  try {
-    const existing = await db.translation.findFirst({
-      where: { slang: { equals: input.term, mode: "insensitive" } },
-      select: { id: true },
-    });
-    if (existing) return { promoted: false as const, reason: "already_exists" as const };
-
-    await db.translation.create({
-      data: {
-        slang: input.term,
-        translation: input.meaning,
-        context: input.context || "geral",
-        category: "user-validated",
-        example: `Sugestão validada enviada por ${input.submitterName}`,
-      },
-    });
-    return { promoted: true as const };
-  } catch {
-    return { promoted: false as const, reason: "db_unavailable" as const };
-  }
-}
-
 export async function processSuggestion(input: SuggestionInput) {
   const webScore = await webSignalScore(input.term);
   const llmEval = await localLlmEvaluate(input);
   const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
   const totalScore = Math.min(1, webScore + 0.45 + llmEval.confidenceBoost);
   const status: ValidationStatus = totalScore >= 0.72 ? "approved" : totalScore < 0.25 ? "rejected" : "pending";
-  const totalScore = Math.min(1, webScore + 0.2 + llmEval.confidenceBoost);
-  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : totalScore < 0.35 ? "rejected" : "pending";
 
   return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
 }
@@ -331,8 +294,6 @@ export async function revalidatePendingSuggestions(limit = 40) {
     .sort((a, b) => Math.abs(0.72 - a.score) - Math.abs(0.72 - b.score));
   let updated = 0;
   for (const row of prioritized) {
-  let updated = 0;
-  for (const row of rows) {
     const webScore = await webSignalScore(row.term);
     const nextScore = Math.min(1, 0.45 + webScore);
     const nextStatus: ValidationStatus = nextScore >= 0.72 ? "approved" : nextScore < 0.25 ? "rejected" : "pending";
@@ -354,8 +315,6 @@ export async function revalidatePendingSuggestions(limit = 40) {
     revalidateCooldown.set(row.id, Date.now() + 10 * 60_000);
   }
   return { scanned: prioritized.length, updated };
-  }
-  return { scanned: rows.length, updated };
 }
 
 export async function isSuggestionEligible(termRaw: string) {
