@@ -1781,6 +1781,16 @@ export default function GiriaApp() {
       {/* Footer */}
       <footer className="mt-auto border-t border-emerald-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-gray-900 dark:to-gray-950 pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
+          >
+            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
+            <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">PIX: <strong>007aibr@gmail.com</strong> · Lorenza Volponi</p>
+          </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
           </p>
