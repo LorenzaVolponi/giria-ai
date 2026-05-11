@@ -19,6 +19,7 @@ const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string
 const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i, /[\u0000-\u001F\u007F]/g];
 const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|porra)\b/i;
 const webScoreCache = new Map<string, { score: number; expiresAt: number }>();
+const revalidateCooldown = new Map<string, number>();
 
 export function validateSuggestionPayload(payload: SuggestionInput) {
   const term = sanitizeUserInput(payload.term, 80).toLowerCase();
@@ -282,6 +283,11 @@ export async function processSuggestion(input: SuggestionInput) {
 
 export async function revalidatePendingSuggestions(limit = 40) {
   const rows = await db.validatedSlang.findMany({ where: { status: "pending" }, take: limit, orderBy: { createdAt: "desc" } });
+  const prioritized = rows
+    .filter((row) => (revalidateCooldown.get(row.id) || 0) < Date.now())
+    .sort((a, b) => Math.abs(0.72 - a.score) - Math.abs(0.72 - b.score));
+  let updated = 0;
+  for (const row of prioritized) {
   let updated = 0;
   for (const row of rows) {
     const webScore = await webSignalScore(row.term);
@@ -302,6 +308,9 @@ export async function revalidatePendingSuggestions(limit = 40) {
       }
       updated += 1;
     }
+    revalidateCooldown.set(row.id, Date.now() + 10 * 60_000);
+  }
+  return { scanned: prioritized.length, updated };
   }
   return { scanned: rows.length, updated };
 }
