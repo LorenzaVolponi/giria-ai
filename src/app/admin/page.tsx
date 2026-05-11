@@ -57,7 +57,6 @@ export default function AdminPage() {
 
   async function handleLogout() {
     await fetch("/api/v1/admin/session", { method: "DELETE", headers: { "x-csrf-token": getCsrfToken() } }).catch(() => null);
-    await fetch("/api/v1/admin/session", { method: "DELETE" }).catch(() => null);
     setOk(false);
     setLogin("");
     setPassword("");

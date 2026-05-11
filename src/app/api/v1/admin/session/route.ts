@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearAdminSessionResponse, requireAdminCsrf, requireAdminToken } from "@/lib/admin-guard";
-import { clearAdminSessionResponse, requireAdminToken } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 
 export async function POST(request: NextRequest) {

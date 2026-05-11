@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminCsrf, requireAdminToken } from "@/lib/admin-guard";
+import { requireAdminCsrf, requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
 import { isRateLimited } from "@/lib/rate-limit";
 import { appendAdminAudit } from "@/lib/admin-audit";
-import { requireAdminToken } from "@/lib/admin-guard";
-import { withSecurityHeaders } from "@/lib/security";
-import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
 
 export async function POST(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["moderator", "owner"]);
+  if (forbidden) return forbidden;
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
   const ip = getClientIp(request);
@@ -19,14 +18,14 @@ export async function POST(request: NextRequest) {
 
   const jobId = enqueueRevalidateJob();
   await appendAdminAudit({ at: new Date().toISOString(), action: "revalidate_enqueue", ip, meta: { jobId } });
-
-  const jobId = enqueueRevalidateJob();
   return withSecurityHeaders(NextResponse.json({ ok: true, queued: true, jobId }, { status: 202 }));
 }
 
 export async function GET(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["moderator", "owner"]);
+  if (forbidden) return forbidden;
 
   const jobId = request.nextUrl.searchParams.get("jobId") || "";
   const job = getRevalidateJob(jobId);
