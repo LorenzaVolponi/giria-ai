@@ -30,6 +30,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
   const csrfToken = (() => {
     if (typeof document === "undefined") return "";
@@ -76,6 +80,51 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+  }, [items]);
+
+  useEffect(() => {
+    if (!undoExpiresAt) return;
+    const timeout = window.setTimeout(() => {
+      setLastAction(null);
+      setUndoExpiresAt(null);
+    }, Math.max(0, undoExpiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [undoExpiresAt]);
+
+
+
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.target as HTMLElement)?.tagName === "INPUT" || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      if (event.key.toLowerCase() === "a") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "approved");
+      }
+      if (event.key.toLowerCase() === "r") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "rejected");
+      }
+      if (event.shiftKey && event.key.toLowerCase() === "a") {
+        void moderateBatch("approved");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [items, selectedIds]);
+  function statusBadge(status: SuggestionItem["status"]) {
+    if (status === "approved") return "Aprovada";
+    if (status === "rejected") return "Rejeitada";
+    return "Pendente";
+  }
+
+  function statusBadgeClass(status: SuggestionItem["status"]) {
+    if (status === "approved") return "bg-emerald-100 text-emerald-700";
+    if (status === "rejected") return "bg-rose-100 text-rose-700";
+    return "bg-amber-100 text-amber-700";
+  }
   async function loadHistory(id: string) {
     const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
@@ -83,35 +132,35 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected") {
-    if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
+  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+    if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    if (status === "rejected" && !reason) {
-      setBusyId(null);
-      return setMessage("Informe um motivo para rejeitar.");
-    }
+    const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
+      body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
 
     setBusyId(null);
-    if (!res) return setMessage("Erro de rede ao moderar.");
+    if (!res) { setMessage("Erro de rede ao moderar."); return false; }
     if (res.status === 401) {
       setIsAuthenticated(false);
-      return setMessage("Sessão expirada. Faça login novamente.");
+      setMessage("Sessão expirada. Faça login novamente.");
+      return false;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setMessage(data?.error || "Falha ao moderar item.");
+      setMessage(data?.error || "Falha ao moderar item.");
+      return false;
     }
 
     if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setUndoExpiresAt(Date.now() + 10000);
     setItems((prev) => prev
       .map((item) => (item.id === id ? { ...item, status } : item))
       .filter((item) => statusFilter === "all" || item.status === statusFilter));
@@ -130,6 +179,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     });
     setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+    return true;
   }
 
   function undoLastAction() {
@@ -150,17 +200,33 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       : prev));
     setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
     setLastAction(null);
+    setUndoExpiresAt(null);
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
     const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
     if (!pendingIds.length) return;
+    setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
     for (const id of pendingIds) {
       // eslint-disable-next-line no-await-in-loop
-      await moderate(id, status);
+      const ok = await moderate(id, status);
+      if (!ok) failed += 1;
+      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
     }
     setSelectedIds([]);
     await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
+  }
+
+  function toggleSelectAllPage(pageIds: string[]) {
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds])));
+  }
+
+  function selectAllFiltered(filteredIds: string[]) {
+    setSelectedIds(Array.from(new Set(filteredIds)));
   }
 
   function exportFilteredCsv() {
@@ -244,7 +310,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </div>
       ) : null}
 
-      <div className="mt-3 flex gap-2">
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
@@ -252,7 +317,23 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
           Exportar CSV
         </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
+          Desfazer última ação
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
+          Aprovar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
+          Rejeitar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
+          Limpar seleção
+        </button>
       </div>
+
+      {batchProgress.running || batchProgress.done ? (
+        <p className="mt-2 text-xs text-muted-foreground">Lote: {batchProgress.done}/{batchProgress.total} processadas · falhas: {batchProgress.failed}</p>
+      ) : null}
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
@@ -263,13 +344,27 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             const q = termQuery.trim().toLowerCase();
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+          })
+          .sort((a, b) => {
+            const aTermFreq = items.filter((x) => x.term.toLowerCase() === a.term.toLowerCase()).length;
+            const bTermFreq = items.filter((x) => x.term.toLowerCase() === b.term.toLowerCase()).length;
+            const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
+            return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
           });
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+        const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
+        const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
 
         return (
           <>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+        <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
+        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
+      </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
           <li key={item.id} className="rounded border p-3 transition-all duration-200">
@@ -286,17 +381,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
             </div>
             <p className="font-medium mt-2">{item.term}</p>
-          <li key={item.id} className="rounded border p-3">
-            <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
             {item.context ? <p className="text-xs text-muted-foreground mt-1">Contexto: {item.context}</p> : null}
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex gap-2">
-              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
-              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
@@ -306,16 +396,19 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+              placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
-                {historyById[item.id].slice(0, 3).map((h) => (
-                  <p key={`${h.status}-${h.at}`}>
-                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
-                    {h.reason ? ` · ${h.reason}` : ""}
-                  </p>
-                ))}
+                {historyById[item.id].slice(0, 3).map((h, idx, arr) => {
+                  const previous = arr[idx + 1];
+                  return (
+                    <p key={`${h.status}-${h.at}`}>
+                      {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {previous ? `${previous.status} → ` : ""}{h.status}
+                      {h.reason ? ` · ${h.reason}` : ""}
+                    </p>
+                  );
+                })}
               </div>
             ) : null}
           </li>
