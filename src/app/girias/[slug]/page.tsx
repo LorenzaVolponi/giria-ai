@@ -45,6 +45,20 @@ export default async function GiriaDetalhePage({ params }: Props) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/` },
+              { "@type": "ListItem", position: 2, name: "Gírias", item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
+              { "@type": "ListItem", position: 3, name: term.term, item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/${encodeURIComponent(term.term)}` },
+            ],
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
             "@type": "DefinedTerm",
             name: term.term,
             description: term.meaning,

@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url,
       type: "article",
     },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -55,6 +56,20 @@ export default async function SignificadoTermoPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: `${site}/` },
+              { "@type": "ListItem", position: 2, name: "O que significa", item: `${site}/o-que-significa` },
+              { "@type": "ListItem", position: 3, name: term.term, item: `${site}/o-que-significa/${encodeURIComponent(term.term)}` },
+            ],
+          }),
+        }}
+      />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <h1 className="text-3xl font-bold">O que significa {term.term}?</h1>
       <p className="text-lg text-muted-foreground">{term.meaning}</p>
