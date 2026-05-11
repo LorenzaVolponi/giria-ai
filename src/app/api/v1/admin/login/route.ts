@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
     return withSecurityHeaders(NextResponse.json({ error: "Muitas tentativas. Aguarde alguns minutos." }, { status: 429 }));
   }
 
+
+export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { login?: string; password?: string; code?: string };
   const login = (body.login || "").trim();
   const password = (body.password || "").trim();
@@ -31,5 +33,8 @@ export async function POST(request: NextRequest) {
   }
 
   loginAttempts.delete(ipKey);
+    return withSecurityHeaders(NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 }));
+  }
+
   return createAdminSessionResponse(true);
 }
