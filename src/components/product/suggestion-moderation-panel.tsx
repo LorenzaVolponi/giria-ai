@@ -15,7 +15,6 @@ type SuggestionItem = {
 };
 
 export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
-  const [token, setToken] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated);
   const [items, setItems] = useState(initialPending);
   const [loading, setLoading] = useState(false);
@@ -24,20 +23,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
-
-  async function login() {
-    setMessage(null);
-    const res = await fetch("/api/v1/admin/session", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token }),
-    }).catch(() => null);
-
-    if (!res?.ok) return setMessage("Token inválido ou sessão indisponível.");
-    setIsAuthenticated(true);
-    setToken("");
-    setMessage("Sessão admin ativa.");
-  }
 
   async function reloadPending() {
     setLoading(true);
@@ -89,13 +74,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   return (
     <section className="mt-8 rounded-lg border p-4">
       <h3 className="text-lg font-semibold">Moderação manual (admin)</h3>
-      <p className="text-sm text-muted-foreground mt-1">Faça login admin uma vez e modere com sessão segura via cookie HttpOnly.</p>
-      {!isAuthenticated ? (
-        <div className="mt-3 flex gap-2">
-          <input className="w-full rounded border p-2" placeholder="ADMIN_API_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} type="password" />
-          <button className="rounded bg-black px-4 py-2 text-white" type="button" onClick={() => void login()}>Entrar</button>
-        </div>
-      ) : null}
+      <p className="text-sm text-muted-foreground mt-1">Sessão admin ativa via /admin com cookie HttpOnly.</p>
+      {!isAuthenticated ? <p className="mt-3 rounded border p-2 text-sm">Faça login em <strong>/admin</strong> para liberar a moderação.</p> : null}
       <div className="mt-3 grid gap-2 md:grid-cols-4">
         <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
           <option value="pending">Pendentes</option>
