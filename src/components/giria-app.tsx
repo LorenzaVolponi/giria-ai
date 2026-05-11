@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 import {
   getTerm,
   searchTerms,
@@ -55,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "sobre";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
 
 interface TranslationResult {
   term: string;
@@ -261,8 +262,31 @@ export default function GiriaApp() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [communityItems, setCommunityItems] = useState<Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }>>([]);
+  const [communityLoading, setCommunityLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+
+  const loadCommunity = useCallback(async () => {
+    setCommunityLoading(true);
+    const res = await fetch("/api/v1/suggestions?status=approved&limit=60", { cache: "no-store" }).catch(() => null);
+    setCommunityLoading(false);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }> };
+    if (Array.isArray(data.items)) setCommunityItems(data.items);
+  }, []);
+
+  useEffect(() => {
+    void loadCommunity();
+  }, [loadCommunity]);
+
+  useEffect(() => {
+    if (activeTab !== "comunidade") return;
+    const id = setInterval(() => {
+      void loadCommunity();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [activeTab, loadCommunity]);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -564,7 +588,7 @@ export default function GiriaApp() {
   // =========================================================================
   // Tab navigation config
   // =========================================================================
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; href?: string }> = [
     { id: "busca", label: "Busca", icon: <Search className="h-4 w-4" /> },
     {
       id: "glossario",
@@ -575,6 +599,17 @@ export default function GiriaApp() {
       id: "favoritos",
       label: "Favoritos",
       icon: <Heart className="h-4 w-4" />,
+    },
+    {
+      id: "comunidade",
+      label: "Comunidade",
+      icon: <Users className="h-4 w-4" />,
+    },
+    {
+      id: "sugestoes",
+      label: "Sugestões",
+      icon: <MessageCircle className="h-4 w-4" />,
+      href: "/girias/enviadas-por-usuarios",
     },
     { id: "sobre", label: "Sobre", icon: <Shield className="h-4 w-4" /> },
   ];
@@ -607,6 +642,32 @@ export default function GiriaApp() {
       </span>
     );
   };
+
+  // =========================================================================
+  // TAB 4 — COMUNIDADE
+  // =========================================================================
+  const renderComunidade = () => (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-4">
+        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Enviadas por usuários (validadas)</h3>
+        <p className="text-sm text-emerald-700 dark:text-emerald-300">Aqui entram as gírias aprovadas no pipeline automático/moderação.</p>
+        <button className="mt-3 rounded border px-3 py-1 text-xs" onClick={() => void loadCommunity()} type="button">
+          {communityLoading ? "Atualizando..." : "Atualizar comunidade"}
+        </button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {communityItems.map((item) => (
+          <div key={item.id} className="rounded-lg border p-4">
+            <p className="font-semibold">{item.term}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{item.meaning}</p>
+            {item.context ? <p className="mt-2 text-xs text-muted-foreground">Contexto: {item.context}</p> : null}
+            <p className="mt-2 text-xs text-muted-foreground">Enviado por: {item.submitterName} · score {item.score.toFixed(2)}</p>
+          </div>
+        ))}
+      </div>
+      {communityItems.length === 0 ? <p className="text-sm text-muted-foreground">Ainda sem sugestões aprovadas.</p> : null}
+    </div>
+  );
 
   // =========================================================================
   // TAB 1 — BUSCA
@@ -1669,8 +1730,18 @@ export default function GiriaApp() {
         <div className="max-w-3xl mx-auto px-4 hidden sm:block">
           <nav className="flex gap-1 -mb-px" aria-label="Navegação principal">
             {tabs.map((tab) => (
+              tab.href ? (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700"
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </Link>
+              ) : (
               <button
-                key={tab.id}
+                key={tab.label}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
@@ -1682,6 +1753,7 @@ export default function GiriaApp() {
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
+              )
             ))}
           </nav>
         </div>
@@ -1700,6 +1772,7 @@ export default function GiriaApp() {
             {activeTab === "busca" && renderBusca()}
             {activeTab === "glossario" && renderGlossario()}
             {activeTab === "favoritos" && renderFavoritos()}
+            {activeTab === "comunidade" && renderComunidade()}
             {activeTab === "sobre" && renderSobre()}
           </motion.div>
         </AnimatePresence>
@@ -1724,8 +1797,18 @@ export default function GiriaApp() {
       >
         <div className="flex items-center justify-around px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           {tabs.map((tab) => (
+            tab.href ? (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <span>{tab.icon}</span>
+              <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+            </Link>
+            ) : (
             <button
-              key={tab.id}
+              key={tab.label}
               onClick={() => setActiveTab(tab.id)}
               className={`relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors ${
                 activeTab === tab.id
@@ -1744,6 +1827,7 @@ export default function GiriaApp() {
                 <span className="absolute -top-1.5 w-1 h-1 rounded-full bg-emerald-500" />
               )}
             </button>
+            )
           ))}
         </div>
       </nav>
