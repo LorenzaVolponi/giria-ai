@@ -5,6 +5,8 @@ import { SLANG_DATA } from "@/lib/slang-data";
 export const metadata: Metadata = {
   title: "Gírias Populares | Gíria AI",
   description: "Navegue por gírias populares e entenda os significados de forma clara e contextualizada.",
+  keywords: ["gírias", "o que significa", "dicionário de gírias", "gíria brasileira", "tradutor de gírias"],
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
 };
 
 export default function GiriasPage() {
