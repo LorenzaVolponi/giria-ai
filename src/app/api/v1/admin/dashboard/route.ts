@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminToken } from "@/lib/admin-guard";
+import { requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 import { getSuggestionStatusCounts, listSuggestionsByStatus, listIngressIpMetrics } from "@/lib/suggestion-pipeline";
 
 export async function GET(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const forbidden = requireAdminRole(request, ["viewer", "moderator", "owner"]);
+  if (forbidden) return forbidden;
 
   const [summary, recent] = await Promise.all([
     getSuggestionStatusCounts(),
