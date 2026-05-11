@@ -4,6 +4,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import {
   autoPromoteApprovedSlang,
+  getSuggestionStatusCounts,
   isSuggestionEligible,
   listApprovedSuggestions,
   listSuggestionsByStatus,
@@ -58,8 +59,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request?: NextRequest) {
-  const status = request?.nextUrl.searchParams.get("status") || "approved";
-  const limit = Number(request?.nextUrl.searchParams.get("limit") || 200);
-  const data = status === "approved" ? await listApprovedSuggestions(limit) : await listSuggestionsByStatus(status as "pending" | "rejected" | "approved" | "all", limit);
-  return withSecurityHeaders(NextResponse.json({ items: data }));
+  const rawStatus = request?.nextUrl.searchParams.get("status") || "approved";
+  const status = rawStatus === "approved" || rawStatus === "pending" || rawStatus === "rejected" || rawStatus === "all" ? rawStatus : "approved";
+  const rawLimit = Number(request?.nextUrl.searchParams.get("limit") || 200);
+  const limit = Number.isFinite(rawLimit) ? Math.min(300, Math.max(1, Math.floor(rawLimit))) : 200;
+  const includeSummary = request?.nextUrl.searchParams.get("includeSummary") === "true";
+
+  const data = status === "approved" ? await listApprovedSuggestions(limit) : await listSuggestionsByStatus(status, limit);
+  const summary = includeSummary ? await getSuggestionStatusCounts() : undefined;
+  return withSecurityHeaders(NextResponse.json({ items: data, ...(summary ? { summary } : {}) }));
 }

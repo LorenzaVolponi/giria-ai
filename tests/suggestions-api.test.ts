@@ -62,4 +62,23 @@ describe("suggestions api", () => {
     expect(res.status).toBe(201);
     expect(data).toHaveProperty("promoted", true);
   });
+
+  it("returns summary when requested and normalizes invalid query params", async () => {
+    vi.spyOn(pipeline, "listApprovedSuggestions").mockResolvedValue([]);
+    vi.spyOn(pipeline, "getSuggestionStatusCounts").mockResolvedValue({
+      pending: 2,
+      approved: 5,
+      rejected: 1,
+      all: 8,
+    });
+
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=invalid&limit=9999&includeSummary=true");
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data.items)).toBe(true);
+    expect(data.summary).toEqual({ pending: 2, approved: 5, rejected: 1, all: 8 });
+    expect(pipeline.listApprovedSuggestions).toHaveBeenCalledWith(300);
+  });
 });

@@ -184,6 +184,22 @@ export async function listSuggestionsByStatus(status: ValidationStatus | "all" =
   }
 }
 
+export async function getSuggestionStatusCounts() {
+  try {
+    const [pending, approved, rejected] = await Promise.all([
+      db.validatedSlang.count({ where: { status: "pending" } }),
+      db.validatedSlang.count({ where: { status: "approved" } }),
+      db.validatedSlang.count({ where: { status: "rejected" } }),
+    ]);
+    return { pending, approved, rejected, all: pending + approved + rejected };
+  } catch {
+    const pending = memorySuggestions.filter((x) => x.status === "pending").length;
+    const approved = memorySuggestions.filter((x) => x.status === "approved").length;
+    const rejected = memorySuggestions.filter((x) => x.status === "rejected").length;
+    return { pending, approved, rejected, all: pending + approved + rejected };
+  }
+}
+
 export async function moderateSuggestionStatus(id: string, status: Exclude<ValidationStatus, "pending">) {
   const safeId = sanitizeUserInput(id, 80);
   if (!safeId) throw new Error("ID inválido");
@@ -207,6 +223,32 @@ export async function moderateSuggestionStatus(id: string, status: Exclude<Valid
     memorySuggestions[idx] = { ...memorySuggestions[idx], status };
     return memorySuggestions[idx];
   }
+}
+
+export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
+  if (input.status !== "approved") return { promoted: false as const };
+  try {
+    const existing = await db.translation.findFirst({
+      where: { slang: { equals: input.term, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existing) return { promoted: false as const, reason: "already_exists" as const };
+
+    await db.translation.create({
+      data: {
+        slang: input.term,
+        translation: input.meaning,
+        context: input.context || "geral",
+        category: "user-validated",
+        example: `Sugestão validada enviada por ${input.submitterName}`,
+      },
+    });
+    return { promoted: true as const };
+  } catch {
+    return { promoted: false as const, reason: "db_unavailable" as const };
+  }
+}
+
   const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
   if (status === "approved") {
     await autoPromoteApprovedSlang({
