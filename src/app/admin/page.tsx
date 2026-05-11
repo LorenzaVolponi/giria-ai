@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SuggestionModerationPanel } from "@/components/product/suggestion-moderation-panel";
 
 export default function AdminPage() {

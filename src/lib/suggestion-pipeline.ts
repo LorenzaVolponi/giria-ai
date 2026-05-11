@@ -81,6 +81,7 @@ export async function webSignalScore(term: string): Promise<number> {
   const finalScore = Math.min(1, score);
   webScoreCache.set(cacheKey, { score: finalScore, expiresAt: Date.now() + 6 * 60 * 60_000 });
   return finalScore;
+  return Math.min(1, score);
 }
 
 async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeaning: string; confidenceBoost: number }> {
@@ -220,12 +221,38 @@ export async function autoPromoteApprovedSlang(input: SuggestionInput & { meanin
   }
 }
 
+export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
+  if (input.status !== "approved") return { promoted: false as const };
+  try {
+    const existing = await db.translation.findFirst({
+      where: { slang: { equals: input.term, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existing) return { promoted: false as const, reason: "already_exists" as const };
+
+    await db.translation.create({
+      data: {
+        slang: input.term,
+        translation: input.meaning,
+        context: input.context || "geral",
+        category: "user-validated",
+        example: `Sugestão validada enviada por ${input.submitterName}`,
+      },
+    });
+    return { promoted: true as const };
+  } catch {
+    return { promoted: false as const, reason: "db_unavailable" as const };
+  }
+}
+
 export async function processSuggestion(input: SuggestionInput) {
   const webScore = await webSignalScore(input.term);
   const llmEval = await localLlmEvaluate(input);
   const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
   const totalScore = Math.min(1, webScore + 0.45 + llmEval.confidenceBoost);
   const status: ValidationStatus = totalScore >= 0.72 ? "approved" : totalScore < 0.25 ? "rejected" : "pending";
+  const totalScore = Math.min(1, webScore + 0.2 + llmEval.confidenceBoost);
+  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : totalScore < 0.35 ? "rejected" : "pending";
 
   return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
 }
