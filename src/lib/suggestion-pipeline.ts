@@ -16,7 +16,7 @@ type ValidationStatus = "pending" | "approved" | "rejected";
 
 const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string; score: number; status: ValidationStatus }> = [];
 
-const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i, /[^\p{L}\p{N}\s.,!?@+\-_/()]/giu];
+const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i, /[\u0000-\u001F\u007F]/g];
 const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|porra)\b/i;
 
 export function validateSuggestionPayload(payload: SuggestionInput) {
@@ -36,32 +36,43 @@ export function validateSuggestionPayload(payload: SuggestionInput) {
     return { ok: false as const, reason: "Conteúdo inválido ou ofensivo detectado." };
   }
 
-  if (!/^\+?[1-9]\d{9,14}$/.test(submitterWhatsapp.replace(/\D/g, ""))) {
-    return { ok: false as const, reason: "WhatsApp inválido. Use DDI + DDD + número." };
+  if (!/^\d{8,15}$/.test(submitterWhatsapp.replace(/\D/g, ""))) {
+    return { ok: false as const, reason: "WhatsApp inválido. Informe DDD+número (com ou sem DDI)." };
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitterEmail)) {
     return { ok: false as const, reason: "Email inválido." };
+  }
+  if (term.length > 40 || meaning.length > 280 || context.length > 280) {
+    return { ok: false as const, reason: "Texto muito longo para validação automática." };
   }
 
   return { ok: true as const, normalized: { term, meaning, context, submitterName, submitterWhatsapp, submitterEmail } };
 }
 
 export async function webSignalScore(term: string): Promise<number> {
-  const q = encodeURIComponent(`gíria brasileira ${term} significado`);
-  const res = await fetch(`https://duckduckgo.com/html/?q=${q}`, { cache: "no-store" }).catch(() => null);
-  if (!res?.ok) return 0;
-  const html = (await res.text()).toLowerCase();
+  const sources = [
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(`gíria brasileira ${term} significado`)}`,
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(`${term} tiktok gíria`)}`,
+  ];
+  const htmlBlocks = await Promise.all(
+    sources.map(async (url) => {
+      const res = await fetch(url, { cache: "no-store" }).catch(() => null);
+      if (!res?.ok) return "";
+      return (await res.text()).toLowerCase();
+    }),
+  );
+  const html = htmlBlocks.join("\n");
+  if (!html.trim()) return 0;
 
   const termHits = (html.match(new RegExp(term.toLowerCase(), "g")) || []).length;
-  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk/gi) || []).length;
+  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk|kwai/gi) || []).length;
+  const glossaryHits = (html.match(/gíria|giria|dicionário|dicionario|significado|expressão/gi) || []).length;
 
   let score = 0;
-  if (termHits >= 3) score += 0.5;
-  else if (termHits >= 1) score += 0.25;
-  if (socialHits >= 2) score += 0.3;
-  if (/gíria|dicionário|significado/.test(html)) score += 0.2;
-
+  if (termHits >= 3) score += 0.5; // encontrado na internet
+  if (socialHits >= 2) score += 0.3; // contexto social
+  if (glossaryHits >= 2) score += 0.2; // padrão linguístico
   return Math.min(1, score);
 }
 
@@ -163,16 +174,79 @@ export async function listSuggestionsByStatus(status: ValidationStatus | "all" =
 export async function moderateSuggestionStatus(id: string, status: Exclude<ValidationStatus, "pending">) {
   const safeId = sanitizeUserInput(id, 80);
   if (!safeId) throw new Error("ID inválido");
-  return db.validatedSlang.update({ where: { id: safeId }, data: { status } });
+  const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
+  if (status === "approved") {
+    await autoPromoteApprovedSlang({
+      term: updated.term,
+      meaning: updated.meaning,
+      context: updated.context,
+      submitterName: updated.submitterName,
+      submitterWhatsapp: updated.submitterWhatsapp,
+      submitterEmail: updated.submitterEmail,
+      status: "approved",
+    });
+  }
+  return updated;
 }
+
+export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
+  if (input.status !== "approved") return { promoted: false as const };
+  try {
+    const existing = await db.translation.findFirst({
+      where: { slang: { equals: input.term, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existing) return { promoted: false as const, reason: "already_exists" as const };
+
+    await db.translation.create({
+      data: {
+        slang: input.term,
+        translation: input.meaning,
+        context: input.context || "geral",
+        category: "user-validated",
+        example: `Sugestão validada enviada por ${input.submitterName}`,
+      },
+    });
+    return { promoted: true as const };
+  } catch {
+    return { promoted: false as const, reason: "db_unavailable" as const };
+  }
+}
+
 export async function processSuggestion(input: SuggestionInput) {
   const webScore = await webSignalScore(input.term);
   const llmEval = await localLlmEvaluate(input);
   const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
-  const totalScore = Math.min(1, webScore + 0.2 + llmEval.confidenceBoost);
-  const status: ValidationStatus = totalScore >= 0.7 ? "approved" : "pending";
+  const totalScore = Math.min(1, webScore + 0.45 + llmEval.confidenceBoost);
+  const status: ValidationStatus = totalScore >= 0.72 ? "approved" : totalScore < 0.25 ? "rejected" : "pending";
 
   return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
+}
+
+export async function revalidatePendingSuggestions(limit = 40) {
+  const rows = await db.validatedSlang.findMany({ where: { status: "pending" }, take: limit, orderBy: { createdAt: "desc" } });
+  let updated = 0;
+  for (const row of rows) {
+    const webScore = await webSignalScore(row.term);
+    const nextScore = Math.min(1, 0.45 + webScore);
+    const nextStatus: ValidationStatus = nextScore >= 0.72 ? "approved" : nextScore < 0.25 ? "rejected" : "pending";
+    if (nextStatus !== row.status || Math.abs(nextScore - row.score) >= 0.05) {
+      await db.validatedSlang.update({ where: { id: row.id }, data: { score: nextScore, status: nextStatus } });
+      if (nextStatus === "approved") {
+        await autoPromoteApprovedSlang({
+          term: row.term,
+          meaning: row.meaning,
+          context: row.context,
+          submitterName: row.submitterName,
+          submitterWhatsapp: row.submitterWhatsapp,
+          submitterEmail: row.submitterEmail,
+          status: "approved",
+        });
+      }
+      updated += 1;
+    }
+  }
+  return { scanned: rows.length, updated };
 }
 
 export async function isSuggestionEligible(termRaw: string) {
@@ -181,7 +255,9 @@ export async function isSuggestionEligible(termRaw: string) {
   if (getTerm(term)) return { ok: false as const, reason: "Essa gíria já existe no glossário principal." };
 
   const vowels = (term.match(/[aeiouáàâãéêíóôõú]/gi) || []).length;
+  const consonants = (term.match(/[bcdfghjklmnpqrstvwxyzç]/gi) || []).length;
   if (term.length > 3 && vowels === 0) return { ok: false as const, reason: "Termo suspeito: sem estrutura linguística válida." };
+  if (term.length >= 6 && consonants > vowels * 4) return { ok: false as const, reason: "Termo suspeito: padrão de escrita artificial." };
 
   try {
     const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term, mode: "insensitive" }, status: { in: ["approved", "pending"] } }, select: { id: true } });
