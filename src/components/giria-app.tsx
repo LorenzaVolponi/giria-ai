@@ -263,18 +263,30 @@ export default function GiriaApp() {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [communityItems, setCommunityItems] = useState<Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }>>([]);
+  const [communityLoading, setCommunityLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const loadCommunity = async () => {
-      const res = await fetch("/api/v1/suggestions?status=approved&limit=60", { cache: "no-store" }).catch(() => null);
-      if (!res?.ok) return;
-      const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }> };
-      if (Array.isArray(data.items)) setCommunityItems(data.items);
-    };
-    void loadCommunity();
+  const loadCommunity = useCallback(async () => {
+    setCommunityLoading(true);
+    const res = await fetch("/api/v1/suggestions?status=approved&limit=60", { cache: "no-store" }).catch(() => null);
+    setCommunityLoading(false);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }> };
+    if (Array.isArray(data.items)) setCommunityItems(data.items);
   }, []);
+
+  useEffect(() => {
+    void loadCommunity();
+  }, [loadCommunity]);
+
+  useEffect(() => {
+    if (activeTab !== "comunidade") return;
+    const id = setInterval(() => {
+      void loadCommunity();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [activeTab, loadCommunity]);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -639,6 +651,9 @@ export default function GiriaApp() {
       <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-4">
         <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Enviadas por usuários (validadas)</h3>
         <p className="text-sm text-emerald-700 dark:text-emerald-300">Aqui entram as gírias aprovadas no pipeline automático/moderação.</p>
+        <button className="mt-3 rounded border px-3 py-1 text-xs" onClick={() => void loadCommunity()} type="button">
+          {communityLoading ? "Atualizando..." : "Atualizar comunidade"}
+        </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {communityItems.map((item) => (
