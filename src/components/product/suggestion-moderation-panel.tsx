@@ -24,6 +24,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   async function reloadPending() {
     setLoading(true);
@@ -38,6 +40,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   useEffect(() => {
     void reloadPending();
   }, [statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, minScore, termQuery]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -99,15 +105,22 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {items
+      {(() => {
+        const filtered = items
           .filter((item) => item.score >= minScore)
           .filter((item) => {
             const q = termQuery.trim().toLowerCase();
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-          })
-          .map((item) => (
+          });
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const safePage = Math.min(page, totalPages);
+        const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+        return (
+          <>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {paged.map((item) => (
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
@@ -123,6 +136,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           </li>
         ))}
       </ul>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <p>Página {safePage} de {totalPages} · {filtered.length} itens filtrados</p>
+        <div className="flex gap-2">
+          <button className="rounded border px-2 py-1 disabled:opacity-50" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Anterior
+          </button>
+          <button className="rounded border px-2 py-1 disabled:opacity-50" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            Próxima
+          </button>
+        </div>
+      </div>
+          </>
+        );
+      })()}
     </section>
   );
 }
