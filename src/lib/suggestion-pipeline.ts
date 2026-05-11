@@ -18,6 +18,7 @@ const memorySuggestions: Array<SuggestionInput & { id: string; createdAt: string
 
 const bannedPatterns = [/^.{0,2}$/i, /(.)\1{5,}/i, /\b(test|asdf|1234|kkkk|lol)\b/i, /[\u0000-\u001F\u007F]/g];
 const blockedTerms = /\b(idiota|otario|otário|racista|nazista|fdp|vsf|caralho|porra)\b/i;
+const webScoreCache = new Map<string, { score: number; expiresAt: number }>();
 
 export function validateSuggestionPayload(payload: SuggestionInput) {
   const term = sanitizeUserInput(payload.term, 80).toLowerCase();
@@ -51,6 +52,10 @@ export function validateSuggestionPayload(payload: SuggestionInput) {
 }
 
 export async function webSignalScore(term: string): Promise<number> {
+  const cacheKey = term.toLowerCase().trim();
+  const cached = webScoreCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.score;
+
   const sources = [
     `https://duckduckgo.com/html/?q=${encodeURIComponent(`gíria brasileira ${term} significado`)}`,
     `https://duckduckgo.com/html/?q=${encodeURIComponent(`${term} tiktok gíria`)}`,
@@ -73,7 +78,9 @@ export async function webSignalScore(term: string): Promise<number> {
   if (termHits >= 3) score += 0.5; // encontrado na internet
   if (socialHits >= 2) score += 0.3; // contexto social
   if (glossaryHits >= 2) score += 0.2; // padrão linguístico
-  return Math.min(1, score);
+  const finalScore = Math.min(1, score);
+  webScoreCache.set(cacheKey, { score: finalScore, expiresAt: Date.now() + 6 * 60 * 60_000 });
+  return finalScore;
 }
 
 async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeaning: string; confidenceBoost: number }> {
