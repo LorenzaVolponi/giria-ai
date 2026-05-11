@@ -41,12 +41,15 @@ if (typeof globalThis !== "undefined") {
 // ---------------------------------------------------------------------------
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
+const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
   "Quando houver ambiguidade, ofereça hipóteses e peça confirmação de região.",
   "Para termos regionais, indique região provável e variações de escrita.",
   "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
+  "Responda estritamente com base no conteúdo do nosso banco/local (SLANG_DATA e metadados).",
+  "Não invente significado para termo ausente; ofereça fluxo de sugestão de gíria.",
 ] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
@@ -100,10 +103,11 @@ function lookupTerm(query: string): SlangTerm[] {
   const exact = index.get(normalized);
   if (exact && exact.length > 0) return exact;
 
-  // Contains match: term contains query or query contains term
+  // Contains match: term contains query (avoid reverse match to reduce false positives)
   const contains: SlangTerm[] = [];
+  if (normalized.length < 3) return [];
   for (const [key, terms] of index.entries()) {
-    if (key.includes(normalized) || normalized.includes(key)) {
+    if (key.includes(normalized)) {
       contains.push(...terms);
     }
   }
@@ -142,6 +146,40 @@ function lookupMultipleTerms(phrase: string): Map<string, SlangTerm> {
   return found;
 }
 
+function levenshtein(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+  const normalizedQuery = normalize(query);
+  const ranked = SLANG_DATA.map((term) => ({
+    term,
+    score: levenshtein(normalizedQuery, normalize(term.term)),
+  }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit);
+  return ranked.map((x) => x.term);
+}
+
+function confidenceLabel(term: SlangTerm): string {
+  if (term.popularityStatus === "ativo" || term.popularityStatus === "regional") return "alta";
+  if (term.popularityStatus === "em_queda") return "média";
+  return "média";
+}
+
 // ---------------------------------------------------------------------------
 // Response formatters
 // ---------------------------------------------------------------------------
@@ -157,6 +195,7 @@ function formatTermCard(t: SlangTerm): string {
 - **Significado**: ${t.meaning}
 - **Tradução para Adultos**: ${t.adultTranslation}
 - **Contexto**: ${t.context}
+- **Confiança da Base**: ${confidenceLabel(t)}
 - **Nível de Risco**: ${rc.label} — ${rc.description}
 ${t.safeExample ? `- **Exemplo**: _"${t.safeExample}"_` : ""}
 ${cat ? `- **Categoria**: ${cat.icon} ${cat.label}` : ""}
@@ -214,6 +253,10 @@ function getRegionalHighlights(limit = 10): { region: string; terms: SlangTerm[]
 
 function buildPromptBackendHeader(): string {
   return `### Motor de Resposta (versão robusta)\n${PROMPT_BACKEND_RULES.map((rule, i) => `${i + 1}. ${rule}`).join("\n")}`;
+}
+
+function groundedOnlyNotice(): string {
+  return "🔒 **Resposta ancorada na base local:** uso apenas gírias e metadados já cadastrados no sistema.";
 }
 
 function findRegionHint(message: string): string | null {
@@ -411,10 +454,16 @@ function detectIntent(message: string): {
 
     // Also try meaningful words for fuzzy match
     for (const word of meaningfulWords) {
+      if (word.length < 4) continue;
       if (foundTerms.some((f) => normalize(f) === normalize(word))) continue;
       const results = lookupTerm(word);
       if (results.length > 0) {
-        foundTerms.push(results[0].term);
+        const best = results[0];
+        const normalizedWord = normalize(word);
+        const normalizedBest = normalize(best.term);
+        if (normalizedBest.includes(normalizedWord) || normalizedWord.includes(normalizedBest)) {
+          foundTerms.push(best.term);
+        }
       }
     }
   }
@@ -453,6 +502,7 @@ function buildResponse(
   const regionHint = findRegionHint(message);
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
+  const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
 
   switch (intent) {
     case "greeting":
@@ -471,6 +521,7 @@ Tente perguntar algo como: *"O que significa 'farmar aura'?"* ou *"Meu filho dis
 
     case "help":
       return `${contextHeader}
+${groundedOnlyNotice()}
 
 ## Como posso ajudar? 💡
 
@@ -543,6 +594,7 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
           const terms = Array.from(fuzzyResults.values());
           return `Não encontrei "${extractedTerms[0]}" exatamente, mas encontrei algo similar:\n\n${formatMultiTermResponse(terms)}`;
         }
+        const closest = findClosestTerms(extractedTerms[0], 4);
         return `Hmm, não encontrei a gíria **"${extractedTerms[0]}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
 
 Algumas possibilidades:
@@ -550,6 +602,8 @@ Algumas possibilidades:
 2. **Pode ser muito nova** — gírias surgem todo dia no TikTok
 3. **Pode ser regional** — algumas gírias são específicas de certas regiões
 
+${closest.length > 0 ? `Talvez você quis dizer: ${closest.map((t) => `"${t.term}"`).join(", ")}.` : ""}
+Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
       return formatTermCard(results[0]);
@@ -563,10 +617,14 @@ Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
 - *"O que significa [gíria]?"*
 - *"Explique [termo]"*
 
-Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadastrados! 📚`;
+Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadastrados! 📚
+Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       }
       const terms = Array.from(found.values());
-      return formatMultiTermResponse(terms);
+      const response = formatMultiTermResponse(terms);
+      return hasFollowUp
+        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : response;
     }
 
     case "category_explore": {
@@ -607,16 +665,17 @@ Se quiser, eu também posso montar uma trilha por estado (ex.: "só Nordeste" ou
     }
 
     case "general_question": {
-      // Provide a contextual response about Brazilian youth slang
       const trendingTerms = getRandomTerms(4);
       return `## Sobre a Linguagem Jovem Brasileira 🇧🇷
 
+${groundedOnlyNotice()}
+
 A linguagem dos adolescentes brasileiros é **incrivelmente dinâmica**, misturando:
-- 🎵 **Influências do funk e trap** — "gag", "vrum", "brutal"
-- 🌐 **Termos globais do TikTok** — "slay", "rizz", "delulu", "sigma"
-- 🎮 **Cultura gamer** — "gg", "ez", "tiltar", "nerfar"
-- 📱 **Abreviações** — "blz", "pfv", "tmj", "fds"
-- 🗺️ **Regionalismos** — "oxente", "tchê", "moio", "biscoiteiro"
+- 🎵 **Influências de música e cultura urbana**
+- 🌐 **Termos de internet e plataformas sociais**
+- 🎮 **Cultura gamer**
+- 📱 **Abreviações e linguagem de conversa**
+- 🗺️ **Regionalismos brasileiros**
 
 ### Gírias em alta agora:
 ${trendingTerms
@@ -640,6 +699,8 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
       return `Hmm, não tenho certeza sobre isso. 😅
 
+${groundedOnlyNotice()}
+
 Sou especialista em **gírias e linguagem da internet brasileira**. Tente me perguntar sobre:
 
 - 🔍 **Uma gíria específica** — *"O que significa 'rizz'?"*
@@ -648,6 +709,7 @@ Sou especialista em **gírias e linguagem da internet brasileira**. Tente me per
 - 🎲 **Surpresa** — *"Me surpreenda com gírias novas!"*
 
 Nosso dicionário tem **${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos** — posso ajudar com muita coisa! 🚀
+Se o termo não estiver na base, você pode sugerir aqui: ${SUGGESTION_PAGE_LINK}
 ${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${lastUserMessage}"_.` : ""}`;
     }
   }
