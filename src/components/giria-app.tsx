@@ -56,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "sobre";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
 
 interface TranslationResult {
   term: string;
@@ -262,8 +262,19 @@ export default function GiriaApp() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [communityItems, setCommunityItems] = useState<Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }>>([]);
   const [chatOpen, setChatOpen] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const loadCommunity = async () => {
+      const res = await fetch("/api/v1/suggestions?status=approved&limit=60", { cache: "no-store" }).catch(() => null);
+      if (!res?.ok) return;
+      const data = (await res.json().catch(() => ({}))) as { items?: Array<{ id: string; term: string; meaning: string; context?: string; score: number; submitterName: string }> };
+      if (Array.isArray(data.items)) setCommunityItems(data.items);
+    };
+    void loadCommunity();
+  }, []);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -578,6 +589,12 @@ export default function GiriaApp() {
       icon: <Heart className="h-4 w-4" />,
     },
     {
+      id: "comunidade",
+      label: "Comunidade",
+      icon: <Users className="h-4 w-4" />,
+    },
+    {
+      id: "sugestoes",
       id: "sobre",
       label: "Sugestões",
       icon: <MessageCircle className="h-4 w-4" />,
@@ -614,6 +631,29 @@ export default function GiriaApp() {
       </span>
     );
   };
+
+  // =========================================================================
+  // TAB 4 — COMUNIDADE
+  // =========================================================================
+  const renderComunidade = () => (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-4">
+        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Enviadas por usuários (validadas)</h3>
+        <p className="text-sm text-emerald-700 dark:text-emerald-300">Aqui entram as gírias aprovadas no pipeline automático/moderação.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {communityItems.map((item) => (
+          <div key={item.id} className="rounded-lg border p-4">
+            <p className="font-semibold">{item.term}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{item.meaning}</p>
+            {item.context ? <p className="mt-2 text-xs text-muted-foreground">Contexto: {item.context}</p> : null}
+            <p className="mt-2 text-xs text-muted-foreground">Enviado por: {item.submitterName} · score {item.score.toFixed(2)}</p>
+          </div>
+        ))}
+      </div>
+      {communityItems.length === 0 ? <p className="text-sm text-muted-foreground">Ainda sem sugestões aprovadas.</p> : null}
+    </div>
+  );
 
   // =========================================================================
   // TAB 1 — BUSCA
@@ -1718,6 +1758,7 @@ export default function GiriaApp() {
             {activeTab === "busca" && renderBusca()}
             {activeTab === "glossario" && renderGlossario()}
             {activeTab === "favoritos" && renderFavoritos()}
+            {activeTab === "comunidade" && renderComunidade()}
             {activeTab === "sobre" && renderSobre()}
           </motion.div>
         </AnimatePresence>
