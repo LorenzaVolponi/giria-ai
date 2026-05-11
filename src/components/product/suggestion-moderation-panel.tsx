@@ -83,14 +83,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    if (status === "rejected" && !reason) {
-      setBusyId(null);
-      return setMessage("Informe um motivo para rejeitar.");
-    }
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
+      body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
 
     setBusyId(null);
@@ -104,8 +100,23 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       return setMessage(data?.error || "Falha ao moderar item.");
     }
 
+    setItems((prev) => prev
+      .map((item) => (item.id === id ? { ...item, status } : item))
+      .filter((item) => statusFilter === "all" || item.status === statusFilter));
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          approved: status === "approved" ? prev.approved + 1 : prev.approved,
+          rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+        }
+      : prev));
+    setRejectReasonById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
-    await reloadPending();
   }
 
   function exportFilteredCsv() {
@@ -209,7 +220,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+              placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
