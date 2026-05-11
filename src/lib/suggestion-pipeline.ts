@@ -206,6 +206,7 @@ export async function moderateSuggestionStatus(id: string, status: Exclude<Valid
     if (idx === -1) throw new Error("Sugestão não encontrada");
     memorySuggestions[idx] = { ...memorySuggestions[idx], status };
     return memorySuggestions[idx];
+  }
   const updated = await db.validatedSlang.update({ where: { id: safeId }, data: { status } });
   if (status === "approved") {
     await autoPromoteApprovedSlang({
