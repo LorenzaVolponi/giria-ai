@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearAdminSessionResponse, createAdminSessionResponse } from "@/lib/admin-guard";
+import { clearAdminSessionResponse, createAdminSessionResponse, requireAdminToken } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
@@ -14,4 +14,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   return clearAdminSessionResponse();
+}
+
+export async function GET(request: NextRequest) {
+  const unauthorized = requireAdminToken(request);
+  if (unauthorized) return unauthorized;
+  return withSecurityHeaders(NextResponse.json({ ok: true }));
 }
