@@ -21,6 +21,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
 
