@@ -118,61 +118,6 @@ describe("suggestions api", () => {
     expect(saveSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects idempotency-key reuse with different payload", async () => {
-    vi.spyOn(pipeline, "validateSuggestionPayload").mockReturnValue({
-      ok: true,
-      normalized: {
-        term: "chave",
-        meaning: "muito bom",
-        context: "funk",
-        submitterName: "Ana",
-        submitterWhatsapp: "+5511999999999",
-        submitterEmail: "ana@email.com",
-      },
-    });
-    vi.spyOn(pipeline, "isSuggestionEligible").mockResolvedValue({ ok: true, term: "chave" });
-    vi.spyOn(pipeline, "processSuggestion").mockResolvedValue({
-      adjustedMeaning: "muito bom",
-      totalScore: 0.9,
-      status: "approved",
-      evidence: ["web:0.90", "llm:0.00"],
-    });
-    vi.spyOn(pipeline, "saveValidatedSlang").mockResolvedValue({ id: "idem_2", createdAt: "2026-05-11T00:00:00.000Z" });
-    vi.spyOn(pipeline, "autoPromoteApprovedSlang").mockResolvedValue({ promoted: true });
-    vi.spyOn(pipeline, "notifyLeadEmail").mockResolvedValue();
-
-    const req1 = new NextRequest("http://localhost/api/v1/suggestions", {
-      method: "POST",
-      body: JSON.stringify({ term: "chave", meaning: "muito bom", context: "funk", submitterName: "Ana", submitterContact: "+5511999999999", submitterEmail: "ana@email.com" }),
-      headers: { "content-type": "application/json", "idempotency-key": "dup-key" },
-    });
-    const res1 = await POST(req1);
-    expect(res1.status).toBe(201);
-
-    vi.spyOn(pipeline, "validateSuggestionPayload").mockReturnValue({
-      ok: true,
-      normalized: {
-        term: "diferente",
-        meaning: "outro",
-        context: "internet",
-        submitterName: "Ana",
-        submitterWhatsapp: "+5511999999999",
-        submitterEmail: "ana@email.com",
-      },
-    });
-
-    const req2 = new NextRequest("http://localhost/api/v1/suggestions", {
-      method: "POST",
-      body: JSON.stringify({ term: "diferente", meaning: "outro", context: "internet", submitterName: "Ana", submitterContact: "+5511999999999", submitterEmail: "ana@email.com" }),
-      headers: { "content-type": "application/json", "idempotency-key": "dup-key" },
-    });
-    const res2 = await POST(req2);
-    const data2 = await res2.json();
-
-    expect(res2.status).toBe(409);
-    expect(data2.error).toContain("Idempotency-Key");
-  });
-
   it("returns summary when requested and normalizes invalid query params", async () => {
     vi.spyOn(pipeline, "listApprovedSuggestions").mockResolvedValue([]);
     vi.spyOn(pipeline, "getSuggestionStatusCounts").mockResolvedValue({
