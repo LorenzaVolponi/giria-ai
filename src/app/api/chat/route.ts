@@ -170,6 +170,12 @@ function findClosestTerms(query: string, limit = 5): SlangTerm[] {
   return ranked.map((x) => x.term);
 }
 
+function confidenceLabel(term: SlangTerm): string {
+  if (term.popularityStatus === "ativo" || term.popularityStatus === "regional") return "alta";
+  if (term.popularityStatus === "em_queda") return "média";
+  return "média";
+}
+
 // ---------------------------------------------------------------------------
 // Response formatters
 // ---------------------------------------------------------------------------
@@ -185,6 +191,7 @@ function formatTermCard(t: SlangTerm): string {
 - **Significado**: ${t.meaning}
 - **Tradução para Adultos**: ${t.adultTranslation}
 - **Contexto**: ${t.context}
+- **Confiança da Base**: ${confidenceLabel(t)}
 - **Nível de Risco**: ${rc.label} — ${rc.description}
 ${t.safeExample ? `- **Exemplo**: _"${t.safeExample}"_` : ""}
 ${cat ? `- **Categoria**: ${cat.icon} ${cat.label}` : ""}
@@ -481,6 +488,7 @@ function buildResponse(
   const regionHint = findRegionHint(message);
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
+  const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
 
   switch (intent) {
     case "greeting":
@@ -596,7 +604,10 @@ Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
 Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadastrados! 📚`;
       }
       const terms = Array.from(found.values());
-      return formatMultiTermResponse(terms);
+      const response = formatMultiTermResponse(terms);
+      return hasFollowUp
+        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : response;
     }
 
     case "category_explore": {

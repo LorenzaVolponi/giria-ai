@@ -36,28 +36,41 @@ function parseArgs() {
 }
 
 async function fetchJson(url) {
-  const res = await fetch(url, {
-    headers: {
-      "user-agent": "giria-ai-scraper/1.0 (+https://example.local)",
-      accept: "application/json,text/plain,*/*",
-    },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return res.json();
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "user-agent": "giria-ai-scraper/1.0 (+https://example.local)",
+          accept: "application/json,text/plain,*/*",
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+      return res.json();
+    } catch (error) {
+      lastError = error;
+      await new Promise((r) => setTimeout(r, attempt * 400));
+    }
+  }
+  throw lastError ?? new Error(`fetch failed for ${url}`);
 }
 
 async function scrapeUrbanDictionaryPtLike() {
   // Public endpoint compatible with dictionary-like payloads.
   const url = "https://api.urbandictionary.com/v0/random";
-  const json = await fetchJson(url);
-  const list = Array.isArray(json?.list) ? json.list : [];
-  return list.map((row) => ({
-    term: String(row.word ?? "").trim(),
-    meaning: String(row.definition ?? "").trim().slice(0, 500),
-    source: "urbandictionary-random",
-    region: "internet/global",
-    category: "internet",
-  }));
+  const chunks = [];
+  for (let i = 0; i < 20; i++) {
+    const json = await fetchJson(url);
+    const list = Array.isArray(json?.list) ? json.list : [];
+    chunks.push(...list.map((row) => ({
+      term: String(row.word ?? "").trim(),
+      meaning: String(row.definition ?? "").trim().slice(0, 500),
+      source: "urbandictionary-random",
+      region: "internet/global",
+      category: "internet",
+    })));
+  }
+  return chunks;
 }
 
 async function scrapePtBrOpenGlossary() {
@@ -124,4 +137,3 @@ main().catch((err) => {
   console.error("[scraper] fatal:", err);
   process.exit(1);
 });
-
