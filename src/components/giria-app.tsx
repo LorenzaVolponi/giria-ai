@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 import {
   getTerm,
   searchTerms,
@@ -564,7 +565,7 @@ export default function GiriaApp() {
   // =========================================================================
   // Tab navigation config
   // =========================================================================
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; href?: string }> = [
     { id: "busca", label: "Busca", icon: <Search className="h-4 w-4" /> },
     {
       id: "glossario",
@@ -575,6 +576,12 @@ export default function GiriaApp() {
       id: "favoritos",
       label: "Favoritos",
       icon: <Heart className="h-4 w-4" />,
+    },
+    {
+      id: "sobre",
+      label: "Sugestões",
+      icon: <MessageCircle className="h-4 w-4" />,
+      href: "/girias/enviadas-por-usuarios",
     },
     { id: "sobre", label: "Sobre", icon: <Shield className="h-4 w-4" /> },
   ];
@@ -1669,8 +1676,18 @@ export default function GiriaApp() {
         <div className="max-w-3xl mx-auto px-4 hidden sm:block">
           <nav className="flex gap-1 -mb-px" aria-label="Navegação principal">
             {tabs.map((tab) => (
+              tab.href ? (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700"
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </Link>
+              ) : (
               <button
-                key={tab.id}
+                key={tab.label}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
@@ -1682,6 +1699,7 @@ export default function GiriaApp() {
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
+              )
             ))}
           </nav>
         </div>
@@ -1724,8 +1742,18 @@ export default function GiriaApp() {
       >
         <div className="flex items-center justify-around px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           {tabs.map((tab) => (
+            tab.href ? (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <span>{tab.icon}</span>
+              <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+            </Link>
+            ) : (
             <button
-              key={tab.id}
+              key={tab.label}
               onClick={() => setActiveTab(tab.id)}
               className={`relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors ${
                 activeTab === tab.id
@@ -1744,6 +1772,7 @@ export default function GiriaApp() {
                 <span className="absolute -top-1.5 w-1 h-1 rounded-full bg-emerald-500" />
               )}
             </button>
+            )
           ))}
         </div>
       </nav>
