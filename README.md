@@ -27,9 +27,9 @@ Copie e ajuste as variáveis com `cp .env.example .env`.
 - `OPENAI_API_KEY`: reservado para integração futura
 - `DATABASE_URL`: conexão do Prisma (SQLite/Postgres, conforme ambiente)
 - `ADMIN_API_TOKEN`: token de moderação/admin (API e sessão admin)
+- `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_CODES`: credenciais do painel privado `/admin` (códigos separados por vírgula).
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: envio de e-mail de lead
 - `OLLAMA_URL`, `OLLAMA_MODEL`: opcional, avaliação local de gírias por LLM
-- `NEXT_PUBLIC_ENABLE_MODERATION_PANEL`: `true` para exibir painel de moderação no frontend
 - `PRODUCTION_BASE_URL` (GitHub Actions Variable): URL usada no smoke automático pós-push na `main`.
 
 ## Endpoints de API
@@ -77,6 +77,12 @@ Resposta:
 - `bash scripts/api-contract-check.sh [base_url]`
 - `bash scripts/auto-pr.sh "mensagem"`
 - `bash scripts/full-auto-maintenance.sh`
+- `npm run ci:check` (testes críticos + build de produção em um único comando)
+
+## Painel privado de validação (/admin)
+- URL: `/admin`
+- Fluxo: login + senha + código de validação, depois moderação com sessão por cookie HttpOnly.
+- A página pública `/girias/enviadas-por-usuarios` permanece focada no envio/listagem de sugestões aprovadas.
 
 ## Segurança aplicada
 - Sanitização e validação de input em API
