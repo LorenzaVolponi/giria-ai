@@ -14,7 +14,7 @@ import {
   validateSuggestionPayload,
 } from "@/lib/suggestion-pipeline";
 
-const idempotencyCache = new Map<string, { expiresAt: number; payload: { id: string; score: number; status: string; promoted: boolean; createdAt: string } }>();
+const idempotencyCache = new Map<string, { expiresAt: number; fingerprint: string; payload: { id: string; score: number; status: string; promoted: boolean; createdAt: string } }>();
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -27,11 +27,10 @@ export async function POST(request: NextRequest) {
       return withSecurityHeaders(NextResponse.json({ error: "Muitas sugestões em pouco tempo." }, { status: 429 }));
     }
     const idemKey = request.headers.get("idempotency-key")?.trim();
-    if (idemKey) {
-      const cacheKey = `${ip}:${idemKey}`;
-      const hit = idempotencyCache.get(cacheKey);
-      if (hit && hit.expiresAt > Date.now()) {
-        return withSecurityHeaders(NextResponse.json({ ok: true, ...hit.payload, idempotentReplay: true }, { status: 200 }));
+    if (idempotencyCache.size > 1000) {
+      const now = Date.now();
+      for (const [key, value] of idempotencyCache.entries()) {
+        if (value.expiresAt <= now) idempotencyCache.delete(key);
       }
     }
 
@@ -48,6 +47,17 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) {
       return withSecurityHeaders(NextResponse.json({ error: parsed.reason }, { status: 400 }));
     }
+    const fingerprint = JSON.stringify(parsed.normalized);
+    if (idemKey) {
+      const cacheKey = `${ip}:${idemKey}`;
+      const hit = idempotencyCache.get(cacheKey);
+      if (hit && hit.expiresAt > Date.now()) {
+        if (hit.fingerprint !== fingerprint) {
+          return withSecurityHeaders(NextResponse.json({ error: "Idempotency-Key já usado com payload diferente." }, { status: 409 }));
+        }
+        return withSecurityHeaders(NextResponse.json({ ok: true, ...hit.payload, idempotentReplay: true }, { status: 200 }));
+      }
+    }
 
     const eligibility = await isSuggestionEligible(parsed.normalized.term);
     if (!eligibility.ok) {
@@ -63,7 +73,7 @@ export async function POST(request: NextRequest) {
     logApiEvent({ requestId, route: "/api/v1/suggestions", status: 201, durationMs: Date.now() - startedAt, message: `status_${processed.status}` });
     const responsePayload = { id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt };
     if (idemKey) {
-      idempotencyCache.set(`${ip}:${idemKey}`, { expiresAt: Date.now() + 10 * 60_000, payload: responsePayload });
+      idempotencyCache.set(`${ip}:${idemKey}`, { expiresAt: Date.now() + 10 * 60_000, fingerprint, payload: responsePayload });
     }
     return withSecurityHeaders(NextResponse.json({ ok: true, ...responsePayload }, { status: 201 }));
   } catch {
