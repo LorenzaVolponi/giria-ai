@@ -35,6 +35,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
 
   async function reloadPending() {
     setLoading(true);
@@ -64,6 +69,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
     void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
   }, [isAuthenticated]);
 
@@ -135,6 +141,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
@@ -220,6 +227,30 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   function selectAllFiltered(filteredIds: string[]) {
     setSelectedIds(Array.from(new Set(filteredIds)));
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {

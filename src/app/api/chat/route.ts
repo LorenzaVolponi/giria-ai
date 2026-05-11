@@ -188,6 +188,23 @@ function getRandomTerms(count: number, category?: string): SlangTerm[] {
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
+function getRegionalHighlights(limit = 10): { region: string; terms: SlangTerm[] }[] {
+  const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
+  const grouped = new Map<string, SlangTerm[]>();
+
+  for (const term of regionalTerms) {
+    const regionKey = term.region || "Brasil";
+    const current = grouped.get(regionKey) ?? [];
+    current.push(term);
+    grouped.set(regionKey, current);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([region, terms]) => ({ region, terms: terms.slice(0, 2) }))
+    .sort((a, b) => b.terms.length - a.terms.length)
+    .slice(0, limit);
+}
+
 
 // ---------------------------------------------------------------------------
 // Intent detection & response generation
@@ -524,6 +541,24 @@ Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadas
         // Fallback to random
         const randomTerms = getRandomTerms(6);
         return `Essa categoria ainda não tem muitos termos. Aqui estão algumas gírias populares:\n\n${formatMultiTermResponse(randomTerms)}`;
+      }
+      if (cat === "regional") {
+        const highlights = getRegionalHighlights();
+        const byRegion = highlights
+          .map((group) => `- **${group.region}**: ${group.terms.map((t) => `"${t.term}"`).join(", ")}`)
+          .join("\n");
+
+        return `## 🗺️ Gírias Regionais
+
+Perfeito! Já temos uma base regional bem útil e podemos ampliar continuamente com sugestões da comunidade.
+
+### Panorama atual por região:
+${byRegion}
+
+### Exemplos para começar:
+${formatMultiTermResponse(terms)}
+
+Se quiser, eu também posso montar uma trilha por estado (ex.: "só Nordeste" ou "só Sul").`;
       }
       return `## ${catInfo?.icon ?? "💬"} ${catInfo?.label ?? cat}\n\nAqui estão algumas gírias dessa categoria:\n\n${formatMultiTermResponse(terms)}\n\nQuer saber mais sobre alguma delas? É só perguntar! 🎯`;
     }

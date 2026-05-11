@@ -77,13 +77,27 @@ export async function webSignalScore(term: string): Promise<number> {
   const cached = webScoreCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.score;
 
+  const encoded = encodeURIComponent(term);
+  const encodedGlossary = encodeURIComponent(`gíria brasileira ${term} significado`);
   const sources = [
-    `https://duckduckgo.com/html/?q=${encodeURIComponent(`gíria brasileira ${term} significado`)}`,
+    `https://duckduckgo.com/html/?q=${encodedGlossary}`,
     `https://duckduckgo.com/html/?q=${encodeURIComponent(`${term} tiktok gíria`)}`,
+    `https://lite.duckduckgo.com/lite/?q=${encodedGlossary}`,
+    `https://www.bing.com/search?q=${encodedGlossary}`,
+    `https://www.bing.com/search?q=${encodeURIComponent(`${term} significado`)}`,
+    `https://search.brave.com/search?q=${encodedGlossary}`,
+    `https://www.google.com/search?q=${encodeURIComponent(`o que significa ${term}`)}`,
+    `https://www.youtube.com/results?search_query=${encoded}`,
+    `https://www.tiktok.com/search?q=${encoded}`,
   ];
+  const requestHeaders = {
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
+  };
   const htmlBlocks = await Promise.all(
     sources.map(async (url) => {
-      const res = await retry(async () => fetch(url, { cache: "no-store" }), 2, 120).catch(() => null);
+      const res = await retry(async () => fetch(url, { cache: "no-store", headers: requestHeaders }), 2, 120).catch(() => null);
       if (!res?.ok) return "";
       return (await res.text()).toLowerCase();
     }),
@@ -91,14 +105,21 @@ export async function webSignalScore(term: string): Promise<number> {
   const html = htmlBlocks.join("\n");
   if (!html.trim()) return 0;
 
-  const termHits = (html.match(new RegExp(term.toLowerCase(), "g")) || []).length;
-  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk|kwai/gi) || []).length;
-  const glossaryHits = (html.match(/gíria|giria|dicionário|dicionario|significado|expressão/gi) || []).length;
+  const escapedTerm = term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const termHits = (html.match(new RegExp(escapedTerm, "g")) || []).length;
+  const socialHits = (html.match(/tiktok|instagram|x.com|twitter|youtube|funk|kwai|threads|discord|reddit/gi) || []).length;
+  const glossaryHits = (html.match(/gíria|giria|dicionário|dicionario|significado|expressão|explicação|definição|definicao/gi) || []).length;
+  const qaHits = (html.match(/o que significa|what does|meaning of|como usar|exemplo/gi) || []).length;
+  const ptBrHits = (html.match(/pt-br|brasil|brasileir|português|portugues/gi) || []).length;
+  const resultsDiversity = htmlBlocks.filter((b) => b.includes(term.toLowerCase())).length;
 
   let score = 0;
-  if (termHits >= 3) score += 0.5; // encontrado na internet
-  if (socialHits >= 2) score += 0.3; // contexto social
+  if (termHits >= 3) score += 0.35; // encontrado na internet
+  if (socialHits >= 2) score += 0.2; // contexto social
   if (glossaryHits >= 2) score += 0.2; // padrão linguístico
+  if (qaHits >= 2) score += 0.15; // presença em páginas explicativas
+  if (ptBrHits >= 2) score += 0.05; // aderência BR/PT
+  if (resultsDiversity >= 3) score += 0.05; // diversidade de origem
   const finalScore = Math.min(1, score);
   webScoreCache.set(cacheKey, { score: finalScore, expiresAt: Date.now() + 6 * 60 * 60_000 });
   return finalScore;

@@ -15,6 +15,11 @@ export default function AdminPage() {
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
 
+  function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
   useEffect(() => {
     const boot = async () => {
       const res = await fetch("/api/v1/admin/session", { cache: "no-store" }).catch(() => null);
@@ -51,6 +56,7 @@ export default function AdminPage() {
   }
 
   async function handleLogout() {
+    await fetch("/api/v1/admin/session", { method: "DELETE", headers: { "x-csrf-token": getCsrfToken() } }).catch(() => null);
     await fetch("/api/v1/admin/session", { method: "DELETE" }).catch(() => null);
     setOk(false);
     setLogin("");
