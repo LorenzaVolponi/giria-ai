@@ -8,7 +8,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (unauthorized) return unauthorized;
 
   const { id } = await params;
-  const body = (await request.json().catch(() => ({}))) as { status?: string };
+  const body = (await request.json().catch(() => ({}))) as { status?: string; reason?: string };
   const status = body.status;
 
   if (status !== "approved" && status !== "rejected") {
@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
-    await moderateSuggestionStatus(id, status);
+    await moderateSuggestionStatus(id, status, { actor: "admin007", reason: body.reason });
     return withSecurityHeaders(NextResponse.json({ ok: true, id, status }));
   } catch {
     return withSecurityHeaders(NextResponse.json({ error: "Não foi possível atualizar a sugestão." }, { status: 500 }));
