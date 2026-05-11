@@ -20,6 +20,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
@@ -86,9 +87,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
         <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+        <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
+        <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
+        <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
+      </div>
 
       <button className="mt-3 rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
-        {loading ? "Atualizando..." : "Atualizar pendentes"}
+        {loading ? "Atualizando..." : "Atualizar sugestões"}
       </button>
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
@@ -105,6 +111,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
+            {item.context ? <p className="text-xs text-muted-foreground mt-1">Contexto: {item.context}</p> : null}
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>

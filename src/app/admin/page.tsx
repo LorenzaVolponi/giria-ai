@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useState } from "react";
 import { SuggestionModerationPanel } from "@/components/product/suggestion-moderation-panel";
 
@@ -9,6 +10,14 @@ export default function AdminPage() {
   const [code, setCode] = useState("");
   const [ok, setOk] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const boot = async () => {
+      const res = await fetch("/api/v1/admin/session", { cache: "no-store" }).catch(() => null);
+      if (res?.ok) setOk(true);
+    };
+    void boot();
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
