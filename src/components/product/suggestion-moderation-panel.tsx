@@ -66,6 +66,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   useEffect(() => {
     if (!isAuthenticated) return;
     void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     }).catch(() => null);
 
@@ -109,8 +111,80 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       return setMessage(data?.error || "Falha ao moderar item.");
     }
 
+    if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setItems((prev) => prev
+      .map((item) => (item.id === id ? { ...item, status } : item))
+      .filter((item) => statusFilter === "all" || item.status === statusFilter));
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          approved: status === "approved" ? prev.approved + 1 : prev.approved,
+          rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+        }
+      : prev));
+    setRejectReasonById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+  }
+
+  function undoLastAction() {
+    if (!lastAction) return;
+    const { id, snapshot } = lastAction;
+    setItems((prev) => {
+      const exists = prev.some((item) => item.id === id);
+      const next = exists ? prev.map((item) => (item.id === id ? snapshot : item)) : [snapshot, ...prev];
+      return next.filter((item) => statusFilter === "all" || item.status === statusFilter);
+    });
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: prev.pending + (snapshot.status === "pending" ? 1 : 0),
+          approved: Math.max(0, prev.approved - (lastAction.toStatus === "approved" ? 1 : 0)),
+          rejected: Math.max(0, prev.rejected - (lastAction.toStatus === "rejected" ? 1 : 0)),
+        }
+      : prev));
+    setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
+    setLastAction(null);
+  }
+
+  async function moderateBatch(status: "approved" | "rejected") {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    for (const id of pendingIds) {
+      // eslint-disable-next-line no-await-in-loop
+      await moderate(id, status);
+    }
+    setSelectedIds([]);
     await reloadPending();
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {
@@ -171,6 +245,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       ) : null}
 
       <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
         </button>
@@ -197,6 +272,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
+          <li key={item.id} className="rounded border p-3 transition-all duration-200">
+            <div className="flex items-start justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  disabled={item.status !== "pending"}
+                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? Array.from(new Set([...prev, item.id])) : prev.filter((x) => x !== item.id))}
+                />
+                Selecionar
+              </label>
+              <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
+            </div>
+            <p className="font-medium mt-2">{item.term}</p>
           <li key={item.id} className="rounded border p-3">
             <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
@@ -208,6 +297,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <div className="mt-3 flex gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
             </div>
             <input
