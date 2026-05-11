@@ -27,6 +27,18 @@ describe("suggestion pipeline validation", () => {
     expect(parsed.ok).toBe(true);
   });
 
+  it("accepts punctuation-rich meaning/context", () => {
+    const parsed = validateSuggestionPayload({
+      term: "lá ele",
+      meaning: 'Significa "outra pessoa, não eu"; sai fora.',
+      context: 'Uso em zoeira: "lá ele", para cortar duplo sentido.',
+      submitterName: "João",
+      submitterWhatsapp: "1199999999",
+      submitterEmail: "joao@email.com",
+    });
+    expect(parsed.ok).toBe(true);
+  });
+
   it("rejects oversized text payloads", () => {
     const parsed = validateSuggestionPayload({
       term: "g".repeat(41),

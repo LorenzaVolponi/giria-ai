@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "../src/app/api/v1/admin/login/route";
+import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
 import { GET } from "../src/app/api/v1/admin/session/route";
 
 describe("admin login api", () => {
@@ -67,5 +68,15 @@ describe("admin login api", () => {
     });
     const blockedRes = await POST(blockedReq);
     expect(blockedRes.status).toBe(429);
+  });
+
+  it("rejects legacy session POST login path", async () => {
+    const req = new NextRequest("http://localhost/api/v1/admin/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "abc" }),
+    });
+    const res = await SESSION_POST(req);
+    expect(res.status).toBe(405);
   });
 });

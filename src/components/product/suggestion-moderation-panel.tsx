@@ -49,6 +49,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, minScore, termQuery]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       void reloadPending();
     }, 15000);

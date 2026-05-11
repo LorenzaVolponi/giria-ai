@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { listSuggestionsByStatus } from "@/lib/suggestion-pipeline";
 import { UserSuggestionForm } from "@/components/product/user-suggestion-form";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Enviadas por usuários | Gíria AI",
@@ -14,6 +15,11 @@ export default async function UserSubmittedSlangsPage() {
     <main className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="text-3xl font-bold">Enviadas por usuários</h1>
       <p className="mt-3 text-muted-foreground">Fluxo completo: envio, validação automática, score de confiança e publicação das aprovadas.</p>
+      <div className="mt-3">
+        <Link href="/" className="text-sm underline underline-offset-4 text-emerald-700 hover:text-emerald-600">
+          ← Voltar ao menu
+        </Link>
+      </div>
 
       <div className="mt-6"><UserSuggestionForm /></div>
 
