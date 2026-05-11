@@ -32,7 +32,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
 
   async function reloadPending() {
     setLoading(true);
@@ -62,7 +69,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -72,8 +79,43 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+  }, [items]);
+
+  useEffect(() => {
+    if (!undoExpiresAt) return;
+    const timeout = window.setTimeout(() => {
+      setLastAction(null);
+      setUndoExpiresAt(null);
+    }, Math.max(0, undoExpiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [undoExpiresAt]);
 
 
+
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.target as HTMLElement)?.tagName === "INPUT" || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      const key = event.key.toLowerCase();
+      if (event.shiftKey && key === "a") {
+        event.preventDefault();
+        void moderateBatch("approved");
+        return;
+      }
+      if (key === "a") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "approved");
+      }
+      if (key === "r") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "rejected");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [items, selectedIds]);
   function statusBadge(status: SuggestionItem["status"]) {
     if (status === "approved") return "Aprovada";
     if (status === "rejected") return "Rejeitada";
@@ -92,8 +134,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected") {
-    if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
+  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+    if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
@@ -106,17 +148,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     }).catch(() => null);
 
     setBusyId(null);
-    if (!res) return setMessage("Erro de rede ao moderar.");
+    if (!res) { setMessage("Erro de rede ao moderar."); return false; }
     if (res.status === 401) {
       setIsAuthenticated(false);
-      return setMessage("Sessão expirada. Faça login novamente.");
+      setMessage("Sessão expirada. Faça login novamente.");
+      return false;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setMessage(data?.error || "Falha ao moderar item.");
+      setMessage(data?.error || "Falha ao moderar item.");
+      return false;
     }
 
     if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setUndoExpiresAt(Date.now() + 10000);
     setItems((prev) => prev
       .map((item) => (item.id === id ? { ...item, status } : item))
       .filter((item) => statusFilter === "all" || item.status === statusFilter));
@@ -133,7 +178,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       delete next[id];
       return next;
     });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+    return true;
   }
 
   function undoLastAction() {
@@ -154,15 +201,33 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       : prev));
     setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
     setLastAction(null);
+    setUndoExpiresAt(null);
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
-    if (!selectedIds.length) return;
-    for (const id of selectedIds) {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
+    for (const id of pendingIds) {
       // eslint-disable-next-line no-await-in-loop
-      await moderate(id, status);
+      const ok = await moderate(id, status);
+      if (!ok) failed += 1;
+      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
     }
     setSelectedIds([]);
+    await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
+  }
+
+  function toggleSelectAllPage(pageIds: string[]) {
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds])));
+  }
+
+  function selectAllFiltered(filteredIds: string[]) {
+    setSelectedIds(Array.from(new Set(filteredIds)));
   }
 
   function exportFilteredCsv() {
@@ -238,7 +303,22 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
           Rejeitar selecionadas
         </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
+          Limpar seleção
+        </button>
       </div>
+
+      {batchProgress.running || batchProgress.done ? (
+        <div className="mt-2 rounded border p-2 text-xs text-muted-foreground">
+          <p>Lote: {batchProgress.done}/{batchProgress.total} processadas · falhas: {batchProgress.failed}</p>
+          <div className="mt-1 h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${batchProgress.total ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
@@ -250,13 +330,26 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
           })
-          .sort((a, b) => b.score - a.score || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          .sort((a, b) => {
+            const aTermFreq = items.filter((x) => x.term.toLowerCase() === a.term.toLowerCase()).length;
+            const bTermFreq = items.filter((x) => x.term.toLowerCase() === b.term.toLowerCase()).length;
+            const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
+            return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          });
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+        const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
+        const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
 
         return (
           <>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+        <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
+        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
+      </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
           <li key={item.id} className="rounded border p-3 transition-all duration-200">
@@ -265,7 +358,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(item.id)}
-                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id))}
+                  disabled={item.status !== "pending"}
+                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? Array.from(new Set([...prev, item.id])) : prev.filter((x) => x !== item.id))}
                 />
                 Selecionar
               </label>
@@ -279,8 +373,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
             <div className="mt-3 flex flex-wrap gap-2">
-              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
-              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
             </div>
             <input
@@ -291,12 +385,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
-                {historyById[item.id].slice(0, 3).map((h) => (
-                  <p key={`${h.status}-${h.at}`}>
-                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
-                    {h.reason ? ` · ${h.reason}` : ""}
-                  </p>
-                ))}
+                {historyById[item.id].slice(0, 3).map((h, idx, arr) => {
+                  const previous = arr[idx + 1];
+                  return (
+                    <p key={`${h.status}-${h.at}`}>
+                      {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {previous ? `${previous.status} → ` : ""}{h.status}
+                      {h.reason ? ` · ${h.reason}` : ""}
+                    </p>
+                  );
+                })}
               </div>
             ) : null}
           </li>
