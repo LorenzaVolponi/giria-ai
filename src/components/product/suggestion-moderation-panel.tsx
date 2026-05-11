@@ -30,9 +30,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
   const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
 
   async function reloadPending() {
     setLoading(true);
@@ -62,7 +65,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -72,8 +75,47 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
 
+  async function loadHistory(id: string) {
+    const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { history?: Array<{ status: string; actor: string; at: string; reason?: string }> };
+    setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
+  }
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+  }, [items]);
+
+  useEffect(() => {
+    if (!undoExpiresAt) return;
+    const timeout = window.setTimeout(() => {
+      setLastAction(null);
+      setUndoExpiresAt(null);
+    }, Math.max(0, undoExpiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [undoExpiresAt]);
 
 
+
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.target as HTMLElement)?.tagName === "INPUT" || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      if (event.key.toLowerCase() === "a") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "approved");
+      }
+      if (event.key.toLowerCase() === "r") {
+        const firstPending = items.find((item) => item.status === "pending");
+        if (firstPending) void moderate(firstPending.id, "rejected");
+      }
+      if (event.shiftKey && event.key.toLowerCase() === "a") {
+        void moderateBatch("approved");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [items, selectedIds]);
   function statusBadge(status: SuggestionItem["status"]) {
     if (status === "approved") return "Aprovada";
     if (status === "rejected") return "Rejeitada";
@@ -92,31 +134,37 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected") {
-    if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
+  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+    if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    const snapshot = items.find((item) => item.id === id);
+    if (status === "rejected" && !reason) {
+      setBusyId(null);
+      return setMessage("Informe um motivo para rejeitar.");
+    }
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, reason: reason || undefined }),
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     }).catch(() => null);
 
     setBusyId(null);
-    if (!res) return setMessage("Erro de rede ao moderar.");
+    if (!res) { setMessage("Erro de rede ao moderar."); return false; }
     if (res.status === 401) {
       setIsAuthenticated(false);
-      return setMessage("Sessão expirada. Faça login novamente.");
+      setMessage("Sessão expirada. Faça login novamente.");
+      return false;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setMessage(data?.error || "Falha ao moderar item.");
+      setMessage(data?.error || "Falha ao moderar item.");
+      return false;
     }
 
     if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setUndoExpiresAt(Date.now() + 10000);
     setItems((prev) => prev
       .map((item) => (item.id === id ? { ...item, status } : item))
       .filter((item) => statusFilter === "all" || item.status === statusFilter));
@@ -133,7 +181,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       delete next[id];
       return next;
     });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+    return true;
   }
 
   function undoLastAction() {
@@ -154,15 +204,81 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       : prev));
     setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
     setLastAction(null);
+    setUndoExpiresAt(null);
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
-    if (!selectedIds.length) return;
-    for (const id of selectedIds) {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
+    for (const id of pendingIds) {
       // eslint-disable-next-line no-await-in-loop
-      await moderate(id, status);
+      const ok = await moderate(id, status);
+      if (!ok) failed += 1;
+      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
     }
     setSelectedIds([]);
+    await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
+  }
+
+  function toggleSelectAllPage(pageIds: string[]) {
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds])));
+  }
+
+  function selectAllFiltered(filteredIds: string[]) {
+    setSelectedIds(Array.from(new Set(filteredIds)));
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {
@@ -222,21 +338,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
         </button>
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
           Exportar CSV
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
-          Desfazer última ação
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
-          Aprovar selecionadas
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
-          Rejeitar selecionadas
         </button>
       </div>
 
@@ -249,8 +356,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             const q = termQuery.trim().toLowerCase();
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-          })
-          .sort((a, b) => b.score - a.score || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          });
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -259,26 +365,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
-          <li key={item.id} className="rounded border p-3 transition-all duration-200">
-            <div className="flex items-start justify-between gap-2">
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item.id)}
-                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? [...prev, item.id] : prev.filter((x) => x !== item.id))}
-                />
-                Selecionar
-              </label>
-              <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
-            </div>
-            <p className="font-medium mt-2">{item.term}</p>
+          <li key={item.id} className="rounded border p-3">
+            <p className="font-medium">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
             {item.context ? <p className="text-xs text-muted-foreground mt-1">Contexto: {item.context}</p> : null}
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
@@ -287,7 +382,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (opcional)"
+              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">

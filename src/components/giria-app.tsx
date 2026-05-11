@@ -246,6 +246,7 @@ export default function GiriaApp() {
   const [translationResult, setTranslationResult] =
     useState<TranslationResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
 
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(() => loadFavorites());
@@ -545,6 +546,17 @@ export default function GiriaApp() {
     },
     []
   );
+
+  const handleCopyPix = useCallback(async () => {
+    const pixKey = "007aibr@gmail.com";
+    try {
+      await navigator.clipboard.writeText(pixKey);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 1800);
+    } catch {
+      setPixCopied(false);
+    }
+  }, []);
 
   // ---- Reset search ----
   const handleResetSearch = useCallback(() => {
@@ -1789,7 +1801,23 @@ export default function GiriaApp() {
             className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
           >
             <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
-            <p className="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">PIX: <strong>007aibr@gmail.com</strong> · Lorenza Volponi</p>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
+              <button
+                type="button"
+                onClick={() => void handleCopyPix()}
+                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                aria-label="Copiar chave PIX"
+              >
+                {pixCopied ? "Copiado!" : "Copiar chave"}
+              </button>
+            </div>
+            <img
+              src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=007aibr%40gmail.com"
+              alt="QR Code da chave PIX"
+              className="mx-auto mt-2 h-20 w-20 rounded-md border border-emerald-200 dark:border-emerald-900"
+              loading="lazy"
+            />
           </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
