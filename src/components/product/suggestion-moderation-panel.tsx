@@ -10,6 +10,7 @@ type SuggestionItem = {
   submitterName: string;
   submitterWhatsapp?: string;
   submitterEmail?: string;
+  createdAt?: string;
   score: number;
   status: "pending" | "approved" | "rejected";
 };
@@ -115,6 +116,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
+            {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
             <div className="mt-3 flex gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
