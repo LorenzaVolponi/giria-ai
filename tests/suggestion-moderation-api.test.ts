@@ -7,6 +7,11 @@ describe("suggestion moderation API", () => {
     const req = new NextRequest("http://localhost/api/v1/suggestions/abc", {
       method: "PATCH",
       body: JSON.stringify({ status: "rejected" }),
+      headers: {
+        "content-type": "application/json",
+        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf",
+        "x-csrf-token": "test-csrf",
+      },
       headers: { "content-type": "application/json", cookie: "giria_admin_session=admin-panel-session" },
     });
 

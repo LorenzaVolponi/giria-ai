@@ -31,6 +31,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
   const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
 
   async function reloadPending() {
     setLoading(true);
@@ -60,6 +65,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
     void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
   }, [isAuthenticated]);
 
@@ -89,6 +95,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     }
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     }).catch(() => null);
@@ -237,6 +244,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </div>
       ) : null}
 
+      <div className="mt-3 flex gap-2">
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
@@ -286,6 +294,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
+            <div className="mt-3 flex gap-2">
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>

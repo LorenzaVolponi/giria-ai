@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminCsrf, requireAdminToken } from "@/lib/admin-guard";
+import { getClientIp, withSecurityHeaders } from "@/lib/security";
+import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
+import { isRateLimited } from "@/lib/rate-limit";
+import { appendAdminAudit } from "@/lib/admin-audit";
 import { requireAdminToken } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
@@ -6,6 +11,14 @@ import { enqueueRevalidateJob, getRevalidateJob } from "@/lib/revalidate-queue";
 export async function POST(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
   if (unauthorized) return unauthorized;
+  const csrfBlocked = requireAdminCsrf(request);
+  if (csrfBlocked) return csrfBlocked;
+  const ip = getClientIp(request);
+  const rate = await isRateLimited(`admin:revalidate:${ip}`, 6, 60);
+  if (rate.limited) return withSecurityHeaders(NextResponse.json({ error: "Muitas requisições de revalidação." }, { status: 429 }));
+
+  const jobId = enqueueRevalidateJob();
+  await appendAdminAudit({ at: new Date().toISOString(), action: "revalidate_enqueue", ip, meta: { jobId } });
 
   const jobId = enqueueRevalidateJob();
   return withSecurityHeaders(NextResponse.json({ ok: true, queued: true, jobId }, { status: 202 }));
