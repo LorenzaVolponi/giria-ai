@@ -41,6 +41,13 @@ if (typeof globalThis !== "undefined") {
 // ---------------------------------------------------------------------------
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
+const PROMPT_BACKEND_RULES = [
+  "Priorize segurança e clareza para pais, educadores e responsáveis.",
+  "Sempre explique gíria com significado, contexto social e exemplo seguro.",
+  "Quando houver ambiguidade, ofereça hipóteses e peça confirmação de região.",
+  "Para termos regionais, indique região provável e variações de escrita.",
+  "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
+] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
 function normalize(str: string): string {
@@ -135,6 +142,34 @@ function lookupMultipleTerms(phrase: string): Map<string, SlangTerm> {
   return found;
 }
 
+function levenshtein(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+  const normalizedQuery = normalize(query);
+  const ranked = SLANG_DATA.map((term) => ({
+    term,
+    score: levenshtein(normalizedQuery, normalize(term.term)),
+  }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit);
+  return ranked.map((x) => x.term);
+}
+
 // ---------------------------------------------------------------------------
 // Response formatters
 // ---------------------------------------------------------------------------
@@ -188,6 +223,47 @@ function getRandomTerms(count: number, category?: string): SlangTerm[] {
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
+function getRegionalHighlights(limit = 10): { region: string; terms: SlangTerm[] }[] {
+  const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
+  const grouped = new Map<string, SlangTerm[]>();
+
+  for (const term of regionalTerms) {
+    const regionKey = term.region || "Brasil";
+    const current = grouped.get(regionKey) ?? [];
+    current.push(term);
+    grouped.set(regionKey, current);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([region, terms]) => ({ region, terms: terms.slice(0, 2) }))
+    .sort((a, b) => b.terms.length - a.terms.length)
+    .slice(0, limit);
+}
+
+function buildPromptBackendHeader(): string {
+  return `### Motor de Resposta (versão robusta)\n${PROMPT_BACKEND_RULES.map((rule, i) => `${i + 1}. ${rule}`).join("\n")}`;
+}
+
+function findRegionHint(message: string): string | null {
+  const normalized = normalize(message);
+  const regionHints: Array<{ pattern: RegExp; region: string }> = [
+    { pattern: /\b(norte|para|amazonas|amapa|acre|rondonia|roraima|tocantins)\b/, region: "Norte" },
+    { pattern: /\b(nordeste|bahia|ceara|pernambuco|alagoas|sergipe|piaui|maranhao|paraiba|rio grande do norte)\b/, region: "Nordeste" },
+    { pattern: /\b(sul|parana|santa catarina|rio grande do sul)\b/, region: "Sul" },
+    { pattern: /\b(minas|sudeste|sao paulo|rio de janeiro|espirito santo)\b/, region: "Sudeste" },
+    { pattern: /\b(centro oeste|goias|goiania|mato grosso|mato grosso do sul|distrito federal|brasilia)\b/, region: "Centro-Oeste" },
+  ];
+
+  const hit = regionHints.find((h) => h.pattern.test(normalized));
+  return hit?.region ?? null;
+}
+
+function getRegionalTermsByHint(regionHint: string, limit = 6): SlangTerm[] {
+  return SLANG_DATA
+    .filter((t) => t.category === "regional" && normalize(t.region).includes(normalize(regionHint)))
+    .slice(0, limit);
+}
+
 
 // ---------------------------------------------------------------------------
 // Intent detection & response generation
@@ -402,6 +478,9 @@ function buildResponse(
   conversationHistory: Array<{ role: string; content: string }>
 ): string {
   const { intent, extractedTerms, category } = detectIntent(message);
+  const regionHint = findRegionHint(message);
+  const contextHeader = buildPromptBackendHeader();
+  const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
 
   switch (intent) {
     case "greeting":
@@ -419,7 +498,9 @@ Tente perguntar algo como: *"O que significa 'farmar aura'?"* ou *"Meu filho dis
       return `De nada! 😊 Estou aqui sempre que precisar entender o que os jovens estão falando. Se ouvir alguma gíria estranha, é só perguntar!`;
 
     case "help":
-      return `## Como posso ajudar? 💡
+      return `${contextHeader}
+
+## Como posso ajudar? 💡
 
 Você pode me perguntar de várias formas:
 
@@ -490,6 +571,7 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
           const terms = Array.from(fuzzyResults.values());
           return `Não encontrei "${extractedTerms[0]}" exatamente, mas encontrei algo similar:\n\n${formatMultiTermResponse(terms)}`;
         }
+        const closest = findClosestTerms(extractedTerms[0], 4);
         return `Hmm, não encontrei a gíria **"${extractedTerms[0]}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
 
 Algumas possibilidades:
@@ -497,6 +579,7 @@ Algumas possibilidades:
 2. **Pode ser muito nova** — gírias surgem todo dia no TikTok
 3. **Pode ser regional** — algumas gírias são específicas de certas regiões
 
+${closest.length > 0 ? `Talvez você quis dizer: ${closest.map((t) => `"${t.term}"`).join(", ")}.` : ""}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
       return formatTermCard(results[0]);
@@ -524,6 +607,26 @@ Nosso dicionário tem ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos cadas
         // Fallback to random
         const randomTerms = getRandomTerms(6);
         return `Essa categoria ainda não tem muitos termos. Aqui estão algumas gírias populares:\n\n${formatMultiTermResponse(randomTerms)}`;
+      }
+      if (cat === "regional") {
+        const regionFocused = regionHint ? getRegionalTermsByHint(regionHint, 6) : [];
+        const highlights = getRegionalHighlights();
+        const byRegion = highlights
+          .map((group) => `- **${group.region}**: ${group.terms.map((t) => `"${t.term}"`).join(", ")}`)
+          .join("\n");
+
+        return `## 🗺️ Gírias Regionais
+
+Perfeito! Já temos uma base regional bem útil e podemos ampliar continuamente com sugestões da comunidade.
+
+### Panorama atual por região:
+${byRegion}
+
+### Exemplos para começar:
+${formatMultiTermResponse(terms)}
+
+${regionFocused.length > 0 ? `### Recorte detectado: ${regionHint}\n${formatMultiTermResponse(regionFocused)}\n` : ""}
+Se quiser, eu também posso montar uma trilha por estado (ex.: "só Nordeste" ou "só Sul").`;
       }
       return `## ${catInfo?.icon ?? "💬"} ${catInfo?.label ?? cat}\n\nAqui estão algumas gírias dessa categoria:\n\n${formatMultiTermResponse(terms)}\n\nQuer saber mais sobre alguma delas? É só perguntar! 🎯`;
     }
@@ -574,7 +677,8 @@ Sou especialista em **gírias e linguagem da internet brasileira**. Tente me per
 - 📂 **Uma categoria** — *"Me ensina gírias de gaming"*
 - 🎲 **Surpresa** — *"Me surpreenda com gírias novas!"*
 
-Nosso dicionário tem **${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos** — posso ajudar com muita coisa! 🚀`;
+Nosso dicionário tem **${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos** — posso ajudar com muita coisa! 🚀
+${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${lastUserMessage}"_.` : ""}`;
     }
   }
 }
