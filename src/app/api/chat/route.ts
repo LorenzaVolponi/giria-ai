@@ -48,6 +48,8 @@ const PROMPT_BACKEND_RULES = [
   "Quando houver ambiguidade, ofereça hipóteses e peça confirmação de região.",
   "Para termos regionais, indique região provável e variações de escrita.",
   "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
+  "Responda estritamente com base no conteúdo do nosso banco/local (SLANG_DATA e metadados).",
+  "Não invente significado para termo ausente; ofereça fluxo de sugestão de gíria.",
 ] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
@@ -251,6 +253,10 @@ function getRegionalHighlights(limit = 10): { region: string; terms: SlangTerm[]
 
 function buildPromptBackendHeader(): string {
   return `### Motor de Resposta (versão robusta)\n${PROMPT_BACKEND_RULES.map((rule, i) => `${i + 1}. ${rule}`).join("\n")}`;
+}
+
+function groundedOnlyNotice(): string {
+  return "🔒 **Resposta ancorada na base local:** uso apenas gírias e metadados já cadastrados no sistema.";
 }
 
 function findRegionHint(message: string): string | null {
@@ -515,6 +521,7 @@ Tente perguntar algo como: *"O que significa 'farmar aura'?"* ou *"Meu filho dis
 
     case "help":
       return `${contextHeader}
+${groundedOnlyNotice()}
 
 ## Como posso ajudar? 💡
 
@@ -658,16 +665,17 @@ Se quiser, eu também posso montar uma trilha por estado (ex.: "só Nordeste" ou
     }
 
     case "general_question": {
-      // Provide a contextual response about Brazilian youth slang
       const trendingTerms = getRandomTerms(4);
       return `## Sobre a Linguagem Jovem Brasileira 🇧🇷
 
+${groundedOnlyNotice()}
+
 A linguagem dos adolescentes brasileiros é **incrivelmente dinâmica**, misturando:
-- 🎵 **Influências do funk e trap** — "gag", "vrum", "brutal"
-- 🌐 **Termos globais do TikTok** — "slay", "rizz", "delulu", "sigma"
-- 🎮 **Cultura gamer** — "gg", "ez", "tiltar", "nerfar"
-- 📱 **Abreviações** — "blz", "pfv", "tmj", "fds"
-- 🗺️ **Regionalismos** — "oxente", "tchê", "moio", "biscoiteiro"
+- 🎵 **Influências de música e cultura urbana**
+- 🌐 **Termos de internet e plataformas sociais**
+- 🎮 **Cultura gamer**
+- 📱 **Abreviações e linguagem de conversa**
+- 🗺️ **Regionalismos brasileiros**
 
 ### Gírias em alta agora:
 ${trendingTerms
@@ -691,6 +699,8 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
       return `Hmm, não tenho certeza sobre isso. 😅
 
+${groundedOnlyNotice()}
+
 Sou especialista em **gírias e linguagem da internet brasileira**. Tente me perguntar sobre:
 
 - 🔍 **Uma gíria específica** — *"O que significa 'rizz'?"*
@@ -699,6 +709,7 @@ Sou especialista em **gírias e linguagem da internet brasileira**. Tente me per
 - 🎲 **Surpresa** — *"Me surpreenda com gírias novas!"*
 
 Nosso dicionário tem **${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos** — posso ajudar com muita coisa! 🚀
+Se o termo não estiver na base, você pode sugerir aqui: ${SUGGESTION_PAGE_LINK}
 ${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${lastUserMessage}"_.` : ""}`;
     }
   }
