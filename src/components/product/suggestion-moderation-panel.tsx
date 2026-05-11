@@ -27,12 +27,22 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [page, setPage] = useState(1);
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
   const pageSize = 12;
 
   async function reloadPending() {
     setLoading(true);
     const statusParam = statusFilter === "all" ? "all" : statusFilter;
-    const res = await fetch(`/api/v1/suggestions?status=${statusParam}&limit=120&includeSummary=true`, { cache: "no-store" }).catch(() => null);
+    const qs = new URLSearchParams({
+      status: statusParam,
+      limit: "120",
+      includeSummary: "true",
+    });
+    if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
+    if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
+    const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
     setLoading(false);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
@@ -42,11 +52,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     void reloadPending();
-  }, [statusFilter]);
+  }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, minScore, termQuery]);
+  }, [statusFilter, minScore, termQuery, fromDate, toDate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -58,7 +68,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       void reloadPending();
     }, 15000);
     return () => clearInterval(id);
-  }, [statusFilter]);
+  }, [statusFilter, fromDate, toDate]);
+
+  async function loadHistory(id: string) {
+    const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { history?: Array<{ status: string; actor: string; at: string; reason?: string }> };
+    setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
+  }
 
   async function moderate(id: string, status: "approved" | "rejected") {
     if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
@@ -130,6 +147,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
         <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+      </div>
       <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
         <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
         <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
@@ -182,6 +203,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <div className="mt-3 flex gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
+              <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
             </div>
             <input
               className="mt-2 w-full rounded border p-2 text-xs"
@@ -189,6 +211,16 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
               placeholder="Motivo da rejeição (obrigatório para rejeitar)"
             />
+            {historyById[item.id]?.length ? (
+              <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
+                {historyById[item.id].slice(0, 3).map((h) => (
+                  <p key={`${h.status}-${h.at}`}>
+                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
+                    {h.reason ? ` · ${h.reason}` : ""}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
