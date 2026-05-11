@@ -1812,12 +1812,9 @@ export default function GiriaApp() {
                 {pixCopied ? "Copiado!" : "Copiar chave"}
               </button>
             </div>
-            <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=007aibr%40gmail.com"
-              alt="QR Code da chave PIX"
-              className="mx-auto mt-2 h-20 w-20 rounded-md border border-emerald-200 dark:border-emerald-900"
-              loading="lazy"
-            />
+            <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
+              QR PIX
+            </div>
           </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
