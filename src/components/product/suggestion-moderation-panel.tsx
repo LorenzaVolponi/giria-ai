@@ -210,7 +210,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
     let failed = 0;
     for (const id of pendingIds) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const ok = await moderate(id, status);
       if (!ok) failed += 1;
       setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
