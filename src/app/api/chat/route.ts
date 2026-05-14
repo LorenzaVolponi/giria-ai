@@ -92,9 +92,19 @@ function buildTermIndex(): Map<string, SlangTerm[]> {
 }
 
 let _termIndex: Map<string, SlangTerm[]> | null = null;
+let _normalizedTermsCache: Array<{ normalized: string; term: SlangTerm }> | null = null;
 function getTermIndex(): Map<string, SlangTerm[]> {
   if (!_termIndex) _termIndex = buildTermIndex();
   return _termIndex;
+}
+
+function getNormalizedTermsCache(): Array<{ normalized: string; term: SlangTerm }> {
+  if (_normalizedTermsCache) return _normalizedTermsCache;
+  _normalizedTermsCache = SLANG_DATA.map((term) => ({
+    normalized: normalize(term.term),
+    term,
+  }));
+  return _normalizedTermsCache;
 }
 
 /** Look up a term in the index (exact or fuzzy). */
@@ -168,9 +178,12 @@ function levenshtein(a: string, b: string): number {
 
 function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
   const normalizedQuery = normalize(query);
-  const ranked = SLANG_DATA.map((term) => ({
-    term,
-    score: levenshtein(normalizedQuery, normalize(term.term)),
+  const pool = getNormalizedTermsCache();
+  const firstChar = normalizedQuery[0];
+  const candidates = pool.filter((entry) => entry.normalized[0] === firstChar || Math.abs(entry.normalized.length - normalizedQuery.length) <= 3);
+  const ranked = (candidates.length > 0 ? candidates : pool).map((entry) => ({
+    term: entry.term,
+    score: levenshtein(normalizedQuery, entry.normalized),
   }))
     .sort((a, b) => a.score - b.score)
     .slice(0, limit);
