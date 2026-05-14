@@ -51,6 +51,8 @@ const PROMPT_BACKEND_RULES = [
   "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
   "Responda estritamente com base no conteúdo do nosso banco/local (SLANG_DATA e metadados).",
   "Não invente significado para termo ausente; ofereça fluxo de sugestão de gíria.",
+  "Priorize utilidade para o usuário final: resposta curta no topo e detalhes opcionais abaixo.",
+  "Sempre que possível, inclua orientação prática de conversa entre responsável e adolescente.",
 ] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
@@ -194,6 +196,13 @@ function formatTermCard(t: SlangTerm): string {
   const variations = Array.isArray(t.variations) && t.variations.length > 0
     ? `\n- **Variações**: ${t.variations.join(", ")}`
     : "";
+  const conversationTip = t.riskLevel === "green"
+    ? "Pode tratar como linguagem cotidiana; valide contexto sem alarmismo."
+    : t.riskLevel === "yellow"
+      ? "Pergunte em tom aberto onde/como foi usada para evitar mal-entendido."
+      : t.riskLevel === "orange"
+        ? "Converse com calma e peça exemplos reais de uso antes de concluir."
+        : "Aborde com acolhimento e combine limites claros de respeito.";
 
   return `### **"${t.term}"**
 
@@ -202,11 +211,13 @@ function formatTermCard(t: SlangTerm): string {
 - **Contexto**: ${t.context}
 - **Confiança da Base**: ${confidenceLabel(t)}
 - **Nível de Risco**: ${rc.label} — ${rc.description}
+${t.region ? `- **Região mais comum**: ${t.region}` : ""}
 ${t.safeExample ? `- **Exemplo**: _"${t.safeExample}"_` : ""}
 ${cat ? `- **Categoria**: ${cat.icon} ${cat.label}` : ""}
 ${t.origin ? `- **Origem**: ${t.origin}` : ""}
 ${variations}
-${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}`;
+${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}
+\n> 🧭 **Dica para o responsável**: ${conversationTip}`;
 }
 
 function formatMultiTermResponse(terms: SlangTerm[]): string {
@@ -621,7 +632,7 @@ ${disambiguationPrompt}
 Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
-      return formatTermCard(results[0]);
+      return `${groundedOnlyNotice()}\n\n${formatTermCard(results[0])}`;
     }
 
     case "phrase_translation": {
@@ -638,8 +649,8 @@ Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       const terms = Array.from(found.values());
       const response = formatMultiTermResponse(terms);
       return hasFollowUp
-        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
-        : response;
+        ? `${groundedOnlyNotice()}\n\n${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : `${groundedOnlyNotice()}\n\n${response}`;
     }
 
     case "category_explore": {
