@@ -293,6 +293,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       {(() => {
+        const termFrequency = new Map<string, number>();
+        for (const item of items) {
+          const key = item.term.toLowerCase();
+          termFrequency.set(key, (termFrequency.get(key) || 0) + 1);
+        }
+
         const filtered = items
           .filter((item) => item.score >= minScore)
           .filter((item) => {
@@ -301,8 +307,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
           })
           .sort((a, b) => {
-            const aTermFreq = items.filter((x) => x.term.toLowerCase() === a.term.toLowerCase()).length;
-            const bTermFreq = items.filter((x) => x.term.toLowerCase() === b.term.toLowerCase()).length;
+            const aTermFreq = termFrequency.get(a.term.toLowerCase()) || 0;
+            const bTermFreq = termFrequency.get(b.term.toLowerCase()) || 0;
             const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
             return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
           });
