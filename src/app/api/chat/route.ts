@@ -7,6 +7,7 @@ import {
   type RiskLevel,
 } from "@/lib/slang-data";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
+import { recordGroundingMetric } from "@/lib/metrics";
 
 // ---------------------------------------------------------------------------
 // Rate limiting — simple in-memory (best-effort for serverless)
@@ -844,6 +845,7 @@ export async function POST(request: NextRequest) {
     }
 
     const grounding = buildGroundingMetadata(currentMessage);
+    recordGroundingMetric(grounding.grounded);
 
     return withSecurityHeaders(NextResponse.json({
       response,
