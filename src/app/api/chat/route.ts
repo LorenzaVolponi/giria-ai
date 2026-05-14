@@ -503,6 +503,13 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
+  const lastAssistantMessage = [...conversationHistory]
+    .reverse()
+    .find((m) => m.role === "assistant")?.content;
+
+  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
+    normalize(message)
+  );
 
   switch (intent) {
     case "greeting":
@@ -690,6 +697,27 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
     case "out_of_scope":
     default: {
+      if (isContextualFollowUp && lastAssistantMessage) {
+        const previousTerms = lookupMultipleTerms(lastAssistantMessage);
+        const previous = Array.from(previousTerms.values())[0];
+        if (previous) {
+          const rc = RISK_CONFIG[previous.riskLevel];
+          return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
+
+### Leitura rápida
+- **Significado**: ${previous.meaning}
+- **Contexto**: ${previous.context}
+- **Risco**: ${rc.label} (${rc.description})
+
+### Como responder como adulto (tom calmo)
+1. Valide sem confronto: _"Entendi, me explica como vocês usam isso?"_
+2. Faça pergunta aberta: _"Quando essa expressão aparece mais?"_
+3. Alinhe limite com cuidado, se necessário: _"Aqui em casa a gente usa sem ofender ninguém, combinado?"_
+
+Se quiser, eu monto uma resposta pronta para WhatsApp com linguagem de pai/mãe.`;
+        }
+      }
+
       // Try one more time to find terms
       const lastAttempt = lookupMultipleTerms(message);
       if (lastAttempt.size > 0) {
