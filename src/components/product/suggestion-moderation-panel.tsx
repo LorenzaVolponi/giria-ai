@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type SuggestionItem = {
   id: string;
@@ -34,8 +34,16 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const pageSize = 12;
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function reloadPending() {
+    if (!mountedRef.current) return;
     setLoading(true);
     const statusParam = statusFilter === "all" ? "all" : statusFilter;
     const qs = new URLSearchParams({
@@ -46,9 +54,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
+    if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
+    if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
   }
