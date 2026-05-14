@@ -14,6 +14,9 @@ export default function AdminPage() {
     topIps?: Array<{ ip: string; total: number; approved: number; rejected: number; pending: number; lastAt: number }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
+  const [metrics, setMetrics] = useState<{
+    chatGrounding?: { total: number; grounded: number; unresolved: number; groundedRate: number; unresolvedRate: number };
+  }>({});
 
   useEffect(() => {
     const boot = async () => {
@@ -31,6 +34,12 @@ export default function AdminPage() {
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
+
+    const metricsRes = await fetch("/api/v1/metrics", { cache: "no-store" }).catch(() => null);
+    if (metricsRes?.ok) {
+      const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
+      setMetrics(metricsData);
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -86,6 +95,24 @@ export default function AdminPage() {
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-amber-600">{dash.summary?.pending ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Aprovadas</p><p className="text-2xl font-bold text-emerald-600">{dash.summary?.approved ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Rejeitadas</p><p className="text-2xl font-bold text-rose-600">{dash.summary?.rejected ?? 0}</p></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat grounded (%)</p>
+              <p className="text-2xl font-bold text-emerald-600">{metrics.chatGrounding?.groundedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat unresolved (%)</p>
+              <p className="text-2xl font-bold text-amber-600">{metrics.chatGrounding?.unresolvedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Grounded</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.grounded ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Unresolved</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.unresolved ?? 0}</p>
+            </div>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-xl border bg-white p-4">
