@@ -179,11 +179,13 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (!pendingIds.length) return;
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
     let failed = 0;
-    for (const id of pendingIds) {
+    const concurrency = 4;
+    for (let i = 0; i < pendingIds.length; i += concurrency) {
+      const chunk = pendingIds.slice(i, i + concurrency);
       // eslint-disable-next-line no-await-in-loop
-      const ok = await moderate(id, status);
-      if (!ok) failed += 1;
-      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
+      const chunkResults = await Promise.all(chunk.map(async (id) => ({ id, ok: await moderate(id, status) })));
+      failed += chunkResults.filter((r) => !r.ok).length;
+      setBatchProgress((prev) => ({ ...prev, done: Math.min(prev.total, prev.done + chunkResults.length), failed }));
     }
     setSelectedIds([]);
     await reloadPending();
