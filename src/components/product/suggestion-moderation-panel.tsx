@@ -33,6 +33,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
+  const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
   const mountedRef = useRef(true);
 
@@ -129,6 +130,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setMessage(data?.error || "Falha ao moderar item.");
+      setSessionStats((prev) => ({ ...prev, failed: prev.failed + 1 }));
       return false;
     }
 
@@ -150,6 +152,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       return next;
     });
     setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setSessionStats((prev) => ({
+      ...prev,
+      approved: status === "approved" ? prev.approved + 1 : prev.approved,
+      rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+    }));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
     return true;
   }
@@ -177,6 +184,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   async function moderateBatch(status: "approved" | "rejected") {
     const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
     if (!pendingIds.length) return;
+    const batchStart = performance.now();
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
     let failed = 0;
     const concurrency = 4;
@@ -190,6 +198,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setSelectedIds([]);
     await reloadPending();
     setBatchProgress((prev) => ({ ...prev, running: false }));
+    const elapsed = Math.round(performance.now() - batchStart);
+    setSessionStats((prev) => ({
+      ...prev,
+      batches: prev.batches + 1,
+      batchAvgMs: prev.batches === 0 ? elapsed : Math.round(((prev.batchAvgMs * prev.batches) + elapsed) / (prev.batches + 1)),
+    }));
     setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
   }
 
@@ -258,6 +272,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
         </div>
       ) : null}
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+        <p className="rounded border p-2">Aprovadas (sessão): <strong>{sessionStats.approved}</strong></p>
+        <p className="rounded border p-2">Rejeitadas (sessão): <strong>{sessionStats.rejected}</strong></p>
+        <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
+        <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
