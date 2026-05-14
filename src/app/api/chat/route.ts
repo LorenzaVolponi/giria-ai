@@ -729,6 +729,33 @@ ${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${l
   }
 }
 
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
+    }
+    const closest = findClosestTerms(term, 3).map((t) => t.term);
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK };
+}
+
 // ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
@@ -816,8 +843,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const grounding = buildGroundingMetadata(currentMessage);
+
     return withSecurityHeaders(NextResponse.json({
       response,
+      grounding,
       ...slangData,
     }));
   } catch (error: unknown) {
