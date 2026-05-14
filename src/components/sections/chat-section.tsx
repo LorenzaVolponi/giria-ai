@@ -37,6 +37,11 @@ interface ChatMessage {
     example?: string;
     category?: string;
     synonyms?: string[];
+    grounding?: {
+      grounded: boolean;
+      candidates: string[];
+      suggestionLink?: string;
+    };
   };
   isError?: boolean;
 }
@@ -49,6 +54,11 @@ interface ChatApiResponse {
   example?: string;
   category?: string;
   synonyms?: string[];
+  grounding?: {
+    grounded: boolean;
+    candidates: string[];
+    suggestionLink?: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +234,43 @@ function AiMessageBubble({
                 &ldquo;{message.data.slang}&rdquo;
               </span>
             )}
+          </div>
+        )}
+
+        {message.data?.grounding && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn(
+              "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border",
+              message.data.grounding.grounded
+                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800"
+                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
+            )}>
+              {message.data.grounding.grounded ? "Base confirmada" : "Base não confirmou"}
+            </span>
+            {!message.data.grounding.grounded && message.data.grounding.suggestionLink ? (
+              <a
+                href={message.data.grounding.suggestionLink}
+                className="text-[11px] underline text-violet-700 dark:text-violet-300"
+              >
+                Sugerir nova gíria
+              </a>
+            ) : null}
+            {!message.data.grounding.grounded && message.data.grounding.candidates.length > 0 ? (
+              <div className="w-full pt-1">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Você quis dizer:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {message.data.grounding.candidates.map((candidate) => (
+                    <button
+                      key={candidate}
+                      onClick={() => onSearchTerm(candidate)}
+                      className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                    >
+                      {candidate}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -500,6 +547,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
             example: data.example,
             category: data.category,
             synonyms: data.synonyms,
+            grounding: data.grounding,
           },
         };
 
