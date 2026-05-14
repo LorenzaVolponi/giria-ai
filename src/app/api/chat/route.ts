@@ -772,6 +772,8 @@ function buildGroundingMetadata(message: string): {
   grounded: boolean;
   candidates: string[];
   suggestionLink?: string;
+  intent: Intent;
+  confidence: number;
 } {
   const { intent, extractedTerms } = detectIntent(message);
 
@@ -779,20 +781,23 @@ function buildGroundingMetadata(message: string): {
     const term = extractedTerms[0];
     const exact = lookupTerm(term);
     if (exact.length > 0) {
-      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term), intent, confidence: 0.98 };
     }
-    const closest = findClosestTerms(term, 3).map((t) => t.term);
-    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+    const ranked = findClosestTermsWithScore(term, 3);
+    const closest = ranked.map((item) => item.term.term);
+    const bestScore = ranked[0]?.score ?? 999;
+    const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(term).length))));
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: Number(confidence.toFixed(2)) };
   }
 
   if (intent === "phrase_translation") {
     const terms = Array.from(lookupMultipleTerms(message).values());
     if (terms.length > 0) {
-      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term), intent, confidence: 0.9 };
     }
   }
 
-  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK };
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45 };
 }
 
 // ---------------------------------------------------------------------------

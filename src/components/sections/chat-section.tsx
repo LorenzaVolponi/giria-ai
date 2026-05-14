@@ -41,6 +41,8 @@ interface ChatMessage {
       grounded: boolean;
       candidates: string[];
       suggestionLink?: string;
+      intent?: string;
+      confidence?: number;
     };
   };
   isError?: boolean;
@@ -58,6 +60,8 @@ interface ChatApiResponse {
     grounded: boolean;
     candidates: string[];
     suggestionLink?: string;
+    intent?: string;
+    confidence?: number;
   };
 }
 
@@ -247,6 +251,11 @@ function AiMessageBubble({
             )}>
               {message.data.grounding.grounded ? "Base confirmada" : "Base não confirmou"}
             </span>
+            {typeof message.data.grounding.confidence === "number" ? (
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                conf. {Math.round(message.data.grounding.confidence * 100)}%
+              </span>
+            ) : null}
             {!message.data.grounding.grounded && message.data.grounding.suggestionLink ? (
               <a
                 href={message.data.grounding.suggestionLink}
