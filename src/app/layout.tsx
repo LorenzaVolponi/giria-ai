@@ -1,15 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -19,6 +13,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"),
   title: "Gíria AI — Tradutor de Gírias Brasileiras",
   description:
     "Entenda o que adolescentes estão falando. Traduza gírias de forma rápida e objetiva com explicações contextuais para pais e educadores.",
@@ -37,6 +32,7 @@ export const metadata: Metadata = {
     title: "Gíria AI — Tradutor de Gírias Brasileiras",
     description:
       "Entenda o que adolescentes estão falando. Traduza gírias de forma rápida e objetiva.",
+    url: "/",
     type: "website",
     locale: "pt_BR",
     siteName: "Gíria AI",
@@ -54,6 +50,12 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
   },
+  alternates: {
+    canonical: "/",
+    languages: {
+      "pt-BR": "/",
+    },
+  },
 };
 
 export default function RootLayout({
@@ -63,7 +65,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${geistSans.variable} font-sans antialiased bg-background text-foreground`}>
+      <body className="font-sans antialiased bg-background text-foreground">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Gíria AI",
+              url: process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/{search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           {children}
           <Analytics />
