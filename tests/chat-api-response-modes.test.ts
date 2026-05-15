@@ -77,6 +77,8 @@ describe("chat API response modes", () => {
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
+    expect(res.headers.get("deprecation")).toBe("true");
+    expect(res.headers.get("sunset")).toBe("Mon, 31 Aug 2026 23:59:59 GMT");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
@@ -96,6 +98,17 @@ describe("chat API response modes", () => {
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses[0]).toBe("anterior");
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
+    expect(res.headers.get("deprecation")).toBe("true");
+    expect(res.headers.get("sunset")).toBe("Mon, 31 Aug 2026 23:59:59 GMT");
+  });
+
+  it("does not send deprecation headers when using responseMode", async () => {
+    const req = makeRequest({ message: "oi", responseMode: "single" });
+    const res = await chatPost(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-api-warn")).toBeNull();
+    expect(res.headers.get("deprecation")).toBeNull();
+    expect(res.headers.get("sunset")).toBeNull();
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses[0]).toBe("anterior");
   });

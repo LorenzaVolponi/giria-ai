@@ -43,6 +43,7 @@ if (typeof globalThis !== "undefined") {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
+const LEGACY_FLAGS_SUNSET_HTTP_DATE = "Mon, 31 Aug 2026 23:59:59 GMT";
 const INTENT_CONFIDENCE_THRESHOLD: Record<Intent, number> = {
   single_term_lookup: 0.65,
   phrase_translation: 0.55,
@@ -560,6 +561,13 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
+  const lastAssistantMessage = [...conversationHistory]
+    .reverse()
+    .find((m) => m.role === "assistant")?.content;
+
+  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
+    normalize(message)
+  );
   const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
@@ -974,6 +982,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const resolvedMode =
+      responseMode ??
+      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
+
+    const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
+      if (usesLegacyFlags) {
+        res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+        res.headers.set("Deprecation", "true");
+        res.headers.set("Sunset", LEGACY_FLAGS_SUNSET_HTTP_DATE);
+      }
+      return res;
+    };
+
+    if (resolvedMode === "list") {
+      const priorAssistantResponses = recentHistory
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content);
+
+      const listRes = NextResponse.json({
+        mode: resolvedMode,
+        responses: [...priorAssistantResponses, response],
+      });
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(listRes));
+    }
+
+    if (resolvedMode === "single") {
+      const singleRes = NextResponse.json({ mode: resolvedMode, response });
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(singleRes));
+    }
+
+    const defaultRes = NextResponse.json({
+      mode: resolvedMode,
     const grounding = buildGroundingMetadata(currentMessage);
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
       const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
@@ -990,6 +1030,7 @@ export async function POST(request: NextRequest) {
       grounding,
       ...slangData,
     });
+    return withSecurityHeaders(applyLegacyDeprecationHeaders(defaultRes));
     if (usesLegacyFlags) {
       defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
     }
