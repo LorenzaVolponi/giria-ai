@@ -446,7 +446,7 @@ function detectIntent(message: string): {
     saudacao: "saudacao|saudacoes|cumprimento|oi|ola",
     zoeira: "zoeira|zoeiras|brincadeira|humor|piada",
     meme: "meme|memes|internet|viral",
-    abreviação: "abreviacao|abreviacoes|sigla|siglas",
+    abreviacao: "abreviacao|abreviacoes|sigla|siglas",
     humor: "humor|engracado|comedia",
     regional: "regional|regiao|estado|cidade",
     bullying: "bullying|bullying|maldade",
@@ -783,6 +783,17 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
     default: {
       if (isContextualFollowUp && lastAssistantMessage) {
         const previousTerms = lookupMultipleTerms(lastAssistantMessage);
+        const previousCandidates = Array.from(previousTerms.values());
+
+        if (previousCandidates.length > 1) {
+          const top = previousCandidates.slice(0, 3).map((t) => `"${t.term}"`).join(", ");
+          return `Entendi seu follow-up 👍 Antes de continuar, só quero confirmar a qual termo você se refere.
+
+Detectei mais de uma gíria na resposta anterior: ${top}.
+Me diga qual delas você quer aprofundar e eu trago significado, contexto e orientação prática.`;
+        }
+
+        const previous = previousCandidates[0];
         const previous = Array.from(previousTerms.values())[0];
         if (previous) {
           const rc = RISK_CONFIG[previous.riskLevel];
