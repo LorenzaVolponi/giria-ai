@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type SuggestionItem = {
   id: string;
@@ -32,16 +32,19 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
-  const [undoExpiresAt, setUndoExpiresAt] = useState<number | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
+  const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
-  const csrfToken = (() => {
-    if (typeof document === "undefined") return "";
-    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  })();
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function reloadPending() {
+    if (!mountedRef.current) return;
     setLoading(true);
     const statusParam = statusFilter === "all" ? "all" : statusFilter;
     const qs = new URLSearchParams({
@@ -52,9 +55,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
+    if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
+    if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
   }
@@ -83,39 +88,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
   }, [items]);
 
-  useEffect(() => {
-    if (!undoExpiresAt) return;
-    const timeout = window.setTimeout(() => {
-      setLastAction(null);
-      setUndoExpiresAt(null);
-    }, Math.max(0, undoExpiresAt - Date.now()));
-    return () => window.clearTimeout(timeout);
-  }, [undoExpiresAt]);
 
-
-
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.target as HTMLElement)?.tagName === "INPUT" || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
-      const key = event.key.toLowerCase();
-      if (event.shiftKey && key === "a") {
-        event.preventDefault();
-        void moderateBatch("approved");
-        return;
-      }
-      if (key === "a") {
-        const firstPending = items.find((item) => item.status === "pending");
-        if (firstPending) void moderate(firstPending.id, "approved");
-      }
-      if (key === "r") {
-        const firstPending = items.find((item) => item.status === "pending");
-        if (firstPending) void moderate(firstPending.id, "rejected");
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [items, selectedIds]);
   function statusBadge(status: SuggestionItem["status"]) {
     if (status === "approved") return "Aprovada";
     if (status === "rejected") return "Rejeitada";
@@ -157,11 +130,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setMessage(data?.error || "Falha ao moderar item.");
+      setSessionStats((prev) => ({ ...prev, failed: prev.failed + 1 }));
       return false;
     }
 
     if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
-    setUndoExpiresAt(Date.now() + 10000);
     setItems((prev) => prev
       .map((item) => (item.id === id ? { ...item, status } : item))
       .filter((item) => statusFilter === "all" || item.status === statusFilter));
@@ -179,6 +152,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       return next;
     });
     setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setSessionStats((prev) => ({
+      ...prev,
+      approved: status === "approved" ? prev.approved + 1 : prev.approved,
+      rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+    }));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
     return true;
   }
@@ -201,23 +179,31 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       : prev));
     setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
     setLastAction(null);
-    setUndoExpiresAt(null);
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
     const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
     if (!pendingIds.length) return;
+    const batchStart = performance.now();
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
     let failed = 0;
-    for (const id of pendingIds) {
+    const concurrency = 4;
+    for (let i = 0; i < pendingIds.length; i += concurrency) {
+      const chunk = pendingIds.slice(i, i + concurrency);
       // eslint-disable-next-line no-await-in-loop
-      const ok = await moderate(id, status);
-      if (!ok) failed += 1;
-      setBatchProgress((prev) => ({ ...prev, done: prev.done + 1, failed }));
+      const chunkResults = await Promise.all(chunk.map(async (id) => ({ id, ok: await moderate(id, status) })));
+      failed += chunkResults.filter((r) => !r.ok).length;
+      setBatchProgress((prev) => ({ ...prev, done: Math.min(prev.total, prev.done + chunkResults.length), failed }));
     }
     setSelectedIds([]);
     await reloadPending();
     setBatchProgress((prev) => ({ ...prev, running: false }));
+    const elapsed = Math.round(performance.now() - batchStart);
+    setSessionStats((prev) => ({
+      ...prev,
+      batches: prev.batches + 1,
+      batchAvgMs: prev.batches === 0 ? elapsed : Math.round(((prev.batchAvgMs * prev.batches) + elapsed) / (prev.batches + 1)),
+    }));
     setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
   }
 
@@ -286,6 +272,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
         </div>
       ) : null}
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+        <p className="rounded border p-2">Aprovadas (sessão): <strong>{sessionStats.approved}</strong></p>
+        <p className="rounded border p-2">Rejeitadas (sessão): <strong>{sessionStats.rejected}</strong></p>
+        <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
+        <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
@@ -323,6 +315,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       {(() => {
+        const termFrequency = new Map<string, number>();
+        for (const item of items) {
+          const key = item.term.toLowerCase();
+          termFrequency.set(key, (termFrequency.get(key) || 0) + 1);
+        }
+
         const filtered = items
           .filter((item) => item.score >= minScore)
           .filter((item) => {
@@ -331,8 +329,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
           })
           .sort((a, b) => {
-            const aTermFreq = items.filter((x) => x.term.toLowerCase() === a.term.toLowerCase()).length;
-            const bTermFreq = items.filter((x) => x.term.toLowerCase() === b.term.toLowerCase()).length;
+            const aTermFreq = termFrequency.get(a.term.toLowerCase()) || 0;
+            const bTermFreq = termFrequency.get(b.term.toLowerCase()) || 0;
             const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
             return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
           });
