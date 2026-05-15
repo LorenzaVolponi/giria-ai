@@ -63,6 +63,31 @@ describe("chat API response modes", () => {
     expect(json).not.toHaveProperty("responses");
   });
 
+  it("keeps backward compatibility for onlyChatResponse legacy flag", async () => {
+    const req = makeRequest({ message: "oi", onlyChatResponse: true });
+    const res = await chatPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toHaveProperty("response");
+    expect(json).not.toHaveProperty("responses");
+    expect(json).not.toHaveProperty("meaning");
+  });
+
+  it("keeps backward compatibility for listChatResponses legacy flag", async () => {
+    const req = makeRequest({
+      message: "oi",
+      listChatResponses: true,
+      history: [{ role: "assistant", content: "anterior" }],
+    });
+    const res = await chatPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(json.responses)).toBe(true);
+    expect(json.responses[0]).toBe("anterior");
+  });
+
   it("asks for clarification on contextual follow-up when previous assistant message has multiple slang terms", async () => {
     const req = makeRequest({
       message: "e isso?",
@@ -78,5 +103,23 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.response).toContain("Detectei mais de uma gíria");
+  });
+
+  it("returns contextual continuation when previous assistant message has single slang term", async () => {
+    const req = makeRequest({
+      message: "e isso?",
+      history: [
+        {
+          role: "assistant",
+          content: 'A gíria "slay" é usada como elogio.',
+        },
+      ],
+    });
+    const res = await chatPost(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.response).toContain("pela conversa anterior");
+    expect(json.response).toContain("Leitura rápida");
   });
 });
