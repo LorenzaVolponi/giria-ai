@@ -23,7 +23,7 @@ function normalizeRegionLabel(region: string): RegionKey {
 }
 
 interface Props {
-  searchParams?: Promise<{ uf?: string; q?: string; risk?: string }>;
+  searchParams?: Promise<{ uf?: string; q?: string }>;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
@@ -31,7 +31,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
   const query = (sp?.q || "").trim().toLowerCase();
   const queryReadable = (sp?.q || "").trim();
-  const riskFilter = (sp?.risk || "").trim().toLowerCase();
   const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
@@ -41,11 +40,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       const m = term.region.match(/\(([A-Z]{2})\)/);
       if (!m || m[1] !== ufFilter) continue;
     }
-    if (query) {
-      const hay = `${term.term} ${term.meaning} ${term.region}`.toLowerCase();
-      if (!hay.includes(query)) continue;
-    }
-    if (riskFilter && term.riskLevel.toLowerCase() !== riskFilter) continue;
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
@@ -84,31 +78,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         ))}
       </nav>
       <section className="mt-4 rounded-lg border p-3">
-        <form className="mb-3 flex flex-wrap gap-2" action="/girias/regionais" method="get">
-          {ufFilter ? <input type="hidden" name="uf" value={ufFilter} /> : null}
-          {riskFilter ? <input type="hidden" name="risk" value={riskFilter} /> : null}
-          <input
-            type="text"
-            name="q"
-            defaultValue={query}
-            placeholder="Buscar termo regional..."
-            className="min-w-[220px] rounded border px-3 py-1 text-sm"
-          />
-          <button type="submit" className="rounded border px-3 py-1 text-xs">Buscar</button>
-          {query ? <Link href={ufFilter ? `/girias/regionais?uf=${ufFilter}${riskFilter ? `&risk=${riskFilter}` : ""}` : riskFilter ? `/girias/regionais?risk=${riskFilter}` : "/girias/regionais"} className="rounded border px-3 py-1 text-xs">Limpar busca</Link> : null}
-        </form>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {["green", "yellow", "orange", "red"].map((risk) => (
-            <Link
-              key={risk}
-              href={`/girias/regionais?${ufFilter ? `uf=${ufFilter}&` : ""}${query ? `q=${encodeURIComponent(queryReadable)}&` : ""}risk=${risk}`}
-              className={`rounded-full border px-2 py-0.5 text-xs ${riskFilter === risk ? "bg-slate-100 border-slate-400" : ""}`}
-            >
-              risco: {risk}
-            </Link>
-          ))}
-          {riskFilter ? <Link href={`/girias/regionais?${ufFilter ? `uf=${ufFilter}` : ""}${ufFilter && query ? "&" : ""}${query ? `q=${encodeURIComponent(queryReadable)}` : ""}`} className="rounded-full border px-2 py-0.5 text-xs">limpar risco</Link> : null}
-        </div>
         <p className="text-xs font-medium text-muted-foreground">Filtro rápido por UF (em expansão):</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {allStates.length === 0 ? (
@@ -184,7 +153,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
                     </Link>
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{term.meaning}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{term.region}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Categoria: {term.category}</p>
                   </li>
                 ))}
               </ul>

@@ -60,6 +60,25 @@ Resposta:
 }
 ```
 
+### Contrato `POST /api/chat`
+Entrada aceita:
+- `message` (string) **ou** `messages/history` (array de mensagens com `role` e `content`)
+- `responseMode` opcional: `default | single | list`
+
+Modos de resposta:
+- `responseMode: "default"` → `{ "mode": "default", "response": "...", ...slangData }`
+- `responseMode: "single"` → `{ "mode": "single", "response": "..." }`
+- `responseMode: "list"` → `{ "mode": "list", "responses": ["..."] }`
+- Em todos os modos a API também retorna header `X-Response-Mode` com o modo efetivo resolvido.
+
+Flags legadas (compatibilidade):
+- `onlyChatResponse` e `listChatResponses` ainda funcionam, mas estão **deprecadas**.
+- Ao usar flags legadas, a API retorna os headers:
+  - `X-API-Warn: Legacy chat flags are deprecated. Use responseMode.`
+  - `Deprecation: true`
+  - `Sunset: Mon, 31 Aug 2026 23:59:59 GMT`
+  - `Link: </#contrato-post-api-chat>; rel="deprecation"`
+
 ## Scripts úteis
 - `bash scripts/dev.sh`
 - `bash scripts/build.sh`
