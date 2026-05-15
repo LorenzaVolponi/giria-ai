@@ -41,6 +41,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
+  const filteredCount = Array.from(grouped.values()).reduce((acc, list) => acc + list.length, 0);
 
   const allStates = Array.from(
     new Set(
@@ -100,6 +101,16 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       </section>
 
       <div className="mt-8 space-y-8">
+        {filteredCount === 0 ? (
+          <section className="rounded-xl border p-4">
+            <p className="text-sm text-muted-foreground">
+              Nenhuma gíria regional encontrada para esse filtro.
+            </p>
+            <Link href="/girias/regionais" className="mt-2 inline-block text-sm underline">
+              Ver todas as regiões
+            </Link>
+          </section>
+        ) : null}
         {regionOrder.map((region) => {
           const terms = grouped.get(region) ?? [];
           if (terms.length === 0) return null;
