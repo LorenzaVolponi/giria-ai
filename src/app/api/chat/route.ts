@@ -356,6 +356,9 @@ type Intent =
   | "out_of_scope"
   | "general_question";
 
+type ChatResponseMode = "default" | "single" | "list";
+const CHAT_RESPONSE_MODES: ChatResponseMode[] = ["default", "single", "list"];
+
 function detectIntent(message: string): {
   intent: Intent;
   extractedTerms: string[];
@@ -880,7 +883,15 @@ export async function POST(request: NextRequest) {
       ));
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "JSON inválido no corpo da requisição." },
+        { status: 400 }
+      ));
+    }
     const {
       messages,
       message,
@@ -894,6 +905,7 @@ export async function POST(request: NextRequest) {
       history?: Array<{ role: string; content: string }>;
       onlyChatResponse?: boolean;
       listChatResponses?: boolean;
+      responseMode?: ChatResponseMode;
       responseMode?: "default" | "single" | "list";
     };
 
@@ -911,6 +923,7 @@ export async function POST(request: NextRequest) {
       ));
     }
 
+    if (responseMode !== undefined && !CHAT_RESPONSE_MODES.includes(responseMode)) {
     if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`responseMode` deve ser: default, single ou list." },
@@ -987,6 +1000,8 @@ export async function POST(request: NextRequest) {
       responseMode ??
       (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
 
+    const applyCommonResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
+      res.headers.set("X-Response-Mode", mode);
     const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
       if (usesLegacyFlags) {
         res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");

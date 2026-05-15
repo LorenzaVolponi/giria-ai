@@ -69,6 +69,7 @@ Modos de resposta:
 - `responseMode: "default"` → `{ "mode": "default", "response": "...", ...slangData }`
 - `responseMode: "single"` → `{ "mode": "single", "response": "..." }`
 - `responseMode: "list"` → `{ "mode": "list", "responses": ["..."] }`
+- Em todos os modos a API também retorna header `X-Response-Mode` com o modo efetivo resolvido.
 
 Flags legadas (compatibilidade):
 - `onlyChatResponse` e `listChatResponses` ainda funcionam, mas estão **deprecadas**.
