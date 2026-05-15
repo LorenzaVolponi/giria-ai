@@ -36,16 +36,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
-  const csrfToken = (() => {
-    if (typeof document === "undefined") return "";
-    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  })();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
-  const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
-  const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
-  const pageSize = 12;
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -70,11 +60,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setLoading(false);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number }; windowSummary?: { dApproved: number; dRejected: number; wApproved: number; wRejected: number } };
-    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
-    if (!mountedRef.current) return;
-    setLoading(false);
-    if (!res?.ok) return;
-    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
     if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
@@ -130,11 +115,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    const snapshot = items.find((item) => item.id === id);
-    const res = await fetch(`/api/v1/suggestions/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
-      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
@@ -222,10 +202,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         }
         return { id, ok };
       }));
-    for (let i = 0; i < pendingIds.length; i += concurrency) {
-      const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
-      const chunkResults = await Promise.all(chunk.map(async (id) => ({ id, ok: await moderate(id, status) })));
       failed += chunkResults.filter((r) => !r.ok).length;
       setBatchProgress((prev) => ({ ...prev, done: Math.min(prev.total, prev.done + chunkResults.length), failed }));
     }
@@ -248,30 +224,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   function selectAllFiltered(filteredIds: string[]) {
     setSelectedIds(Array.from(new Set(filteredIds)));
-  }
-
-  function exportFilteredCsv() {
-    const filtered = items
-      .filter((item) => item.score >= minScore)
-      .filter((item) => {
-        const q = termQuery.trim().toLowerCase();
-        if (!q) return true;
-        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-      });
-    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
-    const rows = filtered.map((item) =>
-      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
-        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
-        .join(","),
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   function exportFilteredCsv() {
@@ -355,73 +307,16 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
           Desfazer última ação
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("approved")}>
           Aprovar selecionadas
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("rejected")}>
           Rejeitar selecionadas
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => setSelectedIds([])}>
           Limpar seleção
         </button>
       </div>
-      </div>
-      <div className="mt-2 grid gap-2 md:grid-cols-2">
-        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-      </div>
-      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-        <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
-        <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
-        <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
-      </div>
-      {summary ? (
-        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4">
-          <p className="rounded border p-2">Pendentes: <strong>{summary.pending}</strong></p>
-          <p className="rounded border p-2">Aprovadas: <strong>{summary.approved}</strong></p>
-          <p className="rounded border p-2">Rejeitadas: <strong>{summary.rejected}</strong></p>
-          <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
-        </div>
-      ) : null}
-      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
-        <p className="rounded border p-2">Aprovadas (sessão): <strong>{sessionStats.approved}</strong></p>
-        <p className="rounded border p-2">Rejeitadas (sessão): <strong>{sessionStats.rejected}</strong></p>
-        <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
-        <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
-          {loading ? "Atualizando..." : "Atualizar sugestões"}
-        </button>
-        <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
-          Exportar CSV
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
-          Desfazer última ação
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
-          Aprovar selecionadas
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
-          Rejeitar selecionadas
-        </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
-          Limpar seleção
-        </button>
-      </div>
-
-      {batchProgress.running || batchProgress.done ? (
-        <div className="mt-2 rounded border p-2 text-xs text-muted-foreground">
-          <p>Lote: {batchProgress.done}/{batchProgress.total} processadas · falhas: {batchProgress.failed}</p>
-          <div className="mt-1 h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
-            <div
-              className="h-full bg-emerald-500 transition-all"
-              style={{ width: `${batchProgress.total ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0}%` }}
-            />
-          </div>
-        </div>
-      ) : null}
 
       {batchProgress.running || batchProgress.done ? (
         <div className="mt-2 rounded border p-2 text-xs text-muted-foreground">
@@ -473,21 +368,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
-          <li key={item.id} className="rounded border p-3">
-            <p className="font-medium">{item.term}</p>
-        const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
-        const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
-
-        return (
-          <>
-      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-        <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
-        <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
-        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
-        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
-      </div>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {paged.map((item) => (
           <li key={item.id} className="rounded border p-3 transition-all duration-200">
             <div className="flex items-start justify-between gap-2">
               <label className="flex items-center gap-2 text-xs">
@@ -508,9 +388,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex gap-2">
-              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
-              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
@@ -520,16 +397,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (opcional)"
-            />
-            {historyById[item.id]?.length ? (
-              <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
-                {historyById[item.id].slice(0, 3).map((h) => (
-                  <p key={`${h.status}-${h.at}`}>
-                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
-                    {h.reason ? ` · ${h.reason}` : ""}
-                  </p>
-                ))}
               placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (
