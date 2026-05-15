@@ -42,6 +42,8 @@ if (typeof globalThis !== "undefined") {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
+const LEGACY_FLAGS_SUNSET_HTTP_DATE = "Mon, 31 Aug 2026 23:59:59 GMT";
+const LEGACY_FLAGS_DEPRECATION_DOC = "/#contrato-post-api-chat";
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
@@ -296,6 +298,9 @@ type Intent =
   | "out_of_scope"
   | "general_question";
 
+type ChatResponseMode = "default" | "single" | "list";
+const CHAT_RESPONSE_MODES: ChatResponseMode[] = ["default", "single", "list"];
+
 function detectIntent(message: string): {
   intent: Intent;
   extractedTerms: string[];
@@ -378,12 +383,11 @@ function detectIntent(message: string): {
     dinheiro: "dinheiro|grana|money|rico|fortuna",
     esporte: "esporte|futebol|basquete|esports",
     redes_sociais: "redes sociais|tiktok|instagram|twitter|social",
-    "redes_sociais": "redes sociais|tiktok|instagram|twitter|social",
     elogio: "elogio|elogios|cumprimento|positivo",
     saudacao: "saudacao|saudacoes|cumprimento|oi|ola",
     zoeira: "zoeira|zoeiras|brincadeira|humor|piada",
     meme: "meme|memes|internet|viral",
-    abreviação: "abreviacao|abreviacoes|sigla|siglas",
+    abreviacao: "abreviacao|abreviacoes|sigla|siglas",
     humor: "humor|engracado|comedia",
     regional: "regional|regiao|estado|cidade",
     bullying: "bullying|bullying|maldade",
@@ -503,6 +507,13 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
+  const lastAssistantMessage = [...conversationHistory]
+    .reverse()
+    .find((m) => m.role === "assistant")?.content;
+
+  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
+    normalize(message)
+  );
 
   switch (intent) {
     case "greeting":
@@ -690,6 +701,37 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
     case "out_of_scope":
     default: {
+      if (isContextualFollowUp && lastAssistantMessage) {
+        const previousTerms = lookupMultipleTerms(lastAssistantMessage);
+        const previousCandidates = Array.from(previousTerms.values());
+
+        if (previousCandidates.length > 1) {
+          const top = previousCandidates.slice(0, 3).map((t) => `"${t.term}"`).join(", ");
+          return `Entendi seu follow-up 👍 Antes de continuar, só quero confirmar a qual termo você se refere.
+
+Detectei mais de uma gíria na resposta anterior: ${top}.
+Me diga qual delas você quer aprofundar e eu trago significado, contexto e orientação prática.`;
+        }
+
+        const previous = previousCandidates[0];
+        if (previous) {
+          const rc = RISK_CONFIG[previous.riskLevel];
+          return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
+
+### Leitura rápida
+- **Significado**: ${previous.meaning}
+- **Contexto**: ${previous.context}
+- **Risco**: ${rc.label} (${rc.description})
+
+### Como responder como adulto (tom calmo)
+1. Valide sem confronto: _"Entendi, me explica como vocês usam isso?"_
+2. Faça pergunta aberta: _"Quando essa expressão aparece mais?"_
+3. Alinhe limite com cuidado, se necessário: _"Aqui em casa a gente usa sem ofender ninguém, combinado?"_
+
+Se quiser, eu monto uma resposta pronta para WhatsApp com linguagem de pai/mãe.`;
+        }
+      }
+
       // Try one more time to find terms
       const lastAttempt = lookupMultipleTerms(message);
       if (lastAttempt.size > 0) {
@@ -734,10 +776,16 @@ export async function POST(request: NextRequest) {
       messages,
       message,
       history,
+      onlyChatResponse,
+      listChatResponses,
+      responseMode,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      onlyChatResponse?: boolean;
+      listChatResponses?: boolean;
+      responseMode?: ChatResponseMode;
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -750,6 +798,29 @@ export async function POST(request: NextRequest) {
     if (history !== undefined && !Array.isArray(history)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`history` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && !CHAT_RESPONSE_MODES.includes(responseMode)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`responseMode` deve ser: default, single ou list." },
+        { status: 400 }
+      ));
+    }
+
+    const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
+
+    if (responseMode !== undefined && usesLegacyFlags) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
+        { status: 400 }
+      ));
+    }
+
+    if (onlyChatResponse === true && listChatResponses === true) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`onlyChatResponse` e `listChatResponses` não podem ser true ao mesmo tempo." },
         { status: 400 }
       ));
     }
@@ -802,10 +873,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return withSecurityHeaders(NextResponse.json({
+    const resolvedMode =
+      responseMode ??
+      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
+
+    const applyCommonResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
+      res.headers.set("X-Response-Mode", mode);
+      if (usesLegacyFlags) {
+        res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+        res.headers.set("Deprecation", "true");
+        res.headers.set("Sunset", LEGACY_FLAGS_SUNSET_HTTP_DATE);
+        res.headers.set("Link", `<${LEGACY_FLAGS_DEPRECATION_DOC}>; rel="deprecation"`);
+      }
+      return res;
+    };
+
+    if (resolvedMode === "list") {
+      const priorAssistantResponses = recentHistory
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content);
+
+      const listRes = NextResponse.json({
+        mode: resolvedMode,
+        responses: [...priorAssistantResponses, response],
+      });
+      return withSecurityHeaders(applyCommonResponseHeaders(listRes, resolvedMode));
+    }
+
+    if (resolvedMode === "single") {
+      const singleRes = NextResponse.json({ mode: resolvedMode, response });
+      return withSecurityHeaders(applyCommonResponseHeaders(singleRes, resolvedMode));
+    }
+
+    const defaultRes = NextResponse.json({
+      mode: resolvedMode,
       response,
       ...slangData,
-    }));
+    });
+    return withSecurityHeaders(applyCommonResponseHeaders(defaultRes, resolvedMode));
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";
