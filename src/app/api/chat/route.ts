@@ -51,6 +51,8 @@ const PROMPT_BACKEND_RULES = [
   "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
   "Responda estritamente com base no conteúdo do nosso banco/local (SLANG_DATA e metadados).",
   "Não invente significado para termo ausente; ofereça fluxo de sugestão de gíria.",
+  "Priorize utilidade para o usuário final: resposta curta no topo e detalhes opcionais abaixo.",
+  "Sempre que possível, inclua orientação prática de conversa entre responsável e adolescente.",
 ] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
@@ -90,9 +92,19 @@ function buildTermIndex(): Map<string, SlangTerm[]> {
 }
 
 let _termIndex: Map<string, SlangTerm[]> | null = null;
+let _normalizedTermsCache: Array<{ normalized: string; term: SlangTerm }> | null = null;
 function getTermIndex(): Map<string, SlangTerm[]> {
   if (!_termIndex) _termIndex = buildTermIndex();
   return _termIndex;
+}
+
+function getNormalizedTermsCache(): Array<{ normalized: string; term: SlangTerm }> {
+  if (_normalizedTermsCache) return _normalizedTermsCache;
+  _normalizedTermsCache = SLANG_DATA.map((term) => ({
+    normalized: normalize(term.term),
+    term,
+  }));
+  return _normalizedTermsCache;
 }
 
 /** Look up a term in the index (exact or fuzzy). */
@@ -166,6 +178,12 @@ function levenshtein(a: string, b: string): number {
 
 function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
   const normalizedQuery = normalize(query);
+  const pool = getNormalizedTermsCache();
+  const firstChar = normalizedQuery[0];
+  const candidates = pool.filter((entry) => entry.normalized[0] === firstChar || Math.abs(entry.normalized.length - normalizedQuery.length) <= 3);
+  const ranked = (candidates.length > 0 ? candidates : pool).map((entry) => ({
+    term: entry.term,
+    score: levenshtein(normalizedQuery, entry.normalized),
   const ranked = SLANG_DATA.map((term) => ({
     term,
     score: levenshtein(normalizedQuery, normalize(term.term)),
@@ -194,6 +212,13 @@ function formatTermCard(t: SlangTerm): string {
   const variations = Array.isArray(t.variations) && t.variations.length > 0
     ? `\n- **Variações**: ${t.variations.join(", ")}`
     : "";
+  const conversationTip = t.riskLevel === "green"
+    ? "Pode tratar como linguagem cotidiana; valide contexto sem alarmismo."
+    : t.riskLevel === "yellow"
+      ? "Pergunte em tom aberto onde/como foi usada para evitar mal-entendido."
+      : t.riskLevel === "orange"
+        ? "Converse com calma e peça exemplos reais de uso antes de concluir."
+        : "Aborde com acolhimento e combine limites claros de respeito.";
 
   return `### **"${t.term}"**
 
@@ -202,11 +227,13 @@ function formatTermCard(t: SlangTerm): string {
 - **Contexto**: ${t.context}
 - **Confiança da Base**: ${confidenceLabel(t)}
 - **Nível de Risco**: ${rc.label} — ${rc.description}
+${t.region ? `- **Região mais comum**: ${t.region}` : ""}
 ${t.safeExample ? `- **Exemplo**: _"${t.safeExample}"_` : ""}
 ${cat ? `- **Categoria**: ${cat.icon} ${cat.label}` : ""}
 ${t.origin ? `- **Origem**: ${t.origin}` : ""}
 ${variations}
-${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}`;
+${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}
+\n> 🧭 **Dica para o responsável**: ${conversationTip}`;
 }
 
 function formatMultiTermResponse(terms: SlangTerm[]): string {
@@ -627,7 +654,7 @@ ${disambiguationPrompt}
 Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
-      return formatTermCard(results[0]);
+      return `${groundedOnlyNotice()}\n\n${formatTermCard(results[0])}`;
     }
 
     case "phrase_translation": {
@@ -644,6 +671,8 @@ Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       const terms = Array.from(found.values());
       const response = formatMultiTermResponse(terms);
       return hasFollowUp
+        ? `${groundedOnlyNotice()}\n\n${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : `${groundedOnlyNotice()}\n\n${response}`;
         ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
         : response;
     }
@@ -769,6 +798,15 @@ function buildGroundingMetadata(message: string): {
     const exact = lookupTerm(term);
     if (exact.length > 0) {
       return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
+    }
+    const closest = findClosestTerms(term, 3).map((t) => t.term);
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
     }
     const closest = findClosestTerms(term, 3).map((t) => t.term);
     return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };

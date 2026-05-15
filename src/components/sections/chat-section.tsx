@@ -255,6 +255,22 @@ function AiMessageBubble({
                 Sugerir nova gíria
               </a>
             ) : null}
+            {!message.data.grounding.grounded && message.data.grounding.candidates.length > 0 ? (
+              <div className="w-full pt-1">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Você quis dizer:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {message.data.grounding.candidates.map((candidate) => (
+                    <button
+                      key={candidate}
+                      onClick={() => onSearchTerm(candidate)}
+                      className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                    >
+                      {candidate}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

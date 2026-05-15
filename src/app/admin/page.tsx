@@ -16,6 +16,16 @@ export default function AdminPage() {
     alerts?: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
+  const [metrics, setMetrics] = useState<{
+    chatGrounding?: {
+      total: number;
+      grounded: number;
+      unresolved: number;
+      groundedRate: number;
+      unresolvedRate: number;
+      series?: Array<{ ts: string; total: number; grounded: number; unresolved: number }>;
+    };
+  }>({});
   const [auditPreview, setAuditPreview] = useState<Array<{ at: string; action: string; ip?: string }>>([]);
 
   function getCsrfToken() {
@@ -39,6 +49,11 @@ export default function AdminPage() {
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
+
+    const metricsRes = await fetch("/api/v1/metrics", { cache: "no-store" }).catch(() => null);
+    if (metricsRes?.ok) {
+      const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
+      setMetrics(metricsData);
     const auditRes = await fetch("/api/v1/admin/audit?limit=6", { cache: "no-store" }).catch(() => null);
     if (auditRes?.ok) {
       const auditData = (await auditRes.json().catch(() => ({}))) as { items?: Array<{ at: string; action: string; ip?: string }> };
@@ -103,7 +118,42 @@ export default function AdminPage() {
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Aprovadas</p><p className="text-2xl font-bold text-emerald-600">{dash.summary?.approved ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Rejeitadas</p><p className="text-2xl font-bold text-rose-600">{dash.summary?.rejected ?? 0}</p></div>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat grounded (%)</p>
+              <p className="text-2xl font-bold text-emerald-600">{metrics.chatGrounding?.groundedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat unresolved (%)</p>
+              <p className="text-2xl font-bold text-amber-600">{metrics.chatGrounding?.unresolvedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Grounded</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.grounded ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Unresolved</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.unresolved ?? 0}</p>
+            </div>
+          </div>
           <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-xl border bg-white p-4 lg:col-span-2">
+              <h2 className="mb-3 font-semibold">Tendência de grounding (últimos registros)</h2>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {(metrics.chatGrounding?.series || []).slice(-8).map((point) => {
+                  const rate = point.total > 0 ? Math.round((point.grounded / point.total) * 100) : 0;
+                  return (
+                    <div key={point.ts} className="rounded border p-2">
+                      <p className="text-[11px] text-muted-foreground">{new Date(point.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="text-sm font-semibold">{rate}% grounded</p>
+                      <div className="mt-1 h-2 w-full rounded bg-slate-100">
+                        <div className="h-2 rounded bg-emerald-500" style={{ width: `${rate}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
             <section className="rounded-xl border bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-semibold">Top IPs (ingresso de sugestões)</h2>
