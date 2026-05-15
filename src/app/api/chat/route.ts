@@ -771,7 +771,15 @@ export async function POST(request: NextRequest) {
       ));
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "JSON inválido no corpo da requisição." },
+        { status: 400 }
+      ));
+    }
     const {
       messages,
       message,

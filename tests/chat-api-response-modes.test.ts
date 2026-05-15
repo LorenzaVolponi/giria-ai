@@ -10,6 +10,14 @@ function makeRequest(body: unknown) {
   });
 }
 
+function makeInvalidJsonRequest(rawBody: string) {
+  return new NextRequest("http://localhost/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: rawBody,
+  });
+}
+
 describe("chat API response modes", () => {
   it("returns only response for responseMode=single", async () => {
     const req = makeRequest({ message: "oi", responseMode: "single" });
@@ -43,6 +51,14 @@ describe("chat API response modes", () => {
     const req = makeRequest({ message: "oi", responseMode: "invalid" });
     const res = await chatPost(req);
     expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for invalid JSON body", async () => {
+    const req = makeInvalidJsonRequest("{ invalid json");
+    const res = await chatPost(req);
+    const json = await res.json();
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("JSON inválido");
   });
 
   it("returns 400 when mixing responseMode with legacy flags", async () => {
