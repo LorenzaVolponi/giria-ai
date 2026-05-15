@@ -77,6 +77,9 @@ describe("chat API response modes", () => {
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
+    expect(json).toHaveProperty("response");
+    expect(json).not.toHaveProperty("responses");
+    expect(json).not.toHaveProperty("meaning");
   });
 
   it("keeps backward compatibility for listChatResponses legacy flag", async () => {
@@ -93,6 +96,8 @@ describe("chat API response modes", () => {
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses[0]).toBe("anterior");
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
+    expect(Array.isArray(json.responses)).toBe(true);
+    expect(json.responses[0]).toBe("anterior");
   });
 
   it("asks for clarification on contextual follow-up when previous assistant message has multiple slang terms", async () => {
