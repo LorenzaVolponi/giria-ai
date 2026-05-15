@@ -43,7 +43,6 @@ if (typeof globalThis !== "undefined") {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
-const LEGACY_FLAGS_SUNSET_HTTP_DATE = "Mon, 31 Aug 2026 23:59:59 GMT";
 const INTENT_CONFIDENCE_THRESHOLD: Record<Intent, number> = {
   single_term_lookup: 0.65,
   phrase_translation: 0.55,
@@ -561,13 +560,6 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
-  const lastAssistantMessage = [...conversationHistory]
-    .reverse()
-    .find((m) => m.role === "assistant")?.content;
-
-  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
-    normalize(message)
-  );
   const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
@@ -865,6 +857,40 @@ function buildGroundingMetadata(message: string): {
   return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
 }
 
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
+  intent: Intent;
+  confidence: number;
+  threshold: number;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+  const threshold = INTENT_CONFIDENCE_THRESHOLD[intent] ?? 0.5;
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term), intent, confidence: 0.98, threshold };
+    }
+    const ranked = findClosestTermsWithScore(term, 3);
+    const closest = ranked.map((item) => item.term.term);
+    const bestScore = ranked[0]?.score ?? 999;
+    const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(term).length))));
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: Number(confidence.toFixed(2)), threshold };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term), intent, confidence: 0.9, threshold };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
+}
+
 // ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
@@ -982,38 +1008,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const resolvedMode =
-      responseMode ??
-      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
-
-    const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
-      if (usesLegacyFlags) {
-        res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-        res.headers.set("Deprecation", "true");
-        res.headers.set("Sunset", LEGACY_FLAGS_SUNSET_HTTP_DATE);
-      }
-      return res;
-    };
-
-    if (resolvedMode === "list") {
-      const priorAssistantResponses = recentHistory
-        .filter((m) => m.role === "assistant")
-        .map((m) => m.content);
-
-      const listRes = NextResponse.json({
-        mode: resolvedMode,
-        responses: [...priorAssistantResponses, response],
-      });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(listRes));
-    }
-
-    if (resolvedMode === "single") {
-      const singleRes = NextResponse.json({ mode: resolvedMode, response });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(singleRes));
-    }
-
-    const defaultRes = NextResponse.json({
-      mode: resolvedMode,
     const grounding = buildGroundingMetadata(currentMessage);
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
       const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;

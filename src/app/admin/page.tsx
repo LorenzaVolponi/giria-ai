@@ -32,6 +32,13 @@ export default function AdminPage() {
       approvalRate: number;
       reasons?: Record<string, number>;
     };
+    slo?: {
+      status?: {
+        groundedRateOk: boolean;
+        unresolvedRateOk: boolean;
+        feedbackApprovalRateOk: boolean;
+      };
+    };
   }>({});
   const [metricsWindow, setMetricsWindow] = useState<"15" | "60" | "1440" | "10080">("60");
 
@@ -46,18 +53,25 @@ export default function AdminPage() {
     void boot();
   }, []);
 
-  async function reloadDashboard() {
+  async function reloadDashboard(windowOverride?: typeof metricsWindow) {
+    const selectedWindow = windowOverride ?? metricsWindow;
     const res = await fetch("/api/v1/admin/dashboard", { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
 
-    const metricsRes = await fetch(`/api/v1/metrics?window=${metricsWindow}`, { cache: "no-store" }).catch(() => null);
+    const metricsRes = await fetch(`/api/v1/metrics?window=${selectedWindow}`, { cache: "no-store" }).catch(() => null);
     if (metricsRes?.ok) {
       const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
       setMetrics(metricsData);
     }
   }
+
+  useEffect(() => {
+    if (!ok) return;
+    void reloadDashboard(metricsWindow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +167,29 @@ export default function AdminPage() {
             </div>
           </div>
           <section className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold">SLO de qualidade do chat</h2>
+            <div className="grid gap-2 sm:grid-cols-3 text-sm">
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Grounded rate</p>
+                <p className={metrics.slo?.status?.groundedRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.groundedRateOk ? "OK" : "Abaixo da meta"}
+                </p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Unresolved rate</p>
+                <p className={metrics.slo?.status?.unresolvedRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.unresolvedRateOk ? "OK" : "Acima da meta"}
+                </p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Feedback approval</p>
+                <p className={metrics.slo?.status?.feedbackApprovalRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.feedbackApprovalRateOk ? "OK" : "Abaixo da meta"}
+                </p>
+              </div>
+            </div>
+          </section>
+          <section className="rounded-xl border bg-white p-4">
             <h2 className="mb-3 font-semibold">Motivos de feedback (chat)</h2>
             <div className="space-y-2 text-sm">
               {Object.entries(metrics.chatFeedback?.reasons || {}).length === 0 ? (
@@ -179,7 +216,7 @@ export default function AdminPage() {
                   onChange={(e) => {
                     const next = e.target.value as typeof metricsWindow;
                     setMetricsWindow(next);
-                    void reloadDashboard();
+                    void reloadDashboard(next);
                   }}
                 >
                   <option value="15">15 min</option>
