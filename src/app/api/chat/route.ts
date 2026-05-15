@@ -763,11 +763,13 @@ export async function POST(request: NextRequest) {
       message,
       history,
       onlyChatResponse,
+      listChatResponses,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
       onlyChatResponse?: boolean;
+      listChatResponses?: boolean;
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -830,6 +832,16 @@ export async function POST(request: NextRequest) {
           synonyms: Array.isArray(t.variations) ? t.variations : [],
         };
       }
+    }
+
+    if (listChatResponses === true) {
+      const priorAssistantResponses = recentHistory
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content);
+
+      return withSecurityHeaders(NextResponse.json({
+        responses: [...priorAssistantResponses, response],
+      }));
     }
 
     if (onlyChatResponse === true) {
