@@ -22,15 +22,41 @@ function normalizeRegionLabel(region: string): RegionKey {
   return "Brasil";
 }
 
-export default function GiriasRegionaisPage() {
+interface Props {
+  searchParams?: Promise<{ uf?: string }>;
+}
+
+export default async function GiriasRegionaisPage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const ufFilter = (sp?.uf || "").toUpperCase().trim();
   const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
   for (const key of regionOrder) grouped.set(key, []);
   for (const term of regionalTerms) {
+    if (ufFilter) {
+      const m = term.region.match(/\(([A-Z]{2})\)/);
+      if (!m || m[1] !== ufFilter) continue;
+    }
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
+  const filteredCount = Array.from(grouped.values()).reduce((acc, list) => acc + list.length, 0);
+  const regionCounts = regionOrder.map((region) => ({
+    region,
+    count: (grouped.get(region) ?? []).length,
+  }));
+
+  const allStates = Array.from(
+    new Set(
+      regionalTerms
+        .map((t) => {
+          const m = t.region.match(/\(([A-Z]{2})\)/);
+          return m?.[1] ?? null;
+        })
+        .filter(Boolean) as string[]
+    )
+  ).sort();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -49,8 +75,57 @@ export default function GiriasRegionaisPage() {
           </a>
         ))}
       </nav>
+      <section className="mt-4 rounded-lg border p-3">
+        <p className="text-xs font-medium text-muted-foreground">Filtro rápido por UF (em expansão):</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {allStates.length === 0 ? (
+            <span className="text-xs text-muted-foreground">Sem UFs mapeadas ainda no dataset regional.</span>
+          ) : (
+            allStates.map((uf) => (
+              <Link
+                key={uf}
+                href={`/girias/regionais?uf=${uf}`}
+                className={`rounded-full border px-2 py-0.5 text-xs ${ufFilter === uf ? "bg-emerald-50 border-emerald-300" : ""}`}
+              >
+                {uf}
+              </Link>
+            ))
+          )}
+          {ufFilter ? (
+            <Link href="/girias/regionais" className="rounded-full border px-2 py-0.5 text-xs">
+              Limpar filtro
+            </Link>
+          ) : null}
+        </div>
+        {ufFilter ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Exibindo somente termos mapeados para <strong>{ufFilter}</strong>.
+          </p>
+        ) : null}
+      </section>
 
       <div className="mt-8 space-y-8">
+        <section className="rounded-xl border p-4">
+          <h2 className="text-lg font-semibold">Resumo de cobertura regional</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {regionCounts.map((item) => (
+              <div key={`count-${item.region}`} className="rounded-lg border p-2">
+                <p className="text-xs text-muted-foreground">{item.region}</p>
+                <p className="text-xl font-bold">{item.count}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        {filteredCount === 0 ? (
+          <section className="rounded-xl border p-4">
+            <p className="text-sm text-muted-foreground">
+              Nenhuma gíria regional encontrada para esse filtro.
+            </p>
+            <Link href="/girias/regionais" className="mt-2 inline-block text-sm underline">
+              Ver todas as regiões
+            </Link>
+          </section>
+        ) : null}
         {regionOrder.map((region) => {
           const terms = grouped.get(region) ?? [];
           if (terms.length === 0) return null;
