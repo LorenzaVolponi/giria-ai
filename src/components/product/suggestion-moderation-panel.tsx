@@ -74,7 +74,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST" }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {

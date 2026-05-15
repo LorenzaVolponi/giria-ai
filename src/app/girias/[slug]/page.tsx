@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTerm } from "@/lib/slang-data";
+import Link from "next/link";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -44,6 +45,20 @@ export default async function GiriaDetalhePage({ params }: Props) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/` },
+              { "@type": "ListItem", position: 2, name: "Gírias", item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
+              { "@type": "ListItem", position: 3, name: term.term, item: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/${encodeURIComponent(term.term)}` },
+            ],
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
             "@type": "DefinedTerm",
             name: term.term,
             description: term.meaning,
@@ -59,6 +74,12 @@ export default async function GiriaDetalhePage({ params }: Props) {
         <p><strong>Contexto:</strong> {term.context}</p>
         <p><strong>Intenção social/emocional:</strong> {term.contextNotes}</p>
       </section>
+      <p className="mt-4 text-sm text-muted-foreground">
+        Quer uma resposta direta? Veja:{" "}
+        <Link className="underline" href={`/o-que-significa/${encodeURIComponent(term.term)}`}>
+          O que significa {term.term}?
+        </Link>
+      </p>
     </main>
   );
 }
