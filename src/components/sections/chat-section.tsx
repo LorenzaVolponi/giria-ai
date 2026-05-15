@@ -46,6 +46,7 @@ interface ChatMessage {
     };
   };
   isError?: boolean;
+  feedbackSent?: boolean;
 }
 
 interface ChatApiResponse {
@@ -211,9 +212,11 @@ function ErrorMessageBubble({
 function AiMessageBubble({
   message,
   onSearchTerm,
+  onFeedback,
 }: {
   message: ChatMessage;
   onSearchTerm: (term: string) => void;
+  onFeedback: (messageId: string, helpful: boolean) => void;
 }) {
   return (
     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%]">
@@ -363,6 +366,24 @@ function AiMessageBubble({
             </button>
           </div>
         )}
+
+        {!message.feedbackSent ? (
+          <div className="pt-1 flex items-center gap-2">
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">Essa resposta ajudou?</span>
+            <button
+              onClick={() => onFeedback(message.id, true)}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-emerald-50"
+            >
+              👍 Sim
+            </button>
+            <button
+              onClick={() => onFeedback(message.id, false)}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
+            >
+              👎 Não
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -620,6 +641,17 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     [onSearchTerm]
   );
 
+  const handleFeedback = useCallback(async (messageId: string, helpful: boolean) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, feedbackSent: true } : m))
+    );
+    await fetch("/api/chat/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpful }),
+    }).catch(() => null);
+  }, []);
+
   /** Handle key down in input */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -656,6 +688,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
                     key={message.id}
                     message={message}
                     onSearchTerm={handleSynonymClick}
+                    onFeedback={handleFeedback}
                   />
                 )
               )}

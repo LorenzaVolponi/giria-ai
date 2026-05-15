@@ -23,6 +23,12 @@ export default function AdminPage() {
       unresolvedRate: number;
       series?: Array<{ ts: string; total: number; grounded: number; unresolved: number }>;
     };
+    chatFeedback?: {
+      up: number;
+      down: number;
+      total: number;
+      approvalRate: number;
+    };
   }>({});
 
   useEffect(() => {
@@ -102,6 +108,24 @@ export default function AdminPage() {
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-amber-600">{dash.summary?.pending ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Aprovadas</p><p className="text-2xl font-bold text-emerald-600">{dash.summary?.approved ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Rejeitadas</p><p className="text-2xl font-bold text-rose-600">{dash.summary?.rejected ?? 0}</p></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Feedback positivo (%)</p>
+              <p className="text-2xl font-bold text-emerald-600">{metrics.chatFeedback?.approvalRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Feedback total</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.total ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">👍 Sim</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.up ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">👎 Não</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.down ?? 0}</p>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border bg-white p-4">
