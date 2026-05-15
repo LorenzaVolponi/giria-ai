@@ -104,6 +104,16 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             Exibindo somente termos mapeados para <strong>{ufFilter}</strong>.
           </p>
         ) : null}
+        {query ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Busca ativa por <strong>&ldquo;{queryReadable}&rdquo;</strong>.
+          </p>
+        ) : null}
+        {riskFilter ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Filtro de risco ativo: <strong>{riskFilter}</strong>.
+          </p>
+        ) : null}
       </section>
 
       <div className="mt-8 space-y-8">
@@ -136,7 +146,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
               <h2 className="text-xl font-semibold">{region}</h2>
               <p className="text-xs text-muted-foreground mt-1">{terms.length} gírias nesta região</p>
               <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {terms.slice(0, 60).map((term) => (
+                {[...terms].sort((a, b) => a.term.localeCompare(b.term, "pt-BR")).slice(0, 60).map((term) => (
                   <li key={`${region}-${term.term}`} className="rounded-lg border p-3 hover:bg-muted/50">
                     <Link href={`/girias/${encodeURIComponent(term.term)}`} className="font-semibold">
                       {term.term}
