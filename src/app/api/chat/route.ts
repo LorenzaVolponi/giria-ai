@@ -7,6 +7,7 @@ import {
   type RiskLevel,
 } from "@/lib/slang-data";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
+import { recordGroundingMetric } from "@/lib/metrics";
 
 // ---------------------------------------------------------------------------
 // Rate limiting — simple in-memory (best-effort for serverless)
@@ -163,7 +164,7 @@ function levenshtein(a: string, b: string): number {
   return dp[a.length][b.length];
 }
 
-function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
   const normalizedQuery = normalize(query);
   const ranked = SLANG_DATA.map((term) => ({
     term,
@@ -171,7 +172,11 @@ function findClosestTerms(query: string, limit = 5): SlangTerm[] {
   }))
     .sort((a, b) => a.score - b.score)
     .slice(0, limit);
-  return ranked.map((x) => x.term);
+  return ranked;
+}
+
+function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+  return findClosestTermsWithScore(query, limit).map((x) => x.term);
 }
 
 function confidenceLabel(term: SlangTerm): string {
@@ -509,6 +514,7 @@ function buildResponse(
   const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
     normalize(message)
   );
+  const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
     case "greeting":
@@ -592,7 +598,8 @@ ${CATEGORIES.slice(0, 12)
 Quer explorar alguma categoria? É só perguntar! 😊`;
 
     case "single_term_lookup": {
-      const results = lookupTerm(extractedTerms[0]);
+      const requestedTerm = quotedTerm || extractedTerms[0];
+      const results = lookupTerm(requestedTerm);
       if (results.length === 0) {
         // Try fuzzy
         const fuzzyResults = lookupMultipleTerms(message);
@@ -600,8 +607,15 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
           const terms = Array.from(fuzzyResults.values());
           return `Não encontrei "${extractedTerms[0]}" exatamente, mas encontrei algo similar:\n\n${formatMultiTermResponse(terms)}`;
         }
-        const closest = findClosestTerms(extractedTerms[0], 4);
-        return `Hmm, não encontrei a gíria **"${extractedTerms[0]}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
+        const ranked = findClosestTermsWithScore(requestedTerm, 4);
+        const closest = ranked.map((item) => item.term);
+        const bestScore = ranked[0]?.score ?? 999;
+        const strictThreshold = Math.max(2, Math.floor(normalize(requestedTerm).length * 0.35));
+        const disambiguationPrompt = bestScore <= strictThreshold
+          ? `Antes de concluir, confirma se era uma dessas?\n- ${closest.map((t) => `"${t.term}"`).join("\n- ")}`
+          : "";
+
+        return `Hmm, não encontrei a gíria **"${requestedTerm}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
 
 Algumas possibilidades:
 1. **Verifique a grafia** — pode ser uma variação diferente
@@ -609,6 +623,7 @@ Algumas possibilidades:
 3. **Pode ser regional** — algumas gírias são específicas de certas regiões
 
 ${closest.length > 0 ? `Talvez você quis dizer: ${closest.map((t) => `"${t.term}"`).join(", ")}.` : ""}
+${disambiguationPrompt}
 Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
@@ -742,6 +757,33 @@ ${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${l
   }
 }
 
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
+    }
+    const closest = findClosestTerms(term, 3).map((t) => t.term);
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK };
+}
+
 // ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
@@ -873,9 +915,12 @@ export async function POST(request: NextRequest) {
     if (resolvedMode === "single") {
       return withSecurityHeaders(NextResponse.json({ response }));
     }
+    const grounding = buildGroundingMetadata(currentMessage);
+    recordGroundingMetric(grounding.grounded);
 
     return withSecurityHeaders(NextResponse.json({
       response,
+      grounding,
       ...slangData,
     }));
   } catch (error: unknown) {
