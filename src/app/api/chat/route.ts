@@ -233,6 +233,8 @@ function formatTermCard(t: SlangTerm): string {
 
   return `### **"${t.term}"**
 
+- **Resumo rápido**: ${t.adultTranslation}
+
 - **Significado**: ${t.meaning}
 - **Tradução para Adultos**: ${t.adultTranslation}
 - **Contexto**: ${t.context}
@@ -480,7 +482,7 @@ function detectIntent(message: string): {
     // Try all words and 2-3 word combos against the index
     const checked = new Set<string>();
 
-    for (let len = Math.min(3, words.length); len >= 1; len--) {
+    for (let len = Math.min(5, words.length); len >= 1; len--) {
       for (let i = 0; i <= words.length - len; i++) {
         const chunk = words.slice(i, i + len).join(" ");
         if (checked.has(chunk)) continue;
@@ -642,6 +644,15 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
         const ranked = findClosestTermsWithScore(requestedTerm, 4);
         const closest = ranked.map((item) => item.term);
         const bestScore = ranked[0]?.score ?? 999;
+        const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(requestedTerm).length))));
+        if (confidence < 0.65 && closest.length > 0) {
+          return `Não tenho confiança suficiente para afirmar com segurança. 🤝
+
+Você quis dizer uma destas opções?
+- ${closest.map((t) => `"${t.term}"`).join("\n- ")}
+
+Se nenhuma for correta, envie a nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+        }
         const strictThreshold = Math.max(2, Math.floor(normalize(requestedTerm).length * 0.35));
         const disambiguationPrompt = bestScore <= strictThreshold
           ? `Antes de concluir, confirma se era uma dessas?\n- ${closest.map((t) => `"${t.term}"`).join("\n- ")}`
