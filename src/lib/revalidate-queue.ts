@@ -36,6 +36,7 @@ export function enqueueRevalidateJob() {
   const job = { id, status: "queued", createdAt: new Date().toISOString() } satisfies Job;
   jobs.set(id, job);
   void redisSetEx(`revalidate:job:${id}`, JOB_TTL_SECONDS, JSON.stringify(job)).catch(() => null);
+  jobs.set(id, { id, status: "queued", createdAt: new Date().toISOString() });
   void runNext();
   return id;
 }
@@ -50,4 +51,6 @@ export async function getRevalidateJob(id: string) {
   } catch {
     return null;
   }
+export function getRevalidateJob(id: string) {
+  return jobs.get(id) || null;
 }

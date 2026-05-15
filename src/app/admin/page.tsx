@@ -53,6 +53,7 @@ export default function AdminPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password, code, totp }),
+      body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
       setMessage("Login inválido.");

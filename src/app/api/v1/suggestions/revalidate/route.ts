@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
 
   const jobId = request.nextUrl.searchParams.get("jobId") || "";
   const job = await getRevalidateJob(jobId);
+  const job = getRevalidateJob(jobId);
   if (!job) return withSecurityHeaders(NextResponse.json({ error: "Job não encontrado." }, { status: 404 }));
   return withSecurityHeaders(NextResponse.json({ ok: true, job }));
 }
