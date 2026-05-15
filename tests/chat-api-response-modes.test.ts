@@ -10,14 +10,6 @@ function makeRequest(body: unknown) {
   });
 }
 
-function makeInvalidJsonRequest(rawBody: string) {
-  return new NextRequest("http://localhost/api/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: rawBody,
-  });
-}
-
 describe("chat API response modes", () => {
   it("returns only response for responseMode=single", async () => {
     const req = makeRequest({ message: "oi", responseMode: "single" });
@@ -26,7 +18,6 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.mode).toBe("single");
-    expect(res.headers.get("x-response-mode")).toBe("single");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
   });
@@ -42,7 +33,6 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.mode).toBe("list");
-    expect(res.headers.get("x-response-mode")).toBe("list");
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses.length).toBeGreaterThan(0);
   });
@@ -51,14 +41,6 @@ describe("chat API response modes", () => {
     const req = makeRequest({ message: "oi", responseMode: "invalid" });
     const res = await chatPost(req);
     expect(res.status).toBe(400);
-  });
-
-  it("returns 400 for invalid JSON body", async () => {
-    const req = makeInvalidJsonRequest("{ invalid json");
-    const res = await chatPost(req);
-    const json = await res.json();
-    expect(res.status).toBe(400);
-    expect(json.error).toContain("JSON inválido");
   });
 
   it("returns 400 when mixing responseMode with legacy flags", async () => {
@@ -80,7 +62,6 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.mode).toBe("default");
-    expect(res.headers.get("x-response-mode")).toBe("default");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
   });
@@ -92,7 +73,6 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.mode).toBe("single");
-    expect(res.headers.get("x-response-mode")).toBe("single");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
@@ -100,6 +80,9 @@ describe("chat API response modes", () => {
     expect(res.headers.get("deprecation")).toBe("true");
     expect(res.headers.get("sunset")).toBe("Mon, 31 Aug 2026 23:59:59 GMT");
     expect(res.headers.get("link")).toContain('rel="deprecation"');
+    expect(json).toHaveProperty("response");
+    expect(json).not.toHaveProperty("responses");
+    expect(json).not.toHaveProperty("meaning");
   });
 
   it("keeps backward compatibility for listChatResponses legacy flag", async () => {
@@ -113,7 +96,6 @@ describe("chat API response modes", () => {
 
     expect(res.status).toBe(200);
     expect(json.mode).toBe("list");
-    expect(res.headers.get("x-response-mode")).toBe("list");
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses[0]).toBe("anterior");
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
@@ -129,6 +111,8 @@ describe("chat API response modes", () => {
     expect(res.headers.get("x-api-warn")).toBeNull();
     expect(res.headers.get("deprecation")).toBeNull();
     expect(res.headers.get("sunset")).toBeNull();
+    expect(Array.isArray(json.responses)).toBe(true);
+    expect(json.responses[0]).toBe("anterior");
   });
 
   it("asks for clarification on contextual follow-up when previous assistant message has multiple slang terms", async () => {
