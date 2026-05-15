@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
+import { redisGet, redisSetEx } from "@/lib/redis-store";
 import {
   autoPromoteApprovedSlang,
   getSuggestionStatusCounts,
@@ -53,11 +54,14 @@ export async function POST(request: NextRequest) {
     if (idemKey) {
       const cacheKey = `${ip}:${idemKey}`;
       const hit = idempotencyCache.get(cacheKey);
-      if (hit && hit.expiresAt > Date.now()) {
-        if (hit.fingerprint !== fingerprint) {
+      const hitRedis = await redisGet(`idempotency:${cacheKey}`);
+      const redisParsed = hitRedis ? (JSON.parse(hitRedis) as typeof hit) : null;
+      const dataHit = hit && hit.expiresAt > Date.now() ? hit : redisParsed;
+      if (dataHit && dataHit.expiresAt > Date.now()) {
+        if (dataHit.fingerprint !== fingerprint) {
           return withSecurityHeaders(NextResponse.json({ error: "Idempotency-Key já usado com payload diferente." }, { status: 409 }));
         }
-        return withSecurityHeaders(NextResponse.json({ ok: true, ...hit.payload, idempotentReplay: true }, { status: 200 }));
+        return withSecurityHeaders(NextResponse.json({ ok: true, ...dataHit.payload, idempotentReplay: true }, { status: 200 }));
       }
     }
 
@@ -76,7 +80,9 @@ export async function POST(request: NextRequest) {
     const responsePayload = { id: saved.id, score: processed.totalScore, status: processed.status, promoted: promoted.promoted, createdAt: saved.createdAt };
     trackSuggestionIngress(ip, processed.status);
     if (idemKey) {
-      idempotencyCache.set(`${ip}:${idemKey}`, { expiresAt: Date.now() + 10 * 60_000, fingerprint, payload: responsePayload });
+      const cacheData = { expiresAt: Date.now() + 10 * 60_000, fingerprint, payload: responsePayload };
+      idempotencyCache.set(`${ip}:${idemKey}`, cacheData);
+      await redisSetEx(`idempotency:${ip}:${idemKey}`, 10 * 60, JSON.stringify(cacheData)).catch(() => null);
     }
     return withSecurityHeaders(NextResponse.json({ ok: true, ...responsePayload }, { status: 201 }));
   } catch {
