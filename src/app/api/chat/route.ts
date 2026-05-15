@@ -7,6 +7,7 @@ import {
   type RiskLevel,
 } from "@/lib/slang-data";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
+import { recordGroundingMetric } from "@/lib/metrics";
 
 // ---------------------------------------------------------------------------
 // Rate limiting — simple in-memory (best-effort for serverless)
@@ -43,6 +44,19 @@ const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
 const LEGACY_FLAGS_SUNSET_HTTP_DATE = "Mon, 31 Aug 2026 23:59:59 GMT";
+const INTENT_CONFIDENCE_THRESHOLD: Record<Intent, number> = {
+  single_term_lookup: 0.65,
+  phrase_translation: 0.55,
+  category_explore: 0.5,
+  random_terms: 0.5,
+  how_many_terms: 0.5,
+  what_is_giria_ai: 0.5,
+  greeting: 0.5,
+  thanks: 0.5,
+  help: 0.5,
+  out_of_scope: 0.5,
+  general_question: 0.5,
+};
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
@@ -51,6 +65,8 @@ const PROMPT_BACKEND_RULES = [
   "Se houver risco yellow/orange/red, traga orientação de conversa não-confrontativa.",
   "Responda estritamente com base no conteúdo do nosso banco/local (SLANG_DATA e metadados).",
   "Não invente significado para termo ausente; ofereça fluxo de sugestão de gíria.",
+  "Priorize utilidade para o usuário final: resposta curta no topo e detalhes opcionais abaixo.",
+  "Sempre que possível, inclua orientação prática de conversa entre responsável e adolescente.",
 ] as const;
 
 /** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
@@ -90,9 +106,21 @@ function buildTermIndex(): Map<string, SlangTerm[]> {
 }
 
 let _termIndex: Map<string, SlangTerm[]> | null = null;
+let _normalizedTermsCache: Array<{ normalized: string; term: SlangTerm }> | null = null;
+const fuzzyCache = new Map<string, { ts: number; items: Array<{ term: SlangTerm; score: number }> }>();
+const FUZZY_CACHE_TTL_MS = 5 * 60 * 1000;
 function getTermIndex(): Map<string, SlangTerm[]> {
   if (!_termIndex) _termIndex = buildTermIndex();
   return _termIndex;
+}
+
+function getNormalizedTermsCache(): Array<{ normalized: string; term: SlangTerm }> {
+  if (_normalizedTermsCache) return _normalizedTermsCache;
+  _normalizedTermsCache = SLANG_DATA.map((term) => ({
+    normalized: normalize(term.term),
+    term,
+  }));
+  return _normalizedTermsCache;
 }
 
 /** Look up a term in the index (exact or fuzzy). */
@@ -164,15 +192,34 @@ function levenshtein(a: string, b: string): number {
   return dp[a.length][b.length];
 }
 
-function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
   const normalizedQuery = normalize(query);
-  const ranked = SLANG_DATA.map((term) => ({
-    term,
-    score: levenshtein(normalizedQuery, normalize(term.term)),
+  const cacheKey = `${normalizedQuery}:${limit}`;
+  const cached = fuzzyCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < FUZZY_CACHE_TTL_MS) {
+    return cached.items;
+  }
+
+  const pool = getNormalizedTermsCache();
+  const firstChar = normalizedQuery[0];
+  const candidates = pool.filter((entry) => entry.normalized[0] === firstChar || Math.abs(entry.normalized.length - normalizedQuery.length) <= 3);
+  const ranked = (candidates.length > 0 ? candidates : pool).map((entry) => ({
+    term: entry.term,
+    score: levenshtein(normalizedQuery, entry.normalized),
   }))
     .sort((a, b) => a.score - b.score)
     .slice(0, limit);
-  return ranked.map((x) => x.term);
+
+  fuzzyCache.set(cacheKey, { ts: Date.now(), items: ranked });
+  if (fuzzyCache.size > 500) {
+    const entries = Array.from(fuzzyCache.entries()).sort((a, b) => a[1].ts - b[1].ts);
+    for (const [key] of entries.slice(0, entries.length - 500)) fuzzyCache.delete(key);
+  }
+  return ranked;
+}
+
+function findClosestTerms(query: string, limit = 5): SlangTerm[] {
+  return findClosestTermsWithScore(query, limit).map((x) => x.term);
 }
 
 function confidenceLabel(term: SlangTerm): string {
@@ -190,19 +237,30 @@ function formatTermCard(t: SlangTerm): string {
   const variations = Array.isArray(t.variations) && t.variations.length > 0
     ? `\n- **Variações**: ${t.variations.join(", ")}`
     : "";
+  const conversationTip = t.riskLevel === "green"
+    ? "Pode tratar como linguagem cotidiana; valide contexto sem alarmismo."
+    : t.riskLevel === "yellow"
+      ? "Pergunte em tom aberto onde/como foi usada para evitar mal-entendido."
+      : t.riskLevel === "orange"
+        ? "Converse com calma e peça exemplos reais de uso antes de concluir."
+        : "Aborde com acolhimento e combine limites claros de respeito.";
 
   return `### **"${t.term}"**
+
+- **Resumo rápido**: ${t.adultTranslation}
 
 - **Significado**: ${t.meaning}
 - **Tradução para Adultos**: ${t.adultTranslation}
 - **Contexto**: ${t.context}
 - **Confiança da Base**: ${confidenceLabel(t)}
 - **Nível de Risco**: ${rc.label} — ${rc.description}
+${t.region ? `- **Região mais comum**: ${t.region}` : ""}
 ${t.safeExample ? `- **Exemplo**: _"${t.safeExample}"_` : ""}
 ${cat ? `- **Categoria**: ${cat.icon} ${cat.label}` : ""}
 ${t.origin ? `- **Origem**: ${t.origin}` : ""}
 ${variations}
-${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}`;
+${t.contextNotes ? `\n> 💡 **Orientação**: ${t.contextNotes}` : ""}
+\n> 🧭 **Dica para o responsável**: ${conversationTip}`;
 }
 
 function formatMultiTermResponse(terms: SlangTerm[]): string {
@@ -437,7 +495,7 @@ function detectIntent(message: string): {
     // Try all words and 2-3 word combos against the index
     const checked = new Set<string>();
 
-    for (let len = Math.min(3, words.length); len >= 1; len--) {
+    for (let len = Math.min(5, words.length); len >= 1; len--) {
       for (let i = 0; i <= words.length - len; i++) {
         const chunk = words.slice(i, i + len).join(" ");
         if (checked.has(chunk)) continue;
@@ -510,6 +568,7 @@ function buildResponse(
   const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
     normalize(message)
   );
+  const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
     case "greeting":
@@ -593,7 +652,8 @@ ${CATEGORIES.slice(0, 12)
 Quer explorar alguma categoria? É só perguntar! 😊`;
 
     case "single_term_lookup": {
-      const results = lookupTerm(extractedTerms[0]);
+      const requestedTerm = quotedTerm || extractedTerms[0];
+      const results = lookupTerm(requestedTerm);
       if (results.length === 0) {
         // Try fuzzy
         const fuzzyResults = lookupMultipleTerms(message);
@@ -601,8 +661,24 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
           const terms = Array.from(fuzzyResults.values());
           return `Não encontrei "${extractedTerms[0]}" exatamente, mas encontrei algo similar:\n\n${formatMultiTermResponse(terms)}`;
         }
-        const closest = findClosestTerms(extractedTerms[0], 4);
-        return `Hmm, não encontrei a gíria **"${extractedTerms[0]}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
+        const ranked = findClosestTermsWithScore(requestedTerm, 4);
+        const closest = ranked.map((item) => item.term);
+        const bestScore = ranked[0]?.score ?? 999;
+        const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(requestedTerm).length))));
+        if (confidence < 0.65 && closest.length > 0) {
+          return `Não tenho confiança suficiente para afirmar com segurança. 🤝
+
+Você quis dizer uma destas opções?
+- ${closest.map((t) => `"${t.term}"`).join("\n- ")}
+
+Se nenhuma for correta, envie a nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+        }
+        const strictThreshold = Math.max(2, Math.floor(normalize(requestedTerm).length * 0.35));
+        const disambiguationPrompt = bestScore <= strictThreshold
+          ? `Antes de concluir, confirma se era uma dessas?\n- ${closest.map((t) => `"${t.term}"`).join("\n- ")}`
+          : "";
+
+        return `Hmm, não encontrei a gíria **"${requestedTerm}"** no nosso dicionário de ${SLANG_DATA.length.toLocaleString("pt-BR")}+ termos. 😔
 
 Algumas possibilidades:
 1. **Verifique a grafia** — pode ser uma variação diferente
@@ -610,10 +686,11 @@ Algumas possibilidades:
 3. **Pode ser regional** — algumas gírias são específicas de certas regiões
 
 ${closest.length > 0 ? `Talvez você quis dizer: ${closest.map((t) => `"${t.term}"`).join(", ")}.` : ""}
+${disambiguationPrompt}
 Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
-      return formatTermCard(results[0]);
+      return `${groundedOnlyNotice()}\n\n${formatTermCard(results[0])}`;
     }
 
     case "phrase_translation": {
@@ -630,8 +707,8 @@ Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       const terms = Array.from(found.values());
       const response = formatMultiTermResponse(terms);
       return hasFollowUp
-        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
-        : response;
+        ? `${groundedOnlyNotice()}\n\n${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : `${groundedOnlyNotice()}\n\n${response}`;
     }
 
     case "category_explore": {
@@ -710,6 +787,7 @@ Me diga qual delas você quer aprofundar e eu trago significado, contexto e orie
         }
 
         const previous = previousCandidates[0];
+        const previous = Array.from(previousTerms.values())[0];
         if (previous) {
           const rc = RISK_CONFIG[previous.riskLevel];
           return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
@@ -751,6 +829,40 @@ Se o termo não estiver na base, você pode sugerir aqui: ${SUGGESTION_PAGE_LINK
 ${lastUserMessage ? `\nSe quiser, posso continuar da sua última pergunta: _"${lastUserMessage}"_.` : ""}`;
     }
   }
+}
+
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
+  intent: Intent;
+  confidence: number;
+  threshold: number;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+  const threshold = INTENT_CONFIDENCE_THRESHOLD[intent] ?? 0.5;
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term), intent, confidence: 0.98, threshold };
+    }
+    const ranked = findClosestTermsWithScore(term, 3);
+    const closest = ranked.map((item) => item.term.term);
+    const bestScore = ranked[0]?.score ?? 999;
+    const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(term).length))));
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: Number(confidence.toFixed(2)), threshold };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term), intent, confidence: 0.9, threshold };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
 }
 
 // ---------------------------------------------------------------------------
@@ -808,6 +920,7 @@ export async function POST(request: NextRequest) {
     const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
 
     if (responseMode !== undefined && usesLegacyFlags) {
+    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
         { status: 400 }
@@ -901,10 +1014,27 @@ export async function POST(request: NextRequest) {
 
     const defaultRes = NextResponse.json({
       mode: resolvedMode,
+    const grounding = buildGroundingMetadata(currentMessage);
+    if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
+      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+      recordGroundingMetric(false);
+      return withSecurityHeaders(NextResponse.json({
+        response: confirmResponse,
+        grounding,
+      }));
+    }
+    recordGroundingMetric(grounding.grounded);
+
+    return withSecurityHeaders(NextResponse.json({
       response,
+      grounding,
       ...slangData,
     });
     return withSecurityHeaders(applyLegacyDeprecationHeaders(defaultRes));
+    if (usesLegacyFlags) {
+      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+    }
+    return withSecurityHeaders(defaultRes);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";

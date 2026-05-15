@@ -37,8 +37,16 @@ interface ChatMessage {
     example?: string;
     category?: string;
     synonyms?: string[];
+    grounding?: {
+      grounded: boolean;
+      candidates: string[];
+      suggestionLink?: string;
+      intent?: string;
+      confidence?: number;
+    };
   };
   isError?: boolean;
+  feedbackSent?: boolean;
 }
 
 interface ChatApiResponse {
@@ -49,6 +57,13 @@ interface ChatApiResponse {
   example?: string;
   category?: string;
   synonyms?: string[];
+  grounding?: {
+    grounded: boolean;
+    candidates: string[];
+    suggestionLink?: string;
+    intent?: string;
+    confidence?: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -197,10 +212,16 @@ function ErrorMessageBubble({
 function AiMessageBubble({
   message,
   onSearchTerm,
+  onFeedback,
 }: {
   message: ChatMessage;
   onSearchTerm: (term: string) => void;
+  onFeedback: (messageId: string, helpful: boolean, reason?: string) => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [showReasonOptions, setShowReasonOptions] = useState(false);
+  const hasStructuredDetails = message.content.includes("**Significado**") || message.content.includes("### **");
+
   return (
     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%]">
       <Avatar className="h-8 w-8 shrink-0">
@@ -227,48 +248,105 @@ function AiMessageBubble({
           </div>
         )}
 
-        {/* Markdown content */}
-        <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <Markdown
-            components={{
-              p: ({ children }: { children?: ReactNode }) => (
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
-                  {children}
-                </p>
-              ),
-              strong: ({ children }: { children?: ReactNode }) => (
-                <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                  {children}
-                </strong>
-              ),
-              ul: ({ children }: { children?: ReactNode }) => (
-                <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ul>
-              ),
-              ol: ({ children }: { children?: ReactNode }) => (
-                <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ol>
-              ),
-              li: ({ children }: { children?: ReactNode }) => (
-                <li className="text-sm">{children}</li>
-              ),
-              code: ({ children }: { children?: ReactNode }) => (
-                <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
-                  {children}
-                </code>
-              ),
-              blockquote: ({ children }: { children?: ReactNode }) => (
-                <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
-                  {children}
-                </blockquote>
-              ),
-            }}
-          >
-            {message.content}
-          </Markdown>
-        </div>
+        {message.data?.grounding && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn(
+              "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border",
+              message.data.grounding.grounded
+                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800"
+                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800"
+            )}>
+              {message.data.grounding.grounded ? "Base confirmada" : "Base não confirmou"}
+            </span>
+            {typeof message.data.grounding.confidence === "number" ? (
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                conf. {Math.round(message.data.grounding.confidence * 100)}%
+              </span>
+            ) : null}
+            {!message.data.grounding.grounded && message.data.grounding.suggestionLink ? (
+              <a
+                href={message.data.grounding.suggestionLink}
+                className="text-[11px] underline text-violet-700 dark:text-violet-300"
+              >
+                Sugerir nova gíria
+              </a>
+            ) : null}
+            {!message.data.grounding.grounded && message.data.grounding.candidates.length > 0 ? (
+              <div className="w-full pt-1">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Você quis dizer:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {message.data.grounding.candidates.map((candidate) => (
+                    <button
+                      key={candidate}
+                      onClick={() => onSearchTerm(candidate)}
+                      className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                    >
+                      {candidate}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {hasStructuredDetails ? (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-900/40"
+            >
+              {showDetails ? "Ocultar detalhes" : "Ver detalhes"}
+            </button>
+            {showDetails ? (
+              <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <Markdown
+                  components={{
+                    p: ({ children }: { children?: ReactNode }) => (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
+                        {children}
+                      </p>
+                    ),
+                    strong: ({ children }: { children?: ReactNode }) => (
+                      <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                        {children}
+                      </strong>
+                    ),
+                    ul: ({ children }: { children?: ReactNode }) => (
+                      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }: { children?: ReactNode }) => (
+                      <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }: { children?: ReactNode }) => (
+                      <li className="text-sm">{children}</li>
+                    ),
+                    code: ({ children }: { children?: ReactNode }) => (
+                      <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
+                        {children}
+                      </code>
+                    ),
+                    blockquote: ({ children }: { children?: ReactNode }) => (
+                      <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
+                        {children}
+                      </blockquote>
+                    ),
+                  }}
+                >
+                  {message.content}
+                </Markdown>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            <Markdown>{message.content}</Markdown>
+          </div>
+        )}
 
         {/* Synonyms as clickable chips */}
         {message.data?.synonyms && message.data.synonyms.length > 0 && (
@@ -307,6 +385,42 @@ function AiMessageBubble({
             </button>
           </div>
         )}
+
+        {!message.feedbackSent ? (
+          <div className="pt-1 flex items-center gap-2">
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">Essa resposta ajudou?</span>
+            <button
+              onClick={() => onFeedback(message.id, true, "resposta_clara")}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-emerald-50"
+            >
+              👍 Sim
+            </button>
+            <button
+              onClick={() => setShowReasonOptions((v) => !v)}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
+            >
+              👎 Não
+            </button>
+            {showReasonOptions ? (
+              <div className="w-full pt-2 flex flex-wrap gap-1.5">
+                {[
+                  { key: "nao_ajudou", label: "Não ajudou" },
+                  { key: "significado_errado", label: "Significado errado" },
+                  { key: "faltou_contexto", label: "Faltou contexto" },
+                  { key: "termo_ausente", label: "Termo ausente" },
+                ].map((reason) => (
+                  <button
+                    key={reason.key}
+                    onClick={() => onFeedback(message.id, false, reason.key)}
+                    className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 hover:bg-rose-100"
+                  >
+                    {reason.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -500,6 +614,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
             example: data.example,
             category: data.category,
             synonyms: data.synonyms,
+            grounding: data.grounding,
           },
         };
 
@@ -563,6 +678,17 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     [onSearchTerm]
   );
 
+  const handleFeedback = useCallback(async (messageId: string, helpful: boolean, reason?: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, feedbackSent: true } : m))
+    );
+    await fetch("/api/chat/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpful, reason }),
+    }).catch(() => null);
+  }, []);
+
   /** Handle key down in input */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -599,6 +725,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
                     key={message.id}
                     message={message}
                     onSearchTerm={handleSynonymClick}
+                    onFeedback={handleFeedback}
                   />
                 )
               )}

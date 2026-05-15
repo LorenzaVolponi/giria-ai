@@ -247,6 +247,7 @@ export default function GiriaApp() {
     useState<TranslationResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
+  const [pixFeedback, setPixFeedback] = useState<string | null>(null);
 
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(() => loadFavorites());
@@ -552,10 +553,27 @@ export default function GiriaApp() {
     try {
       await navigator.clipboard.writeText(pixKey);
       setPixCopied(true);
+      setPixFeedback("Chave PIX copiada com sucesso.");
+      void fetch("/api/v1/visits", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "/sponsor/pix-copy" }),
+      }).catch(() => null);
       setTimeout(() => setPixCopied(false), 1800);
+      setTimeout(() => setPixFeedback(null), 2400);
     } catch {
       setPixCopied(false);
+      setPixFeedback("Não foi possível copiar automaticamente.");
+      setTimeout(() => setPixFeedback(null), 2400);
     }
+  }, []);
+
+  const handleSponsorClick = useCallback(() => {
+    void fetch("/api/v1/visits", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "/sponsor/pix-card" }),
+    }).catch(() => null);
   }, []);
 
   // ---- Reset search ----
@@ -1805,13 +1823,17 @@ export default function GiriaApp() {
               <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
               <button
                 type="button"
-                onClick={() => void handleCopyPix()}
+                onClick={() => {
+                  handleSponsorClick();
+                  void handleCopyPix();
+                }}
                 className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                 aria-label="Copiar chave PIX"
               >
                 {pixCopied ? "Copiado!" : "Copiar chave"}
               </button>
             </div>
+            {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
             <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
               QR PIX
             </div>
