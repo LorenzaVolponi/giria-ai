@@ -92,6 +92,11 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             </Link>
           ) : null}
         </div>
+        {ufFilter ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Exibindo somente termos mapeados para <strong>{ufFilter}</strong>.
+          </p>
+        ) : null}
       </section>
 
       <div className="mt-8 space-y-8">
