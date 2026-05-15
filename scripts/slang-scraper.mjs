@@ -14,6 +14,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_LIMIT = 12_000;
+const SOURCE_RELIABILITY = {
+  "urbandictionary-random": 0.45,
+  "datamuse-pt-seed": 0.6,
+};
 
 function normalize(text) {
   return text
@@ -100,12 +104,24 @@ function sanitizeCandidates(rows) {
     if (!key || key.length < 2 || key.length > 60) continue;
     if (/^\d+$/.test(key)) continue;
     if (!map.has(key)) {
+      const reliability = SOURCE_RELIABILITY[row.source] ?? 0.3;
+      const meaningSize = String(row.meaning ?? "").trim().length;
+      const qualityScore = Number(
+        Math.max(
+          0.1,
+          Math.min(0.99, reliability + (meaningSize >= 18 ? 0.15 : 0.05))
+        ).toFixed(2)
+      );
+      const moderationPriority = qualityScore >= 0.72 ? "high" : qualityScore >= 0.55 ? "medium" : "low";
       map.set(key, {
         term,
         meaning: String(row.meaning ?? "Sem definição").slice(0, 500),
         source: row.source ?? "unknown",
         region: row.region ?? "Brasil",
         category: row.category ?? "outros",
+        sourceReliability: reliability,
+        qualityScore,
+        moderationPriority,
       });
     }
   }
@@ -125,6 +141,11 @@ async function main() {
   const payload = {
     generatedAt: new Date().toISOString(),
     count: sanitized.length,
+    queueSummary: {
+      high: sanitized.filter((r) => r.moderationPriority === "high").length,
+      medium: sanitized.filter((r) => r.moderationPriority === "medium").length,
+      low: sanitized.filter((r) => r.moderationPriority === "low").length,
+    },
     records: sanitized,
   };
   const abs = path.resolve(output);
