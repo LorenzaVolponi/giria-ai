@@ -40,10 +40,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       const m = term.region.match(/\(([A-Z]{2})\)/);
       if (!m || m[1] !== ufFilter) continue;
     }
-    if (query) {
-      const hay = `${term.term} ${term.meaning} ${term.region}`.toLowerCase();
-      if (!hay.includes(query)) continue;
-    }
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
@@ -82,18 +78,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         ))}
       </nav>
       <section className="mt-4 rounded-lg border p-3">
-        <form className="mb-3 flex flex-wrap gap-2" action="/girias/regionais" method="get">
-          {ufFilter ? <input type="hidden" name="uf" value={ufFilter} /> : null}
-          <input
-            type="text"
-            name="q"
-            defaultValue={query}
-            placeholder="Buscar termo regional..."
-            className="min-w-[220px] rounded border px-3 py-1 text-sm"
-          />
-          <button type="submit" className="rounded border px-3 py-1 text-xs">Buscar</button>
-          {query ? <Link href={ufFilter ? `/girias/regionais?uf=${ufFilter}` : "/girias/regionais"} className="rounded border px-3 py-1 text-xs">Limpar busca</Link> : null}
-        </form>
         <p className="text-xs font-medium text-muted-foreground">Filtro rápido por UF (em expansão):</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {allStates.length === 0 ? (
@@ -118,11 +102,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         {ufFilter ? (
           <p className="mt-2 text-xs text-muted-foreground">
             Exibindo somente termos mapeados para <strong>{ufFilter}</strong>.
-          </p>
-        ) : null}
-        {query ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Busca ativa por <strong>&ldquo;{queryReadable}&rdquo;</strong>.
           </p>
         ) : null}
       </section>
@@ -157,14 +136,13 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
               <h2 className="text-xl font-semibold">{region}</h2>
               <p className="text-xs text-muted-foreground mt-1">{terms.length} gírias nesta região</p>
               <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {[...terms].sort((a, b) => a.term.localeCompare(b.term, "pt-BR")).slice(0, 60).map((term) => (
+                {terms.slice(0, 60).map((term) => (
                   <li key={`${region}-${term.term}`} className="rounded-lg border p-3 hover:bg-muted/50">
                     <Link href={`/girias/${encodeURIComponent(term.term)}`} className="font-semibold">
                       {term.term}
                     </Link>
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{term.meaning}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{term.region}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Categoria: {term.category}</p>
                   </li>
                 ))}
               </ul>
