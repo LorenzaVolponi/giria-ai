@@ -219,6 +219,7 @@ function AiMessageBubble({
   onFeedback: (messageId: string, helpful: boolean, reason?: string) => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showReasonOptions, setShowReasonOptions] = useState(false);
   const hasStructuredDetails = message.content.includes("**Significado**") || message.content.includes("### **");
 
   return (
@@ -395,11 +396,29 @@ function AiMessageBubble({
               👍 Sim
             </button>
             <button
-              onClick={() => onFeedback(message.id, false, "nao_ajudou")}
+              onClick={() => setShowReasonOptions((v) => !v)}
               className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
             >
               👎 Não
             </button>
+            {showReasonOptions ? (
+              <div className="w-full pt-2 flex flex-wrap gap-1.5">
+                {[
+                  { key: "nao_ajudou", label: "Não ajudou" },
+                  { key: "significado_errado", label: "Significado errado" },
+                  { key: "faltou_contexto", label: "Faltou contexto" },
+                  { key: "termo_ausente", label: "Termo ausente" },
+                ].map((reason) => (
+                  <button
+                    key={reason.key}
+                    onClick={() => onFeedback(message.id, false, reason.key)}
+                    className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 hover:bg-rose-100"
+                  >
+                    {reason.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
