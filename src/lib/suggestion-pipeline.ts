@@ -220,6 +220,31 @@ export async function getSuggestionStatusCounts() {
   }
 }
 
+
+export async function getSuggestionWindowCounts() {
+  const now = Date.now();
+  const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  try {
+    const [dApproved, dRejected, wApproved, wRejected] = await Promise.all([
+      db.validatedSlang.count({ where: { status: "approved", createdAt: { gte: dayAgo } } }),
+      db.validatedSlang.count({ where: { status: "rejected", createdAt: { gte: dayAgo } } }),
+      db.validatedSlang.count({ where: { status: "approved", createdAt: { gte: weekAgo } } }),
+      db.validatedSlang.count({ where: { status: "rejected", createdAt: { gte: weekAgo } } }),
+    ]);
+    return { dApproved, dRejected, wApproved, wRejected };
+  } catch {
+    const daily = memorySuggestions.filter((x) => Date.parse(x.createdAt) >= dayAgo.getTime());
+    const weekly = memorySuggestions.filter((x) => Date.parse(x.createdAt) >= weekAgo.getTime());
+    return {
+      dApproved: daily.filter((x) => x.status === "approved").length,
+      dRejected: daily.filter((x) => x.status === "rejected").length,
+      wApproved: weekly.filter((x) => x.status === "approved").length,
+      wRejected: weekly.filter((x) => x.status === "rejected").length,
+    };
+  }
+}
+
 export async function getSuggestionById(id: string) {
   const safeId = sanitizeUserInput(id, 80);
   if (!safeId) return null;
