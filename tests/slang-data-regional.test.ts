@@ -19,3 +19,21 @@ describe("regional slang support", () => {
     expect(results.some((t) => t.term === "tri massa")).toBe(true);
   });
 });
+
+
+it("includes North region entries", () => {
+  const norteTerms = getTermsByRegion("norte");
+  expect(norteTerms.some((t) => t.term === "pai d'égua")).toBe(true);
+});
+
+it("includes expanded Nordeste entries", () => {
+  const nordesteTerms = getTermsByRegion("nordeste");
+  expect(nordesteTerms.some((t) => t.term === "avexado")).toBe(true);
+  expect(nordesteTerms.some((t) => t.term === "brocado")).toBe(true);
+});
+
+it("supports expanded Sudeste/Centro-Oeste terms", () => {
+  const capiau = getTerm("capiau");
+  expect(capiau).toBeDefined();
+  expect(capiau?.region.toLowerCase()).toContain("sudeste");
+});

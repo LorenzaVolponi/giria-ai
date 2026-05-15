@@ -14,6 +14,31 @@ export default function AdminPage() {
     topIps?: Array<{ ip: string; total: number; approved: number; rejected: number; pending: number; lastAt: number }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
+  const [metrics, setMetrics] = useState<{
+    chatGrounding?: {
+      total: number;
+      grounded: number;
+      unresolved: number;
+      groundedRate: number;
+      unresolvedRate: number;
+      series?: Array<{ ts: string; total: number; grounded: number; unresolved: number }>;
+    };
+    chatFeedback?: {
+      up: number;
+      down: number;
+      total: number;
+      approvalRate: number;
+      reasons?: Record<string, number>;
+    };
+    slo?: {
+      status?: {
+        groundedRateOk: boolean;
+        unresolvedRateOk: boolean;
+        feedbackApprovalRateOk: boolean;
+      };
+    };
+  }>({});
+  const [metricsWindow, setMetricsWindow] = useState<"15" | "60" | "1440" | "10080">("60");
 
   useEffect(() => {
     const boot = async () => {
@@ -26,12 +51,25 @@ export default function AdminPage() {
     void boot();
   }, []);
 
-  async function reloadDashboard() {
+  async function reloadDashboard(windowOverride?: typeof metricsWindow) {
+    const selectedWindow = windowOverride ?? metricsWindow;
     const res = await fetch("/api/v1/admin/dashboard", { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
+
+    const metricsRes = await fetch(`/api/v1/metrics?window=${selectedWindow}`, { cache: "no-store" }).catch(() => null);
+    if (metricsRes?.ok) {
+      const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
+      setMetrics(metricsData);
+    }
   }
+
+  useEffect(() => {
+    if (!ok) return;
+    void reloadDashboard(metricsWindow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +125,116 @@ export default function AdminPage() {
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Aprovadas</p><p className="text-2xl font-bold text-emerald-600">{dash.summary?.approved ?? 0}</p></div>
             <div className="rounded-xl border bg-white p-4"><p className="text-xs text-muted-foreground">Rejeitadas</p><p className="text-2xl font-bold text-rose-600">{dash.summary?.rejected ?? 0}</p></div>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Feedback positivo (%)</p>
+              <p className="text-2xl font-bold text-emerald-600">{metrics.chatFeedback?.approvalRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Feedback total</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.total ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">👍 Sim</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.up ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">👎 Não</p>
+              <p className="text-2xl font-bold">{metrics.chatFeedback?.down ?? 0}</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat grounded (%)</p>
+              <p className="text-2xl font-bold text-emerald-600">{metrics.chatGrounding?.groundedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Chat unresolved (%)</p>
+              <p className="text-2xl font-bold text-amber-600">{metrics.chatGrounding?.unresolvedRate ?? 0}%</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Grounded</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.grounded ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">Unresolved</p>
+              <p className="text-2xl font-bold">{metrics.chatGrounding?.unresolved ?? 0}</p>
+            </div>
+          </div>
+          <section className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold">SLO de qualidade do chat</h2>
+            <div className="grid gap-2 sm:grid-cols-3 text-sm">
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Grounded rate</p>
+                <p className={metrics.slo?.status?.groundedRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.groundedRateOk ? "OK" : "Abaixo da meta"}
+                </p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Unresolved rate</p>
+                <p className={metrics.slo?.status?.unresolvedRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.unresolvedRateOk ? "OK" : "Acima da meta"}
+                </p>
+              </div>
+              <div className="rounded border p-2">
+                <p className="text-xs text-muted-foreground">Feedback approval</p>
+                <p className={metrics.slo?.status?.feedbackApprovalRateOk ? "text-emerald-600 font-semibold" : "text-rose-600 font-semibold"}>
+                  {metrics.slo?.status?.feedbackApprovalRateOk ? "OK" : "Abaixo da meta"}
+                </p>
+              </div>
+            </div>
+          </section>
+          <section className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold">Motivos de feedback (chat)</h2>
+            <div className="space-y-2 text-sm">
+              {Object.entries(metrics.chatFeedback?.reasons || {}).length === 0 ? (
+                <p className="text-muted-foreground text-xs">Sem motivos registrados ainda.</p>
+              ) : (
+                Object.entries(metrics.chatFeedback?.reasons || {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([reason, count]) => (
+                    <div key={reason} className="flex items-center justify-between rounded border p-2">
+                      <span className="text-xs">{reason}</span>
+                      <strong>{count}</strong>
+                    </div>
+                  ))
+              )}
+            </div>
+          </section>
           <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-xl border bg-white p-4 lg:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold">Tendência de grounding (últimos registros)</h2>
+                <select
+                  className="rounded border px-2 py-1 text-xs"
+                  value={metricsWindow}
+                  onChange={(e) => {
+                    const next = e.target.value as typeof metricsWindow;
+                    setMetricsWindow(next);
+                    void reloadDashboard(next);
+                  }}
+                >
+                  <option value="15">15 min</option>
+                  <option value="60">1 hora</option>
+                  <option value="1440">24 horas</option>
+                  <option value="10080">7 dias</option>
+                </select>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {(metrics.chatGrounding?.series || []).slice(-8).map((point) => {
+                  const rate = point.total > 0 ? Math.round((point.grounded / point.total) * 100) : 0;
+                  return (
+                    <div key={point.ts} className="rounded border p-2">
+                      <p className="text-[11px] text-muted-foreground">{new Date(point.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="text-sm font-semibold">{rate}% grounded</p>
+                      <div className="mt-1 h-2 w-full rounded bg-slate-100">
+                        <div className="h-2 rounded bg-emerald-500" style={{ width: `${rate}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
             <section className="rounded-xl border bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-semibold">Top IPs (ingresso de sugestões)</h2>
