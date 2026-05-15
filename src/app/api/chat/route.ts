@@ -762,10 +762,12 @@ export async function POST(request: NextRequest) {
       messages,
       message,
       history,
+      onlyChatResponse,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      onlyChatResponse?: boolean;
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -828,6 +830,10 @@ export async function POST(request: NextRequest) {
           synonyms: Array.isArray(t.variations) ? t.variations : [],
         };
       }
+    }
+
+    if (onlyChatResponse === true) {
+      return withSecurityHeaders(NextResponse.json({ response }));
     }
 
     return withSecurityHeaders(NextResponse.json({
