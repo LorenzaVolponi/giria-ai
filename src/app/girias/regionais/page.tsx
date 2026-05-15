@@ -42,6 +42,10 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
     grouped.get(bucket)!.push(term);
   }
   const filteredCount = Array.from(grouped.values()).reduce((acc, list) => acc + list.length, 0);
+  const regionCounts = regionOrder.map((region) => ({
+    region,
+    count: (grouped.get(region) ?? []).length,
+  }));
 
   const allStates = Array.from(
     new Set(
@@ -101,6 +105,17 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       </section>
 
       <div className="mt-8 space-y-8">
+        <section className="rounded-xl border p-4">
+          <h2 className="text-lg font-semibold">Resumo de cobertura regional</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {regionCounts.map((item) => (
+              <div key={`count-${item.region}`} className="rounded-lg border p-2">
+                <p className="text-xs text-muted-foreground">{item.region}</p>
+                <p className="text-xl font-bold">{item.count}</p>
+              </div>
+            ))}
+          </div>
+        </section>
         {filteredCount === 0 ? (
           <section className="rounded-xl border p-4">
             <p className="text-sm text-muted-foreground">
