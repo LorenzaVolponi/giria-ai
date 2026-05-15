@@ -17,6 +17,7 @@ const DEFAULT_LIMIT = 12_000;
 const SOURCE_RELIABILITY = {
   "urbandictionary-random": 0.45,
   "datamuse-pt-seed": 0.6,
+  "wiktionary-pt-seed": 0.75,
 };
 
 function normalize(text) {
@@ -96,6 +97,26 @@ async function scrapePtBrOpenGlossary() {
   return rows;
 }
 
+async function scrapeWiktionaryPtSeed() {
+  const seeds = ["gíria", "regionalismo", "internet"];
+  const rows = [];
+  for (const seed of seeds) {
+    const url = `https://pt.wiktionary.org/w/api.php?action=opensearch&search=${encodeURIComponent(seed)}&limit=200&namespace=0&format=json&origin=*`;
+    const json = await fetchJson(url);
+    const titles = Array.isArray(json?.[1]) ? json[1] : [];
+    for (const title of titles) {
+      rows.push({
+        term: String(title ?? "").trim(),
+        meaning: `Entrada relacionada a ${seed} (Wiktionary PT).`,
+        source: "wiktionary-pt-seed",
+        region: "Brasil",
+        category: seed === "regionalismo" ? "regional" : "outros",
+      });
+    }
+  }
+  return rows;
+}
+
 function sanitizeCandidates(rows) {
   const map = new Map();
   for (const row of rows) {
@@ -130,7 +151,7 @@ function sanitizeCandidates(rows) {
 
 async function main() {
   const { output, limit } = parseArgs();
-  const collectors = [scrapeUrbanDictionaryPtLike, scrapePtBrOpenGlossary];
+  const collectors = [scrapeUrbanDictionaryPtLike, scrapePtBrOpenGlossary, scrapeWiktionaryPtSeed];
   const chunks = await Promise.allSettled(collectors.map((fn) => fn()));
   const all = [];
   for (const item of chunks) {
@@ -151,6 +172,11 @@ async function main() {
   const abs = path.resolve(output);
   await fs.mkdir(path.dirname(abs), { recursive: true });
   await fs.writeFile(abs, JSON.stringify(payload, null, 2), "utf-8");
+  const triageDir = path.resolve("data/triage");
+  await fs.mkdir(triageDir, { recursive: true });
+  await fs.writeFile(path.join(triageDir, "high.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "high"), null, 2), "utf-8");
+  await fs.writeFile(path.join(triageDir, "medium.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "medium"), null, 2), "utf-8");
+  await fs.writeFile(path.join(triageDir, "low.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "low"), null, 2), "utf-8");
   console.log(`[scraper] wrote ${sanitized.length} candidates to ${abs}`);
 }
 
