@@ -43,6 +43,19 @@ if (typeof globalThis !== "undefined") {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
+const INTENT_CONFIDENCE_THRESHOLD: Record<Intent, number> = {
+  single_term_lookup: 0.65,
+  phrase_translation: 0.55,
+  category_explore: 0.5,
+  random_terms: 0.5,
+  how_many_terms: 0.5,
+  what_is_giria_ai: 0.5,
+  greeting: 0.5,
+  thanks: 0.5,
+  help: 0.5,
+  out_of_scope: 0.5,
+  general_question: 0.5,
+};
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
@@ -93,6 +106,8 @@ function buildTermIndex(): Map<string, SlangTerm[]> {
 
 let _termIndex: Map<string, SlangTerm[]> | null = null;
 let _normalizedTermsCache: Array<{ normalized: string; term: SlangTerm }> | null = null;
+const fuzzyCache = new Map<string, { ts: number; items: Array<{ term: SlangTerm; score: number }> }>();
+const FUZZY_CACHE_TTL_MS = 5 * 60 * 1000;
 function getTermIndex(): Map<string, SlangTerm[]> {
   if (!_termIndex) _termIndex = buildTermIndex();
   return _termIndex;
@@ -178,12 +193,27 @@ function levenshtein(a: string, b: string): number {
 
 function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
   const normalizedQuery = normalize(query);
+  const cacheKey = `${normalizedQuery}:${limit}`;
+  const cached = fuzzyCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < FUZZY_CACHE_TTL_MS) {
+    return cached.items;
+  }
+
   const pool = getNormalizedTermsCache();
   const firstChar = normalizedQuery[0];
   const candidates = pool.filter((entry) => entry.normalized[0] === firstChar || Math.abs(entry.normalized.length - normalizedQuery.length) <= 3);
   const ranked = (candidates.length > 0 ? candidates : pool).map((entry) => ({
     term: entry.term,
     score: levenshtein(normalizedQuery, entry.normalized),
+  }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit);
+
+  fuzzyCache.set(cacheKey, { ts: Date.now(), items: ranked });
+  if (fuzzyCache.size > 500) {
+    const entries = Array.from(fuzzyCache.entries()).sort((a, b) => a[1].ts - b[1].ts);
+    for (const [key] of entries.slice(0, entries.length - 500)) fuzzyCache.delete(key);
+  }
   const ranked = SLANG_DATA.map((term) => ({
     term,
     score: levenshtein(normalizedQuery, normalize(term.term)),
@@ -221,6 +251,8 @@ function formatTermCard(t: SlangTerm): string {
         : "Aborde com acolhimento e combine limites claros de respeito.";
 
   return `### **"${t.term}"**
+
+- **Resumo rápido**: ${t.adultTranslation}
 
 - **Significado**: ${t.meaning}
 - **Tradução para Adultos**: ${t.adultTranslation}
@@ -468,7 +500,7 @@ function detectIntent(message: string): {
     // Try all words and 2-3 word combos against the index
     const checked = new Set<string>();
 
-    for (let len = Math.min(3, words.length); len >= 1; len--) {
+    for (let len = Math.min(5, words.length); len >= 1; len--) {
       for (let i = 0; i <= words.length - len; i++) {
         const chunk = words.slice(i, i + len).join(" ");
         if (checked.has(chunk)) continue;
@@ -637,6 +669,15 @@ Quer explorar alguma categoria? É só perguntar! 😊`;
         const ranked = findClosestTermsWithScore(requestedTerm, 4);
         const closest = ranked.map((item) => item.term);
         const bestScore = ranked[0]?.score ?? 999;
+        const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(requestedTerm).length))));
+        if (confidence < 0.65 && closest.length > 0) {
+          return `Não tenho confiança suficiente para afirmar com segurança. 🤝
+
+Você quis dizer uma destas opções?
+- ${closest.map((t) => `"${t.term}"`).join("\n- ")}
+
+Se nenhuma for correta, envie a nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+        }
         const strictThreshold = Math.max(2, Math.floor(normalize(requestedTerm).length * 0.35));
         const disambiguationPrompt = bestScore <= strictThreshold
           ? `Antes de concluir, confirma se era uma dessas?\n- ${closest.map((t) => `"${t.term}"`).join("\n- ")}`
@@ -790,6 +831,40 @@ function buildGroundingMetadata(message: string): {
   grounded: boolean;
   candidates: string[];
   suggestionLink?: string;
+  intent: Intent;
+  confidence: number;
+  threshold: number;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+  const threshold = INTENT_CONFIDENCE_THRESHOLD[intent] ?? 0.5;
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term), intent, confidence: 0.98, threshold };
+    }
+    const ranked = findClosestTermsWithScore(term, 3);
+    const closest = ranked.map((item) => item.term.term);
+    const bestScore = ranked[0]?.score ?? 999;
+    const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(term).length))));
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: Number(confidence.toFixed(2)), threshold };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term), intent, confidence: 0.9, threshold };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
+}
+
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
 } {
   const { intent, extractedTerms } = detectIntent(message);
 
@@ -936,6 +1011,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const grounding = buildGroundingMetadata(currentMessage);
+    if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
+      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+      recordGroundingMetric(false);
+      return withSecurityHeaders(NextResponse.json({
+        response: confirmResponse,
+        grounding,
+      }));
+    }
     const resolvedMode =
       responseMode ??
       (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");

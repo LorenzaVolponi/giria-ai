@@ -41,9 +41,12 @@ interface ChatMessage {
       grounded: boolean;
       candidates: string[];
       suggestionLink?: string;
+      intent?: string;
+      confidence?: number;
     };
   };
   isError?: boolean;
+  feedbackSent?: boolean;
 }
 
 interface ChatApiResponse {
@@ -58,6 +61,8 @@ interface ChatApiResponse {
     grounded: boolean;
     candidates: string[];
     suggestionLink?: string;
+    intent?: string;
+    confidence?: number;
   };
 }
 
@@ -207,10 +212,15 @@ function ErrorMessageBubble({
 function AiMessageBubble({
   message,
   onSearchTerm,
+  onFeedback,
 }: {
   message: ChatMessage;
   onSearchTerm: (term: string) => void;
+  onFeedback: (messageId: string, helpful: boolean, reason?: string) => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const hasStructuredDetails = message.content.includes("**Significado**") || message.content.includes("### **");
+
   return (
     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%]">
       <Avatar className="h-8 w-8 shrink-0">
@@ -247,6 +257,11 @@ function AiMessageBubble({
             )}>
               {message.data.grounding.grounded ? "Base confirmada" : "Base não confirmou"}
             </span>
+            {typeof message.data.grounding.confidence === "number" ? (
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                conf. {Math.round(message.data.grounding.confidence * 100)}%
+              </span>
+            ) : null}
             {!message.data.grounding.grounded && message.data.grounding.suggestionLink ? (
               <a
                 href={message.data.grounding.suggestionLink}
@@ -274,6 +289,63 @@ function AiMessageBubble({
           </div>
         )}
 
+        {hasStructuredDetails ? (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-900/40"
+            >
+              {showDetails ? "Ocultar detalhes" : "Ver detalhes"}
+            </button>
+            {showDetails ? (
+              <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <Markdown
+                  components={{
+                    p: ({ children }: { children?: ReactNode }) => (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
+                        {children}
+                      </p>
+                    ),
+                    strong: ({ children }: { children?: ReactNode }) => (
+                      <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                        {children}
+                      </strong>
+                    ),
+                    ul: ({ children }: { children?: ReactNode }) => (
+                      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }: { children?: ReactNode }) => (
+                      <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }: { children?: ReactNode }) => (
+                      <li className="text-sm">{children}</li>
+                    ),
+                    code: ({ children }: { children?: ReactNode }) => (
+                      <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
+                        {children}
+                      </code>
+                    ),
+                    blockquote: ({ children }: { children?: ReactNode }) => (
+                      <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
+                        {children}
+                      </blockquote>
+                    ),
+                  }}
+                >
+                  {message.content}
+                </Markdown>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            <Markdown>{message.content}</Markdown>
+          </div>
+        )}
         {/* Markdown content */}
         <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
           <Markdown
@@ -354,6 +426,24 @@ function AiMessageBubble({
             </button>
           </div>
         )}
+
+        {!message.feedbackSent ? (
+          <div className="pt-1 flex items-center gap-2">
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">Essa resposta ajudou?</span>
+            <button
+              onClick={() => onFeedback(message.id, true, "resposta_clara")}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-emerald-50"
+            >
+              👍 Sim
+            </button>
+            <button
+              onClick={() => onFeedback(message.id, false, "nao_ajudou")}
+              className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
+            >
+              👎 Não
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -611,6 +701,17 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     [onSearchTerm]
   );
 
+  const handleFeedback = useCallback(async (messageId: string, helpful: boolean, reason?: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, feedbackSent: true } : m))
+    );
+    await fetch("/api/chat/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpful, reason }),
+    }).catch(() => null);
+  }, []);
+
   /** Handle key down in input */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -647,6 +748,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
                     key={message.id}
                     message={message}
                     onSearchTerm={handleSynonymClick}
+                    onFeedback={handleFeedback}
                   />
                 )
               )}
