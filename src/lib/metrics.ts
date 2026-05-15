@@ -8,9 +8,6 @@ const groundingBuckets = new Map<string, GroundingBucket>();
 const feedbackBuckets = new Map<string, FeedbackBucket>();
 const feedbackReasonBuckets = new Map<string, FeedbackReasonBucket>();
 
-const buckets = new Map<string, Bucket>();
-const groundingBuckets = new Map<string, GroundingBucket>();
-
 function minuteKey(date = new Date()) {
   return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
 }
@@ -28,8 +25,15 @@ export function recordApiMetric(status: number) {
   }
 }
 
-export function getApiMetrics() {
-  const series = Array.from(buckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+function filterByWindow<T extends { ts: string }>(series: T[], windowMinutes?: number): T[] {
+  if (!windowMinutes || windowMinutes <= 0) return series;
+  const cutoff = Date.now() - windowMinutes * 60_000;
+  return series.filter((item) => new Date(item.ts).getTime() >= cutoff);
+}
+
+export function getApiMetrics(windowMinutes?: number) {
+  const ordered = Array.from(buckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+  const series = filterByWindow(ordered, windowMinutes);
   const total = series.reduce((acc, b) => acc + b.total, 0);
   const errors = series.reduce((acc, b) => acc + b.errors, 0);
   return {
@@ -54,8 +58,9 @@ export function recordGroundingMetric(grounded: boolean) {
   }
 }
 
-export function getGroundingMetrics() {
-  const series = Array.from(groundingBuckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+export function getGroundingMetrics(windowMinutes?: number) {
+  const ordered = Array.from(groundingBuckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+  const series = filterByWindow(ordered, windowMinutes);
   const total = series.reduce((acc, b) => acc + b.total, 0);
   const grounded = series.reduce((acc, b) => acc + b.grounded, 0);
   const unresolved = series.reduce((acc, b) => acc + b.unresolved, 0);
@@ -84,12 +89,14 @@ export function recordChatFeedback(helpful: boolean, reason?: string) {
   }
 }
 
-export function getFeedbackMetrics() {
-  const series = Array.from(feedbackBuckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+export function getFeedbackMetrics(windowMinutes?: number) {
+  const ordered = Array.from(feedbackBuckets.values()).sort((a, b) => a.ts.localeCompare(b.ts));
+  const series = filterByWindow(ordered, windowMinutes);
   const up = series.reduce((acc, b) => acc + b.up, 0);
   const down = series.reduce((acc, b) => acc + b.down, 0);
   const total = up + down;
-  const reasons = Array.from(feedbackReasonBuckets.values()).reduce<Record<string, number>>((acc, item) => {
+  const filteredReasons = filterByWindow(Array.from(feedbackReasonBuckets.values()), windowMinutes);
+  const reasons = filteredReasons.reduce<Record<string, number>>((acc, item) => {
     for (const [reason, count] of Object.entries(item.reasons)) acc[reason] = (acc[reason] ?? 0) + count;
     return acc;
   }, {});

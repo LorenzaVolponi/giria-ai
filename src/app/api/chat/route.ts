@@ -214,12 +214,6 @@ function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: Slan
     const entries = Array.from(fuzzyCache.entries()).sort((a, b) => a[1].ts - b[1].ts);
     for (const [key] of entries.slice(0, entries.length - 500)) fuzzyCache.delete(key);
   }
-  const ranked = SLANG_DATA.map((term) => ({
-    term,
-    score: levenshtein(normalizedQuery, normalize(term.term)),
-  }))
-    .sort((a, b) => a.score - b.score)
-    .slice(0, limit);
   return ranked;
 }
 
@@ -566,13 +560,6 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
-  const lastAssistantMessage = [...conversationHistory]
-    .reverse()
-    .find((m) => m.role === "assistant")?.content;
-
-  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
-    normalize(message)
-  );
   const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
@@ -714,8 +701,6 @@ Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       return hasFollowUp
         ? `${groundedOnlyNotice()}\n\n${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
         : `${groundedOnlyNotice()}\n\n${response}`;
-        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
-        : response;
     }
 
     case "category_explore": {
@@ -872,76 +857,6 @@ function buildGroundingMetadata(message: string): {
   return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
 }
 
-function buildGroundingMetadata(message: string): {
-  grounded: boolean;
-  candidates: string[];
-  suggestionLink?: string;
-  intent: Intent;
-  confidence: number;
-  threshold: number;
-} {
-  const { intent, extractedTerms } = detectIntent(message);
-  const threshold = INTENT_CONFIDENCE_THRESHOLD[intent] ?? 0.5;
-
-  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
-    const term = extractedTerms[0];
-    const exact = lookupTerm(term);
-    if (exact.length > 0) {
-      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term), intent, confidence: 0.98, threshold };
-    }
-    const ranked = findClosestTermsWithScore(term, 3);
-    const closest = ranked.map((item) => item.term.term);
-    const bestScore = ranked[0]?.score ?? 999;
-    const confidence = Math.max(0.2, Math.min(0.85, 1 - (bestScore / Math.max(4, normalize(term).length))));
-    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: Number(confidence.toFixed(2)), threshold };
-  }
-
-  if (intent === "phrase_translation") {
-    const terms = Array.from(lookupMultipleTerms(message).values());
-    if (terms.length > 0) {
-      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term), intent, confidence: 0.9, threshold };
-    }
-  }
-
-  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
-}
-
-function buildGroundingMetadata(message: string): {
-  grounded: boolean;
-  candidates: string[];
-  suggestionLink?: string;
-} {
-  const { intent, extractedTerms } = detectIntent(message);
-
-  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
-    const term = extractedTerms[0];
-    const exact = lookupTerm(term);
-    if (exact.length > 0) {
-      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
-    }
-    const closest = findClosestTerms(term, 3).map((t) => t.term);
-    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
-  }
-
-  if (intent === "phrase_translation") {
-    const terms = Array.from(lookupMultipleTerms(message).values());
-    if (terms.length > 0) {
-      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
-    }
-    const closest = findClosestTerms(term, 3).map((t) => t.term);
-    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
-  }
-
-  if (intent === "phrase_translation") {
-    const terms = Array.from(lookupMultipleTerms(message).values());
-    if (terms.length > 0) {
-      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
-    }
-  }
-
-  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK };
-}
-
 // ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
@@ -1068,44 +983,6 @@ export async function POST(request: NextRequest) {
         grounding,
       }));
     }
-    const resolvedMode =
-      responseMode ??
-      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
-
-    if (resolvedMode === "list") {
-      const priorAssistantResponses = recentHistory
-        .filter((m) => m.role === "assistant")
-        .map((m) => m.content);
-
-      const listRes = NextResponse.json({
-        mode: resolvedMode,
-        responses: [...priorAssistantResponses, response],
-      });
-      if (usesLegacyFlags) {
-        listRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-      }
-      return withSecurityHeaders(listRes);
-    }
-
-    if (resolvedMode === "single") {
-      const singleRes = NextResponse.json({ mode: resolvedMode, response });
-      if (usesLegacyFlags) {
-        singleRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-      }
-      return withSecurityHeaders(singleRes);
-    }
-
-    const defaultRes = NextResponse.json({
-      mode: resolvedMode,
-      return withSecurityHeaders(NextResponse.json({
-        responses: [...priorAssistantResponses, response],
-      }));
-    }
-
-    if (resolvedMode === "single") {
-      return withSecurityHeaders(NextResponse.json({ response }));
-    }
-    const grounding = buildGroundingMetadata(currentMessage);
     recordGroundingMetric(grounding.grounded);
 
     return withSecurityHeaders(NextResponse.json({

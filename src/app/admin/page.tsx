@@ -33,15 +33,7 @@ export default function AdminPage() {
       reasons?: Record<string, number>;
     };
   }>({});
-    };
-  }>({});
-  }>({});
-  const [auditPreview, setAuditPreview] = useState<Array<{ at: string; action: string; ip?: string }>>([]);
-
-  function getCsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  }
+  const [metricsWindow, setMetricsWindow] = useState<"15" | "60" | "1440" | "10080">("60");
 
   useEffect(() => {
     const boot = async () => {
@@ -60,14 +52,10 @@ export default function AdminPage() {
     const data = (await res.json().catch(() => ({}))) as typeof dash;
     setDash(data);
 
-    const metricsRes = await fetch("/api/v1/metrics", { cache: "no-store" }).catch(() => null);
+    const metricsRes = await fetch(`/api/v1/metrics?window=${metricsWindow}`, { cache: "no-store" }).catch(() => null);
     if (metricsRes?.ok) {
       const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
       setMetrics(metricsData);
-    const auditRes = await fetch("/api/v1/admin/audit?limit=6", { cache: "no-store" }).catch(() => null);
-    if (auditRes?.ok) {
-      const auditData = (await auditRes.json().catch(() => ({}))) as { items?: Array<{ at: string; action: string; ip?: string }> };
-      setAuditPreview(Array.isArray(auditData.items) ? auditData.items : []);
     }
   }
 
@@ -183,7 +171,23 @@ export default function AdminPage() {
           </section>
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-xl border bg-white p-4 lg:col-span-2">
-              <h2 className="mb-3 font-semibold">Tendência de grounding (últimos registros)</h2>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold">Tendência de grounding (últimos registros)</h2>
+                <select
+                  className="rounded border px-2 py-1 text-xs"
+                  value={metricsWindow}
+                  onChange={(e) => {
+                    const next = e.target.value as typeof metricsWindow;
+                    setMetricsWindow(next);
+                    void reloadDashboard();
+                  }}
+                >
+                  <option value="15">15 min</option>
+                  <option value="60">1 hora</option>
+                  <option value="1440">24 horas</option>
+                  <option value="10080">7 dias</option>
+                </select>
+              </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {(metrics.chatGrounding?.series || []).slice(-8).map((point) => {
                   const rate = point.total > 0 ? Math.round((point.grounded / point.total) * 100) : 0;

@@ -347,48 +347,6 @@ function AiMessageBubble({
             <Markdown>{message.content}</Markdown>
           </div>
         )}
-        {/* Markdown content */}
-        <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <Markdown
-            components={{
-              p: ({ children }: { children?: ReactNode }) => (
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
-                  {children}
-                </p>
-              ),
-              strong: ({ children }: { children?: ReactNode }) => (
-                <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                  {children}
-                </strong>
-              ),
-              ul: ({ children }: { children?: ReactNode }) => (
-                <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ul>
-              ),
-              ol: ({ children }: { children?: ReactNode }) => (
-                <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ol>
-              ),
-              li: ({ children }: { children?: ReactNode }) => (
-                <li className="text-sm">{children}</li>
-              ),
-              code: ({ children }: { children?: ReactNode }) => (
-                <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
-                  {children}
-                </code>
-              ),
-              blockquote: ({ children }: { children?: ReactNode }) => (
-                <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
-                  {children}
-                </blockquote>
-              ),
-            }}
-          >
-            {message.content}
-          </Markdown>
-        </div>
 
         {/* Synonyms as clickable chips */}
         {message.data?.synonyms && message.data.synonyms.length > 0 && (
@@ -439,7 +397,6 @@ function AiMessageBubble({
             </button>
             <button
               onClick={() => setShowReasonOptions((v) => !v)}
-              onClick={() => onFeedback(message.id, false, "nao_ajudou")}
               className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
             >
               👎 Não
