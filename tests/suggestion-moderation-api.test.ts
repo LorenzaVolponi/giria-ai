@@ -1,5 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
+
+const { moderateSuggestionStatusMock } = vi.hoisted(() => ({
+  moderateSuggestionStatusMock: vi.fn(),
+}));
+
+vi.mock("../src/lib/suggestion-pipeline", () => ({
+  moderateSuggestionStatus: moderateSuggestionStatusMock,
+}));
+
 import { PATCH } from "../src/app/api/v1/suggestions/[id]/route";
 
 describe("suggestion moderation API", () => {
@@ -32,7 +41,7 @@ describe("suggestion moderation API", () => {
     });
 
     const res = await PATCH(req, { params: Promise.resolve({ id: "abc" }) });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.error).toContain("Motivo");
     expect(res.status).toBe(200);

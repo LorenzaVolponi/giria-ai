@@ -27,9 +27,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [page, setPage] = useState(1);
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
+  const [windowSummary, setWindowSummary] = useState<{ dApproved: number; dRejected: number; wApproved: number; wRejected: number } | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
+  const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
   const csrfToken = (() => {
     if (typeof document === "undefined") return "";
@@ -61,8 +66,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
+    if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number }; windowSummary?: { dApproved: number; dRejected: number; wApproved: number; wRejected: number } };
     const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
     if (!mountedRef.current) return;
     setLoading(false);
@@ -71,6 +78,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
+    setWindowSummary(data.windowSummary || null);
   }
 
   useEffect(() => {
@@ -122,10 +130,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    if (status === "rejected" && !reason) {
-      setBusyId(null);
-      return setMessage("Informe um motivo para rejeitar.");
-    }
+    const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
@@ -313,13 +318,39 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
         </div>
       ) : null}
+      {windowSummary ? (
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+          <p className="rounded border p-2">24h aprovadas: <strong>{windowSummary.dApproved}</strong></p>
+          <p className="rounded border p-2">24h rejeitadas: <strong>{windowSummary.dRejected}</strong></p>
+          <p className="rounded border p-2">7d aprovadas: <strong>{windowSummary.wApproved}</strong></p>
+          <p className="rounded border p-2">7d rejeitadas: <strong>{windowSummary.wRejected}</strong></p>
+        </div>
+      ) : null}
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+        <p className="rounded border p-2">Aprovadas (sessão): <strong>{sessionStats.approved}</strong></p>
+        <p className="rounded border p-2">Rejeitadas (sessão): <strong>{sessionStats.rejected}</strong></p>
+        <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
+        <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
+      </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
         </button>
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
           Exportar CSV
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
+          Desfazer última ação
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("approved")}>
+          Aprovar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => void moderateBatch("rejected")}>
+          Rejeitar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length} onClick={() => setSelectedIds([])}>
+          Limpar seleção
         </button>
       </div>
       </div>
@@ -380,6 +411,18 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </div>
       ) : null}
 
+      {batchProgress.running || batchProgress.done ? (
+        <div className="mt-2 rounded border p-2 text-xs text-muted-foreground">
+          <p>Lote: {batchProgress.done}/{batchProgress.total} processadas · falhas: {batchProgress.failed}</p>
+          <div className="mt-1 h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${batchProgress.total ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       {(() => {
@@ -405,9 +448,17 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+        const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
+        const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
 
         return (
           <>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+        <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
+        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
+      </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
           <li key={item.id} className="rounded border p-3">
@@ -457,7 +508,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+              placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
