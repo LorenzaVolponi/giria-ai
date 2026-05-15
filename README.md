@@ -76,6 +76,7 @@ Flags legadas (compatibilidade):
   - `X-API-Warn: Legacy chat flags are deprecated. Use responseMode.`
   - `Deprecation: true`
   - `Sunset: Mon, 31 Aug 2026 23:59:59 GMT`
+  - `Link: </#contrato-post-api-chat>; rel="deprecation"`
 
 ## Scripts úteis
 - `bash scripts/dev.sh`

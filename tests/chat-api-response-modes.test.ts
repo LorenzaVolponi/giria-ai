@@ -79,6 +79,7 @@ describe("chat API response modes", () => {
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
     expect(res.headers.get("deprecation")).toBe("true");
     expect(res.headers.get("sunset")).toBe("Mon, 31 Aug 2026 23:59:59 GMT");
+    expect(res.headers.get("link")).toContain('rel="deprecation"');
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
@@ -100,6 +101,7 @@ describe("chat API response modes", () => {
     expect(res.headers.get("x-api-warn")).toContain("deprecated");
     expect(res.headers.get("deprecation")).toBe("true");
     expect(res.headers.get("sunset")).toBe("Mon, 31 Aug 2026 23:59:59 GMT");
+    expect(res.headers.get("link")).toContain('rel="deprecation"');
   });
 
   it("does not send deprecation headers when using responseMode", async () => {
