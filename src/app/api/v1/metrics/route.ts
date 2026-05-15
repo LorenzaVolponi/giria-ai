@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders } from "@/lib/security";
 import { requireAdminToken } from "@/lib/admin-guard";
 import { getApiMetrics, getFeedbackMetrics, getGroundingMetrics } from "@/lib/metrics";
+import { getApiMetrics, getGroundingMetrics } from "@/lib/metrics";
 
 export async function GET(request: NextRequest) {
   const denied = requireAdminToken(request);

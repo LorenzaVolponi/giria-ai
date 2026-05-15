@@ -19,5 +19,6 @@ describe("admin dashboard api", () => {
     expect(data).toHaveProperty("summary");
     expect(data).toHaveProperty("topIps");
     expect(data).toHaveProperty("recent");
+    expect(data).toHaveProperty("alerts");
   });
 });
