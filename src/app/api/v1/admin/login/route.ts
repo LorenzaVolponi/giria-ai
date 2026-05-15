@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSessionResponse } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
+import { appendAdminAudit } from "@/lib/admin-audit";
 
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN || "admin007";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin007";
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
   const now = Date.now();
   const current = loginAttempts.get(ipKey);
   if (current?.blockedUntil && current.blockedUntil > now) {
+    await appendAdminAudit({ at: new Date().toISOString(), action: "login_blocked", ip: ipKey });
     return withSecurityHeaders(NextResponse.json({ error: "Muitas tentativas. Aguarde alguns minutos." }, { status: 429 }));
   }
 
@@ -27,9 +29,11 @@ export async function POST(request: NextRequest) {
   if (login !== ADMIN_LOGIN || password !== ADMIN_PASSWORD || !ADMIN_CODES.has(code)) {
     const nextCount = (current?.count || 0) + 1;
     loginAttempts.set(ipKey, { count: nextCount, blockedUntil: nextCount >= 5 ? now + 5 * 60_000 : undefined });
+    await appendAdminAudit({ at: new Date().toISOString(), action: "login_failed", ip: ipKey, meta: { nextCount } });
     return withSecurityHeaders(NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 }));
   }
 
   loginAttempts.delete(ipKey);
+  await appendAdminAudit({ at: new Date().toISOString(), action: "login_success", ip: ipKey });
   return createAdminSessionResponse(true);
 }
