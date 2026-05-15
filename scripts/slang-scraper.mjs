@@ -152,6 +152,7 @@ function sanitizeCandidates(rows) {
 async function main() {
   const { output, limit } = parseArgs();
   const collectors = [scrapeUrbanDictionaryPtLike, scrapePtBrOpenGlossary, scrapeWiktionaryPtSeed];
+  const collectors = [scrapeUrbanDictionaryPtLike, scrapePtBrOpenGlossary];
   const chunks = await Promise.allSettled(collectors.map((fn) => fn()));
   const all = [];
   for (const item of chunks) {

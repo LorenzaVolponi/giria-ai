@@ -8,6 +8,9 @@ const groundingBuckets = new Map<string, GroundingBucket>();
 const feedbackBuckets = new Map<string, FeedbackBucket>();
 const feedbackReasonBuckets = new Map<string, FeedbackReasonBucket>();
 
+const buckets = new Map<string, Bucket>();
+const groundingBuckets = new Map<string, GroundingBucket>();
+
 function minuteKey(date = new Date()) {
   return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
 }

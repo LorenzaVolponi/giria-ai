@@ -214,6 +214,12 @@ function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: Slan
     const entries = Array.from(fuzzyCache.entries()).sort((a, b) => a[1].ts - b[1].ts);
     for (const [key] of entries.slice(0, entries.length - 500)) fuzzyCache.delete(key);
   }
+  const ranked = SLANG_DATA.map((term) => ({
+    term,
+    score: levenshtein(normalizedQuery, normalize(term.term)),
+  }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit);
   return ranked;
 }
 
@@ -436,7 +442,6 @@ function detectIntent(message: string): {
     dinheiro: "dinheiro|grana|money|rico|fortuna",
     esporte: "esporte|futebol|basquete|esports",
     redes_sociais: "redes sociais|tiktok|instagram|twitter|social",
-    "redes_sociais": "redes sociais|tiktok|instagram|twitter|social",
     elogio: "elogio|elogios|cumprimento|positivo",
     saudacao: "saudacao|saudacoes|cumprimento|oi|ola",
     zoeira: "zoeira|zoeiras|brincadeira|humor|piada",
@@ -561,6 +566,13 @@ function buildResponse(
   const contextHeader = buildPromptBackendHeader();
   const lastUserMessage = [...conversationHistory].reverse().find((m) => m.role === "user")?.content;
   const hasFollowUp = /^(e\s|e se|mas e|continua|aprofunda|detalha|expande)/.test(normalize(message));
+  const lastAssistantMessage = [...conversationHistory]
+    .reverse()
+    .find((m) => m.role === "assistant")?.content;
+
+  const isContextualFollowUp = /^(e\s|e se|mas|isso|esse|essa|ele|ela|dela|dele|desse|dessa|nisso|nela|nele)/.test(
+    normalize(message)
+  );
   const quotedTerm = message.match(/[''""]([^'""]+)[''""]/)?.[1]?.trim();
 
   switch (intent) {
@@ -702,6 +714,8 @@ Se quiser, você pode sugerir a gíria ausente aqui: ${SUGGESTION_PAGE_LINK}`;
       return hasFollowUp
         ? `${groundedOnlyNotice()}\n\n${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
         : `${groundedOnlyNotice()}\n\n${response}`;
+        ? `${response}\n### Próximo passo\nPosso aprofundar contexto social, risco e alternativa segura de cada termo.`
+        : response;
     }
 
     case "category_explore": {
@@ -767,6 +781,27 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
     case "out_of_scope":
     default: {
+      if (isContextualFollowUp && lastAssistantMessage) {
+        const previousTerms = lookupMultipleTerms(lastAssistantMessage);
+        const previous = Array.from(previousTerms.values())[0];
+        if (previous) {
+          const rc = RISK_CONFIG[previous.riskLevel];
+          return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
+
+### Leitura rápida
+- **Significado**: ${previous.meaning}
+- **Contexto**: ${previous.context}
+- **Risco**: ${rc.label} (${rc.description})
+
+### Como responder como adulto (tom calmo)
+1. Valide sem confronto: _"Entendi, me explica como vocês usam isso?"_
+2. Faça pergunta aberta: _"Quando essa expressão aparece mais?"_
+3. Alinhe limite com cuidado, se necessário: _"Aqui em casa a gente usa sem ofender ninguém, combinado?"_
+
+Se quiser, eu monto uma resposta pronta para WhatsApp com linguagem de pai/mãe.`;
+        }
+      }
+
       // Try one more time to find terms
       const lastAttempt = lookupMultipleTerms(message);
       if (lastAttempt.size > 0) {
@@ -826,6 +861,42 @@ function buildGroundingMetadata(message: string): {
   return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK, intent, confidence: 0.45, threshold };
 }
 
+function buildGroundingMetadata(message: string): {
+  grounded: boolean;
+  candidates: string[];
+  suggestionLink?: string;
+} {
+  const { intent, extractedTerms } = detectIntent(message);
+
+  if (intent === "single_term_lookup" && extractedTerms.length > 0) {
+    const term = extractedTerms[0];
+    const exact = lookupTerm(term);
+    if (exact.length > 0) {
+      return { grounded: true, candidates: exact.slice(0, 3).map((t) => t.term) };
+    }
+    const closest = findClosestTerms(term, 3).map((t) => t.term);
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
+    }
+    const closest = findClosestTerms(term, 3).map((t) => t.term);
+    return { grounded: false, candidates: closest, suggestionLink: SUGGESTION_PAGE_LINK };
+  }
+
+  if (intent === "phrase_translation") {
+    const terms = Array.from(lookupMultipleTerms(message).values());
+    if (terms.length > 0) {
+      return { grounded: true, candidates: terms.slice(0, 5).map((t) => t.term) };
+    }
+  }
+
+  return { grounded: false, candidates: [], suggestionLink: SUGGESTION_PAGE_LINK };
+}
+
 // ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
@@ -845,10 +916,16 @@ export async function POST(request: NextRequest) {
       messages,
       message,
       history,
+      onlyChatResponse,
+      listChatResponses,
+      responseMode,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      onlyChatResponse?: boolean;
+      listChatResponses?: boolean;
+      responseMode?: "default" | "single" | "list";
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -861,6 +938,27 @@ export async function POST(request: NextRequest) {
     if (history !== undefined && !Array.isArray(history)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`history` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`responseMode` deve ser: default, single ou list." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
+        { status: 400 }
+      ));
+    }
+
+    if (onlyChatResponse === true && listChatResponses === true) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`onlyChatResponse` e `listChatResponses` não podem ser true ao mesmo tempo." },
         { status: 400 }
       ));
     }
@@ -922,6 +1020,24 @@ export async function POST(request: NextRequest) {
         grounding,
       }));
     }
+    const resolvedMode =
+      responseMode ??
+      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
+
+    if (resolvedMode === "list") {
+      const priorAssistantResponses = recentHistory
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content);
+
+      return withSecurityHeaders(NextResponse.json({
+        responses: [...priorAssistantResponses, response],
+      }));
+    }
+
+    if (resolvedMode === "single") {
+      return withSecurityHeaders(NextResponse.json({ response }));
+    }
+    const grounding = buildGroundingMetadata(currentMessage);
     recordGroundingMetric(grounding.grounded);
 
     return withSecurityHeaders(NextResponse.json({
