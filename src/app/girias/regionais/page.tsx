@@ -23,12 +23,14 @@ function normalizeRegionLabel(region: string): RegionKey {
 }
 
 interface Props {
-  searchParams?: Promise<{ uf?: string }>;
+  searchParams?: Promise<{ uf?: string; q?: string }>;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const sp = await searchParams;
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
+  const query = (sp?.q || "").trim().toLowerCase();
+  const queryReadable = (sp?.q || "").trim();
   const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
