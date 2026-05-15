@@ -18,7 +18,11 @@ describe("suggestion moderation API", () => {
     const req = new NextRequest("http://localhost/api/v1/suggestions/abc", {
       method: "PATCH",
       body: JSON.stringify({ status: "rejected" }),
-      headers: { "content-type": "application/json", cookie: "giria_admin_session=admin-panel-session" },
+      headers: {
+        "content-type": "application/json",
+        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf; giria_admin_role=owner",
+        "x-csrf-token": "test-csrf",
+      },
     });
 
     const res = await PATCH(req, { params: Promise.resolve({ id: "abc" }) });

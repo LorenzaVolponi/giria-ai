@@ -436,12 +436,11 @@ function detectIntent(message: string): {
     dinheiro: "dinheiro|grana|money|rico|fortuna",
     esporte: "esporte|futebol|basquete|esports",
     redes_sociais: "redes sociais|tiktok|instagram|twitter|social",
-    "redes_sociais": "redes sociais|tiktok|instagram|twitter|social",
     elogio: "elogio|elogios|cumprimento|positivo",
     saudacao: "saudacao|saudacoes|cumprimento|oi|ola",
     zoeira: "zoeira|zoeiras|brincadeira|humor|piada",
     meme: "meme|memes|internet|viral",
-    abreviação: "abreviacao|abreviacoes|sigla|siglas",
+    abreviacao: "abreviacao|abreviacoes|sigla|siglas",
     humor: "humor|engracado|comedia",
     regional: "regional|regiao|estado|cidade",
     bullying: "bullying|bullying|maldade",
@@ -767,6 +766,38 @@ O melhor jeito de entender é **praticando**! Digite qualquer gíria que ouviu e
 
     case "out_of_scope":
     default: {
+      if (isContextualFollowUp && lastAssistantMessage) {
+        const previousTerms = lookupMultipleTerms(lastAssistantMessage);
+        const previousCandidates = Array.from(previousTerms.values());
+
+        if (previousCandidates.length > 1) {
+          const top = previousCandidates.slice(0, 3).map((t) => `"${t.term}"`).join(", ");
+          return `Entendi seu follow-up 👍 Antes de continuar, só quero confirmar a qual termo você se refere.
+
+Detectei mais de uma gíria na resposta anterior: ${top}.
+Me diga qual delas você quer aprofundar e eu trago significado, contexto e orientação prática.`;
+        }
+
+        const previous = previousCandidates[0];
+        const previous = Array.from(previousTerms.values())[0];
+        if (previous) {
+          const rc = RISK_CONFIG[previous.riskLevel];
+          return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
+
+### Leitura rápida
+- **Significado**: ${previous.meaning}
+- **Contexto**: ${previous.context}
+- **Risco**: ${rc.label} (${rc.description})
+
+### Como responder como adulto (tom calmo)
+1. Valide sem confronto: _"Entendi, me explica como vocês usam isso?"_
+2. Faça pergunta aberta: _"Quando essa expressão aparece mais?"_
+3. Alinhe limite com cuidado, se necessário: _"Aqui em casa a gente usa sem ofender ninguém, combinado?"_
+
+Se quiser, eu monto uma resposta pronta para WhatsApp com linguagem de pai/mãe.`;
+        }
+      }
+
       // Try one more time to find terms
       const lastAttempt = lookupMultipleTerms(message);
       if (lastAttempt.size > 0) {
@@ -845,10 +876,16 @@ export async function POST(request: NextRequest) {
       messages,
       message,
       history,
+      onlyChatResponse,
+      listChatResponses,
+      responseMode,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
+      onlyChatResponse?: boolean;
+      listChatResponses?: boolean;
+      responseMode?: "default" | "single" | "list";
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -861,6 +898,30 @@ export async function POST(request: NextRequest) {
     if (history !== undefined && !Array.isArray(history)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`history` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`responseMode` deve ser: default, single ou list." },
+        { status: 400 }
+      ));
+    }
+
+    const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
+
+    if (responseMode !== undefined && usesLegacyFlags) {
+    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
+        { status: 400 }
+      ));
+    }
+
+    if (onlyChatResponse === true && listChatResponses === true) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`onlyChatResponse` e `listChatResponses` não podem ser true ao mesmo tempo." },
         { status: 400 }
       ));
     }
@@ -928,7 +989,11 @@ export async function POST(request: NextRequest) {
       response,
       grounding,
       ...slangData,
-    }));
+    });
+    if (usesLegacyFlags) {
+      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+    }
+    return withSecurityHeaders(defaultRes);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";
