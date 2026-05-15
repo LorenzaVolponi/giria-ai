@@ -5,6 +5,7 @@ import { getRequestId, logApiEvent } from "@/lib/observability";
 import {
   autoPromoteApprovedSlang,
   getSuggestionStatusCounts,
+  getSuggestionWindowCounts,
   isSuggestionEligible,
   listApprovedSuggestions,
   listSuggestionsByStatus,
@@ -107,6 +108,6 @@ export async function GET(request?: NextRequest) {
         return true;
       })
     : base;
-  const summary = includeSummary ? await getSuggestionStatusCounts() : undefined;
-  return withSecurityHeaders(NextResponse.json({ items: data, ...(summary ? { summary } : {}) }));
+  const [summary, windowSummary] = includeSummary ? await Promise.all([getSuggestionStatusCounts(), getSuggestionWindowCounts()]) : [undefined, undefined];
+  return withSecurityHeaders(NextResponse.json({ items: data, ...(summary ? { summary } : {}), ...(windowSummary ? { windowSummary } : {}) }));
 }
