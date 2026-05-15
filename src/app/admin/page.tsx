@@ -30,6 +30,9 @@ export default function AdminPage() {
       down: number;
       total: number;
       approvalRate: number;
+      reasons?: Record<string, number>;
+    };
+  }>({});
     };
   }>({});
   }>({});
@@ -161,6 +164,23 @@ export default function AdminPage() {
               <p className="text-2xl font-bold">{metrics.chatGrounding?.unresolved ?? 0}</p>
             </div>
           </div>
+          <section className="rounded-xl border bg-white p-4">
+            <h2 className="mb-3 font-semibold">Motivos de feedback (chat)</h2>
+            <div className="space-y-2 text-sm">
+              {Object.entries(metrics.chatFeedback?.reasons || {}).length === 0 ? (
+                <p className="text-muted-foreground text-xs">Sem motivos registrados ainda.</p>
+              ) : (
+                Object.entries(metrics.chatFeedback?.reasons || {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([reason, count]) => (
+                    <div key={reason} className="flex items-center justify-between rounded border p-2">
+                      <span className="text-xs">{reason}</span>
+                      <strong>{count}</strong>
+                    </div>
+                  ))
+              )}
+            </div>
+          </section>
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-xl border bg-white p-4 lg:col-span-2">
               <h2 className="mb-3 font-semibold">Tendência de grounding (últimos registros)</h2>
