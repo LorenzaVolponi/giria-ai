@@ -42,6 +42,7 @@ if (typeof globalThis !== "undefined") {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_MESSAGES_TO_SEND = 8;
 const SUGGESTION_PAGE_LINK = "/girias/enviadas-por-usuarios";
+const LEGACY_FLAGS_SUNSET_HTTP_DATE = "Mon, 31 Aug 2026 23:59:59 GMT";
 const PROMPT_BACKEND_RULES = [
   "Priorize segurança e clareza para pais, educadores e responsáveis.",
   "Sempre explique gíria com significado, contexto social e exemplo seguro.",
@@ -876,6 +877,7 @@ export async function POST(request: NextRequest) {
       if (usesLegacyFlags) {
         res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
         res.headers.set("Deprecation", "true");
+        res.headers.set("Sunset", LEGACY_FLAGS_SUNSET_HTTP_DATE);
       }
       return res;
     };
