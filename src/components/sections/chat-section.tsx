@@ -218,6 +218,9 @@ function AiMessageBubble({
   onSearchTerm: (term: string) => void;
   onFeedback: (messageId: string, helpful: boolean) => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const hasStructuredDetails = message.content.includes("**Significado**") || message.content.includes("### **");
+
   return (
     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%]">
       <Avatar className="h-8 w-8 shrink-0">
@@ -286,48 +289,63 @@ function AiMessageBubble({
           </div>
         )}
 
-        {/* Markdown content */}
-        <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <Markdown
-            components={{
-              p: ({ children }: { children?: ReactNode }) => (
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
-                  {children}
-                </p>
-              ),
-              strong: ({ children }: { children?: ReactNode }) => (
-                <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                  {children}
-                </strong>
-              ),
-              ul: ({ children }: { children?: ReactNode }) => (
-                <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ul>
-              ),
-              ol: ({ children }: { children?: ReactNode }) => (
-                <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
-                  {children}
-                </ol>
-              ),
-              li: ({ children }: { children?: ReactNode }) => (
-                <li className="text-sm">{children}</li>
-              ),
-              code: ({ children }: { children?: ReactNode }) => (
-                <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
-                  {children}
-                </code>
-              ),
-              blockquote: ({ children }: { children?: ReactNode }) => (
-                <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
-                  {children}
-                </blockquote>
-              ),
-            }}
-          >
-            {message.content}
-          </Markdown>
-        </div>
+        {hasStructuredDetails ? (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-900/40"
+            >
+              {showDetails ? "Ocultar detalhes" : "Ver detalhes"}
+            </button>
+            {showDetails ? (
+              <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <Markdown
+                  components={{
+                    p: ({ children }: { children?: ReactNode }) => (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-1.5 last:mb-0">
+                        {children}
+                      </p>
+                    ),
+                    strong: ({ children }: { children?: ReactNode }) => (
+                      <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                        {children}
+                      </strong>
+                    ),
+                    ul: ({ children }: { children?: ReactNode }) => (
+                      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }: { children?: ReactNode }) => (
+                      <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-0.5 my-1.5">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }: { children?: ReactNode }) => (
+                      <li className="text-sm">{children}</li>
+                    ),
+                    code: ({ children }: { children?: ReactNode }) => (
+                      <code className="rounded bg-gray-200 dark:bg-gray-700 px-1 py-0.5 text-xs font-mono text-emerald-700 dark:text-emerald-400">
+                        {children}
+                      </code>
+                    ),
+                    blockquote: ({ children }: { children?: ReactNode }) => (
+                      <blockquote className="border-l-2 border-emerald-500 pl-3 my-2 text-sm text-gray-600 dark:text-gray-400 italic">
+                        {children}
+                      </blockquote>
+                    ),
+                  }}
+                >
+                  {message.content}
+                </Markdown>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="prose prose-sm prose-gray dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            <Markdown>{message.content}</Markdown>
+          </div>
+        )}
 
         {/* Synonyms as clickable chips */}
         {message.data?.synonyms && message.data.synonyms.length > 0 && (
