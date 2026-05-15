@@ -17,6 +17,7 @@ describe("chat API response modes", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("single");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
   });
@@ -31,6 +32,7 @@ describe("chat API response modes", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("list");
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses.length).toBeGreaterThan(0);
   });
@@ -59,6 +61,7 @@ describe("chat API response modes", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("default");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
   });
@@ -69,6 +72,11 @@ describe("chat API response modes", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("single");
+    expect(json).toHaveProperty("response");
+    expect(json).not.toHaveProperty("responses");
+    expect(json).not.toHaveProperty("meaning");
+    expect(res.headers.get("x-api-warn")).toContain("deprecated");
     expect(json).toHaveProperty("response");
     expect(json).not.toHaveProperty("responses");
     expect(json).not.toHaveProperty("meaning");
@@ -84,6 +92,10 @@ describe("chat API response modes", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("list");
+    expect(Array.isArray(json.responses)).toBe(true);
+    expect(json.responses[0]).toBe("anterior");
+    expect(res.headers.get("x-api-warn")).toContain("deprecated");
     expect(Array.isArray(json.responses)).toBe(true);
     expect(json.responses[0]).toBe("anterior");
   });

@@ -994,6 +994,9 @@ export async function POST(request: NextRequest) {
       ));
     }
 
+    const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
+
+    if (responseMode !== undefined && usesLegacyFlags) {
     if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
@@ -1074,6 +1077,26 @@ export async function POST(request: NextRequest) {
         .filter((m) => m.role === "assistant")
         .map((m) => m.content);
 
+      const listRes = NextResponse.json({
+        mode: resolvedMode,
+        responses: [...priorAssistantResponses, response],
+      });
+      if (usesLegacyFlags) {
+        listRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+      }
+      return withSecurityHeaders(listRes);
+    }
+
+    if (resolvedMode === "single") {
+      const singleRes = NextResponse.json({ mode: resolvedMode, response });
+      if (usesLegacyFlags) {
+        singleRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+      }
+      return withSecurityHeaders(singleRes);
+    }
+
+    const defaultRes = NextResponse.json({
+      mode: resolvedMode,
       return withSecurityHeaders(NextResponse.json({
         responses: [...priorAssistantResponses, response],
       }));
@@ -1089,7 +1112,11 @@ export async function POST(request: NextRequest) {
       response,
       grounding,
       ...slangData,
-    }));
+    });
+    if (usesLegacyFlags) {
+      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
+    }
+    return withSecurityHeaders(defaultRes);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";
