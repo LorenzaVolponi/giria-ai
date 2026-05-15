@@ -210,6 +210,18 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
     let failed = 0;
     const concurrency = 4;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    for (let i = 0; i < pendingIds.length; i += concurrency) {
+      const chunk = pendingIds.slice(i, i + concurrency);
+      // eslint-disable-next-line no-await-in-loop
+      const chunkResults = await Promise.all(chunk.map(async (id) => {
+        let ok = await moderate(id, status);
+        if (!ok) {
+          await sleep(180);
+          ok = await moderate(id, status);
+        }
+        return { id, ok };
+      }));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
       // eslint-disable-next-line no-await-in-loop
