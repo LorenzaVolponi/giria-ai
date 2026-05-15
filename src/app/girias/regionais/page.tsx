@@ -38,13 +38,24 @@ export default function GiriasRegionaisPage() {
       <p className="mt-3 text-muted-foreground">
         Página dedicada às expressões regionais. Clique em uma gíria para ver significado, contexto e orientação.
       </p>
+      <nav className="mt-4 flex flex-wrap gap-2">
+        {regionOrder.map((region) => (
+          <a
+            key={`nav-${region}`}
+            href={`#regiao-${encodeURIComponent(region)}`}
+            className="rounded-full border px-3 py-1 text-xs hover:bg-muted"
+          >
+            {region}
+          </a>
+        ))}
+      </nav>
 
       <div className="mt-8 space-y-8">
         {regionOrder.map((region) => {
           const terms = grouped.get(region) ?? [];
           if (terms.length === 0) return null;
           return (
-            <section key={region} className="rounded-xl border p-4">
+            <section id={`regiao-${region}`} key={region} className="rounded-xl border p-4">
               <h2 className="text-xl font-semibold">{region}</h2>
               <p className="text-xs text-muted-foreground mt-1">{terms.length} gírias nesta região</p>
               <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -65,4 +76,3 @@ export default function GiriasRegionaisPage() {
     </main>
   );
 }
-
