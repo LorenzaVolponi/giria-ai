@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
+    "slang:scrape": "node scripts/slang-scraper.mjs --output data/slang-candidates.json --limit 12000",
     "ci:check": "npm run test -- tests/admin-login-api.test.ts tests/suggestion-pipeline.test.ts tests/suggestions-api.test.ts && npm run build"
   },
   "dependencies": {
@@ -67,6 +68,7 @@
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.13",
+    "otplib": "^12.0.1",
     "prisma": "^6.11.1",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",
@@ -76,6 +78,7 @@
     "react-resizable-panels": "^3.0.3",
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.4",
+    "redis": "^4.7.1",
     "sharp": "^0.34.3",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",

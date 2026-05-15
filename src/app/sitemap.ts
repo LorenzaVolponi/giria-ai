@@ -8,7 +8,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${site}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${site}/girias`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
+    { url: `${site}/girias/regionais`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${site}/girias/enviadas-por-usuarios`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
+    { url: `${site}/o-que-significa`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${site}/sobre`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 
@@ -18,6 +20,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly",
     priority: 0.8,
   }));
+  const intentRoutes: MetadataRoute.Sitemap = SLANG_DATA.slice(0, 2000).map((term) => ({
+    url: `${site}/o-que-significa/${encodeURIComponent(term.term)}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.75,
+  }));
 
-  return [...staticRoutes, ...slangRoutes];
+  return [...staticRoutes, ...slangRoutes, ...intentRoutes];
 }
