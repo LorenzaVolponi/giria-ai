@@ -216,7 +216,7 @@ function AiMessageBubble({
 }: {
   message: ChatMessage;
   onSearchTerm: (term: string) => void;
-  onFeedback: (messageId: string, helpful: boolean) => void;
+  onFeedback: (messageId: string, helpful: boolean, reason?: string) => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasStructuredDetails = message.content.includes("**Significado**") || message.content.includes("### **");
@@ -389,13 +389,13 @@ function AiMessageBubble({
           <div className="pt-1 flex items-center gap-2">
             <span className="text-[11px] text-gray-500 dark:text-gray-400">Essa resposta ajudou?</span>
             <button
-              onClick={() => onFeedback(message.id, true)}
+              onClick={() => onFeedback(message.id, true, "resposta_clara")}
               className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-emerald-50"
             >
               👍 Sim
             </button>
             <button
-              onClick={() => onFeedback(message.id, false)}
+              onClick={() => onFeedback(message.id, false, "nao_ajudou")}
               className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-rose-50"
             >
               👎 Não
@@ -659,14 +659,14 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     [onSearchTerm]
   );
 
-  const handleFeedback = useCallback(async (messageId: string, helpful: boolean) => {
+  const handleFeedback = useCallback(async (messageId: string, helpful: boolean, reason?: string) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, feedbackSent: true } : m))
     );
     await fetch("/api/chat/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ helpful }),
+      body: JSON.stringify({ helpful, reason }),
     }).catch(() => null);
   }, []);
 
