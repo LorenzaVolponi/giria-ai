@@ -378,7 +378,6 @@ function detectIntent(message: string): {
     dinheiro: "dinheiro|grana|money|rico|fortuna",
     esporte: "esporte|futebol|basquete|esports",
     redes_sociais: "redes sociais|tiktok|instagram|twitter|social",
-    "redes_sociais": "redes sociais|tiktok|instagram|twitter|social",
     elogio: "elogio|elogios|cumprimento|positivo",
     saudacao: "saudacao|saudacoes|cumprimento|oi|ola",
     zoeira: "zoeira|zoeiras|brincadeira|humor|piada",
@@ -764,12 +763,14 @@ export async function POST(request: NextRequest) {
       history,
       onlyChatResponse,
       listChatResponses,
+      responseMode,
     } = body as {
       messages?: Array<{ role: string; content: string }>;
       message?: string;
       history?: Array<{ role: string; content: string }>;
       onlyChatResponse?: boolean;
       listChatResponses?: boolean;
+      responseMode?: "default" | "single" | "list";
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -782,6 +783,27 @@ export async function POST(request: NextRequest) {
     if (history !== undefined && !Array.isArray(history)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`history` deve ser um array de mensagens." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`responseMode` deve ser: default, single ou list." },
+        { status: 400 }
+      ));
+    }
+
+    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
+        { status: 400 }
+      ));
+    }
+
+    if (onlyChatResponse === true && listChatResponses === true) {
+      return withSecurityHeaders(NextResponse.json(
+        { error: "`onlyChatResponse` e `listChatResponses` não podem ser true ao mesmo tempo." },
         { status: 400 }
       ));
     }
@@ -834,7 +856,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (listChatResponses === true) {
+    const resolvedMode =
+      responseMode ??
+      (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
+
+    if (resolvedMode === "list") {
       const priorAssistantResponses = recentHistory
         .filter((m) => m.role === "assistant")
         .map((m) => m.content);
@@ -844,7 +870,7 @@ export async function POST(request: NextRequest) {
       }));
     }
 
-    if (onlyChatResponse === true) {
+    if (resolvedMode === "single") {
       return withSecurityHeaders(NextResponse.json({ response }));
     }
 
