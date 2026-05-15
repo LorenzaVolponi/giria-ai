@@ -30,6 +30,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
+  const pageSize = 12;
+  const csrfToken = (() => {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)giria_admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  })();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
@@ -55,6 +61,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
+    setLoading(false);
+    if (!res?.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
     if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
@@ -113,6 +122,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
+    if (status === "rejected" && !reason) {
+      setBusyId(null);
+      return setMessage("Informe um motivo para rejeitar.");
+    }
+    const res = await fetch(`/api/v1/suggestions/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
@@ -240,6 +257,30 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     URL.revokeObjectURL(url);
   }
 
+  function exportFilteredCsv() {
+    const filtered = items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      });
+    const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
+    const rows = filtered.map((item) =>
+      [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
+        .map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="mt-8 rounded-lg border p-4">
       <h3 className="text-lg font-semibold">Moderação manual (admin)</h3>
@@ -254,6 +295,33 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         </select>
         <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
         <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
+      </div>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+      </div>
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+        <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
+        <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
+        <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
+      </div>
+      {summary ? (
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4">
+          <p className="rounded border p-2">Pendentes: <strong>{summary.pending}</strong></p>
+          <p className="rounded border p-2">Aprovadas: <strong>{summary.approved}</strong></p>
+          <p className="rounded border p-2">Rejeitadas: <strong>{summary.rejected}</strong></p>
+          <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex gap-2">
+        <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
+          {loading ? "Atualizando..." : "Atualizar sugestões"}
+        </button>
+        <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
+          Exportar CSV
+        </button>
+      </div>
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -337,6 +405,13 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+        return (
+          <>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {paged.map((item) => (
+          <li key={item.id} className="rounded border p-3">
+            <p className="font-medium">{item.term}</p>
         const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
         const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
 
@@ -370,6 +445,9 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
+            <div className="mt-3 flex gap-2">
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
@@ -379,6 +457,16 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
+              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+            />
+            {historyById[item.id]?.length ? (
+              <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
+                {historyById[item.id].slice(0, 3).map((h) => (
+                  <p key={`${h.status}-${h.at}`}>
+                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
+                    {h.reason ? ` · ${h.reason}` : ""}
+                  </p>
+                ))}
               placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (

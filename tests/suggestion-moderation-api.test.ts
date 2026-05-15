@@ -1,3 +1,9 @@
+import { describe, it, expect } from "vitest";
+import { NextRequest } from "next/server";
+import { PATCH } from "../src/app/api/v1/suggestions/[id]/route";
+
+describe("suggestion moderation API", () => {
+  it("requires reason for rejected status", async () => {
 import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -26,6 +32,9 @@ describe("suggestion moderation API", () => {
     });
 
     const res = await PATCH(req, { params: Promise.resolve({ id: "abc" }) });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("Motivo");
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.ok).toBe(true);
