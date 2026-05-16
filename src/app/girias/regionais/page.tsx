@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SLANG_DATA } from "@/lib/slang-data";
+import type { RiskLevel } from "@/lib/slang-data";
 
 export const metadata: Metadata = {
   title: "Gírias Regionais do Brasil | Gíria AI",
@@ -23,7 +24,7 @@ function normalizeRegionLabel(region: string): RegionKey {
 }
 
 interface Props {
-  searchParams?: Promise<{ uf?: string; q?: string }>;
+  searchParams?: Promise<{ uf?: string; q?: string; risk?: string }>;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
@@ -31,6 +32,9 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
   const query = (sp?.q || "").trim().toLowerCase();
   const queryReadable = (sp?.q || "").trim();
+  const riskValue = (sp?.risk || "").trim().toLowerCase();
+  const allowedRiskLevels: RiskLevel[] = ["green", "yellow", "orange", "red"];
+  const riskFilter = allowedRiskLevels.includes(riskValue as RiskLevel) ? (riskValue as RiskLevel) : "";
   const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
@@ -40,6 +44,11 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       const m = term.region.match(/\(([A-Z]{2})\)/);
       if (!m || m[1] !== ufFilter) continue;
     }
+    if (query) {
+      const haystack = `${term.term} ${term.meaning} ${term.region}`.toLowerCase();
+      if (!haystack.includes(query)) continue;
+    }
+    if (riskFilter && term.riskLevel !== riskFilter) continue;
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
