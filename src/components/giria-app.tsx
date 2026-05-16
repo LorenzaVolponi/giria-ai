@@ -56,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes" | "regionais";
 
 interface TranslationResult {
   term: string;
@@ -634,6 +634,12 @@ export default function GiriaApp() {
       id: "comunidade",
       label: "Comunidade",
       icon: <Users className="h-4 w-4" />,
+    },
+    {
+      id: "regionais",
+      label: "Regionais",
+      icon: <Globe className="h-4 w-4" />,
+      href: "/girias",
     },
     {
       id: "sugestoes",
