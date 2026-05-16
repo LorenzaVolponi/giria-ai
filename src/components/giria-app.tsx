@@ -56,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes" | "regionais";
 
 interface TranslationResult {
   term: string;
@@ -246,6 +246,8 @@ export default function GiriaApp() {
   const [translationResult, setTranslationResult] =
     useState<TranslationResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
+  const [pixFeedback, setPixFeedback] = useState<string | null>(null);
 
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(() => loadFavorites());
@@ -546,6 +548,34 @@ export default function GiriaApp() {
     []
   );
 
+  const handleCopyPix = useCallback(async () => {
+    const pixKey = "007aibr@gmail.com";
+    try {
+      await navigator.clipboard.writeText(pixKey);
+      setPixCopied(true);
+      setPixFeedback("Chave PIX copiada com sucesso.");
+      void fetch("/api/v1/visits", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "/sponsor/pix-copy" }),
+      }).catch(() => null);
+      setTimeout(() => setPixCopied(false), 1800);
+      setTimeout(() => setPixFeedback(null), 2400);
+    } catch {
+      setPixCopied(false);
+      setPixFeedback("Não foi possível copiar automaticamente.");
+      setTimeout(() => setPixFeedback(null), 2400);
+    }
+  }, []);
+
+  const handleSponsorClick = useCallback(() => {
+    void fetch("/api/v1/visits", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "/sponsor/pix-card" }),
+    }).catch(() => null);
+  }, []);
+
   // ---- Reset search ----
   const handleResetSearch = useCallback(() => {
     setSearchQuery("");
@@ -604,6 +634,12 @@ export default function GiriaApp() {
       id: "comunidade",
       label: "Comunidade",
       icon: <Users className="h-4 w-4" />,
+    },
+    {
+      id: "regionais",
+      label: "Regionais",
+      icon: <Globe className="h-4 w-4" />,
+      href: "/girias",
     },
     {
       id: "sugestoes",
@@ -1781,6 +1817,33 @@ export default function GiriaApp() {
       {/* Footer */}
       <footer className="mt-auto border-t border-emerald-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-gray-900 dark:to-gray-950 pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
+          >
+            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSponsorClick();
+                  void handleCopyPix();
+                }}
+                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                aria-label="Copiar chave PIX"
+              >
+                {pixCopied ? "Copiado!" : "Copiar chave"}
+              </button>
+            </div>
+            {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
+            <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
+              QR PIX
+            </div>
+          </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
           </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type SuggestionItem = {
   id: string;
@@ -27,12 +27,25 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [page, setPage] = useState(1);
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
+  const [windowSummary, setWindowSummary] = useState<{ dApproved: number; dRejected: number; wApproved: number; wRejected: number } | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastAction, setLastAction] = useState<{ id: string; fromStatus: SuggestionItem["status"]; toStatus: "approved" | "rejected"; snapshot: SuggestionItem } | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
+  const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function reloadPending() {
+    if (!mountedRef.current) return;
     setLoading(true);
     const statusParam = statusFilter === "all" ? "all" : statusFilter;
     const qs = new URLSearchParams({
@@ -43,11 +56,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
+    if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
-    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number } };
+    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number }; windowSummary?: { dApproved: number; dRejected: number; wApproved: number; wRejected: number } };
+    if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
+    setWindowSummary(data.windowSummary || null);
   }
 
   useEffect(() => {
@@ -70,6 +86,22 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+  }, [items]);
+
+
+  function statusBadge(status: SuggestionItem["status"]) {
+    if (status === "approved") return "Aprovada";
+    if (status === "rejected") return "Rejeitada";
+    return "Pendente";
+  }
+
+  function statusBadgeClass(status: SuggestionItem["status"]) {
+    if (status === "approved") return "bg-emerald-100 text-emerald-700";
+    if (status === "rejected") return "bg-rose-100 text-rose-700";
+    return "bg-amber-100 text-amber-700";
+  }
   async function loadHistory(id: string) {
     const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
@@ -77,35 +109,121 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected") {
-    if (!isAuthenticated) return setMessage("Faça login admin para moderar.");
+  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+    if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
     const reason = (rejectReasonById[id] || "").trim();
-    if (status === "rejected" && !reason) {
-      setBusyId(null);
-      return setMessage("Informe um motivo para rejeitar.");
-    }
+    const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, reason: status === "rejected" ? reason : undefined }),
+      body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
 
     setBusyId(null);
-    if (!res) return setMessage("Erro de rede ao moderar.");
+    if (!res) { setMessage("Erro de rede ao moderar."); return false; }
     if (res.status === 401) {
       setIsAuthenticated(false);
-      return setMessage("Sessão expirada. Faça login novamente.");
+      setMessage("Sessão expirada. Faça login novamente.");
+      return false;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setMessage(data?.error || "Falha ao moderar item.");
+      setMessage(data?.error || "Falha ao moderar item.");
+      setSessionStats((prev) => ({ ...prev, failed: prev.failed + 1 }));
+      return false;
     }
 
+    if (snapshot) setLastAction({ id, fromStatus: snapshot.status, toStatus: status, snapshot });
+    setItems((prev) => prev
+      .map((item) => (item.id === id ? { ...item, status } : item))
+      .filter((item) => statusFilter === "all" || item.status === statusFilter));
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: Math.max(0, prev.pending - 1),
+          approved: status === "approved" ? prev.approved + 1 : prev.approved,
+          rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+        }
+      : prev));
+    setRejectReasonById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setSessionStats((prev) => ({
+      ...prev,
+      approved: status === "approved" ? prev.approved + 1 : prev.approved,
+      rejected: status === "rejected" ? prev.rejected + 1 : prev.rejected,
+    }));
     setMessage(`Sugestão ${status === "approved" ? "aprovada" : "rejeitada"} com sucesso.`);
+    return true;
+  }
+
+  function undoLastAction() {
+    if (!lastAction) return;
+    const { id, snapshot } = lastAction;
+    setItems((prev) => {
+      const exists = prev.some((item) => item.id === id);
+      const next = exists ? prev.map((item) => (item.id === id ? snapshot : item)) : [snapshot, ...prev];
+      return next.filter((item) => statusFilter === "all" || item.status === statusFilter);
+    });
+    setSummary((prev) => (prev
+      ? {
+          ...prev,
+          pending: prev.pending + (snapshot.status === "pending" ? 1 : 0),
+          approved: Math.max(0, prev.approved - (lastAction.toStatus === "approved" ? 1 : 0)),
+          rejected: Math.max(0, prev.rejected - (lastAction.toStatus === "rejected" ? 1 : 0)),
+        }
+      : prev));
+    setMessage("Última ação desfeita localmente. Clique em Atualizar sugestões para sincronizar.");
+    setLastAction(null);
+  }
+
+  async function moderateBatch(status: "approved" | "rejected") {
+    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    if (!pendingIds.length) return;
+    const batchStart = performance.now();
+    setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
+    const concurrency = 4;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    for (let i = 0; i < pendingIds.length; i += concurrency) {
+      const chunk = pendingIds.slice(i, i + concurrency);
+      // eslint-disable-next-line no-await-in-loop
+      const chunkResults = await Promise.all(chunk.map(async (id) => {
+        let ok = await moderate(id, status);
+        if (!ok) {
+          await sleep(180);
+          ok = await moderate(id, status);
+        }
+        return { id, ok };
+      }));
+      failed += chunkResults.filter((r) => !r.ok).length;
+      setBatchProgress((prev) => ({ ...prev, done: Math.min(prev.total, prev.done + chunkResults.length), failed }));
+    }
+    setSelectedIds([]);
     await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    const elapsed = Math.round(performance.now() - batchStart);
+    setSessionStats((prev) => ({
+      ...prev,
+      batches: prev.batches + 1,
+      batchAvgMs: prev.batches === 0 ? elapsed : Math.round(((prev.batchAvgMs * prev.batches) + elapsed) / (prev.batches + 1)),
+    }));
+    setMessage(`Lote concluído: ${pendingIds.length - failed} sucesso(s), ${failed} falha(s).`);
+  }
+
+  function toggleSelectAllPage(pageIds: string[]) {
+    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds])));
+  }
+
+  function selectAllFiltered(filteredIds: string[]) {
+    setSelectedIds(Array.from(new Set(filteredIds)));
   }
 
   function exportFilteredCsv() {
@@ -164,61 +282,134 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <p className="rounded border p-2">Total: <strong>{summary.all}</strong></p>
         </div>
       ) : null}
+      {windowSummary ? (
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+          <p className="rounded border p-2">24h aprovadas: <strong>{windowSummary.dApproved}</strong></p>
+          <p className="rounded border p-2">24h rejeitadas: <strong>{windowSummary.dRejected}</strong></p>
+          <p className="rounded border p-2">7d aprovadas: <strong>{windowSummary.wApproved}</strong></p>
+          <p className="rounded border p-2">7d rejeitadas: <strong>{windowSummary.wRejected}</strong></p>
+        </div>
+      ) : null}
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
+        <p className="rounded border p-2">Aprovadas (sessão): <strong>{sessionStats.approved}</strong></p>
+        <p className="rounded border p-2">Rejeitadas (sessão): <strong>{sessionStats.rejected}</strong></p>
+        <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
+        <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
+      </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
           {loading ? "Atualizando..." : "Atualizar sugestões"}
         </button>
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={exportFilteredCsv}>
           Exportar CSV
         </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
+          Desfazer última ação
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("approved")}>
+          Aprovar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("rejected")}>
+          Rejeitar selecionadas
+        </button>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => setSelectedIds([])}>
+          Limpar seleção
+        </button>
       </div>
+
+      {batchProgress.running || batchProgress.done ? (
+        <div className="mt-2 rounded border p-2 text-xs text-muted-foreground">
+          <p>Lote: {batchProgress.done}/{batchProgress.total} processadas · falhas: {batchProgress.failed}</p>
+          <div className="mt-1 h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${batchProgress.total ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       {(() => {
+        const termFrequency = new Map<string, number>();
+        for (const item of items) {
+          const key = item.term.toLowerCase();
+          termFrequency.set(key, (termFrequency.get(key) || 0) + 1);
+        }
+
         const filtered = items
           .filter((item) => item.score >= minScore)
           .filter((item) => {
             const q = termQuery.trim().toLowerCase();
             if (!q) return true;
             return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+          })
+          .sort((a, b) => {
+            const aTermFreq = termFrequency.get(a.term.toLowerCase()) || 0;
+            const bTermFreq = termFrequency.get(b.term.toLowerCase()) || 0;
+            const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
+            return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
           });
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+        const pendingPagedIds = paged.filter((item) => item.status === "pending").map((item) => item.id);
+        const pendingFilteredIds = filtered.filter((item) => item.status === "pending").map((item) => item.id);
 
         return (
           <>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+        <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
+        <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
+        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
+      </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
-          <li key={item.id} className="rounded border p-3">
-            <p className="font-medium">{item.term}</p>
+          <li key={item.id} className="rounded border p-3 transition-all duration-200">
+            <div className="flex items-start justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  disabled={item.status !== "pending"}
+                  onChange={(e) => setSelectedIds((prev) => e.target.checked ? Array.from(new Set([...prev, item.id])) : prev.filter((x) => x !== item.id))}
+                />
+                Selecionar
+              </label>
+              <span className={`rounded px-2 py-0.5 text-[11px] ${statusBadgeClass(item.status)}`}>{statusBadge(item.status)}</span>
+            </div>
+            <p className="font-medium mt-2">{item.term}</p>
             <p className="text-sm text-muted-foreground mt-1">{item.meaning}</p>
             {item.context ? <p className="text-xs text-muted-foreground mt-1">Contexto: {item.context}</p> : null}
             <p className="text-xs text-muted-foreground mt-2">{item.submitterName} · score {item.score.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
-            <div className="mt-3 flex gap-2">
-              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
-              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
+              <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>
               <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void loadHistory(item.id)}>Histórico</button>
             </div>
             <input
               className="mt-2 w-full rounded border p-2 text-xs"
               value={rejectReasonById[item.id] || ""}
               onChange={(e) => setRejectReasonById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-              placeholder="Motivo da rejeição (obrigatório para rejeitar)"
+              placeholder="Motivo da rejeição (opcional)"
             />
             {historyById[item.id]?.length ? (
               <div className="mt-2 rounded border p-2 text-[11px] text-muted-foreground">
-                {historyById[item.id].slice(0, 3).map((h) => (
-                  <p key={`${h.status}-${h.at}`}>
-                    {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {h.status}
-                    {h.reason ? ` · ${h.reason}` : ""}
-                  </p>
-                ))}
+                {historyById[item.id].slice(0, 3).map((h, idx, arr) => {
+                  const previous = arr[idx + 1];
+                  return (
+                    <p key={`${h.status}-${h.at}`}>
+                      {new Date(h.at).toLocaleString("pt-BR")} · {h.actor} · {previous ? `${previous.status} → ` : ""}{h.status}
+                      {h.reason ? ` · ${h.reason}` : ""}
+                    </p>
+                  );
+                })}
               </div>
             ) : null}
           </li>
