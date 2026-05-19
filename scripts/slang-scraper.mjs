@@ -98,9 +98,10 @@ async function sleep(ms) {
 async function fetchJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
   let lastError = null;
   for (let attempt = 1; attempt <= 5; attempt++) {
+    let timeout;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      timeout = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch(url, {
         headers: {
           "user-agent": "giria-ai-scraper/2.0 (+https://example.local)",
@@ -108,12 +109,13 @@ async function fetchJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
         },
         signal: controller.signal,
       });
-      clearTimeout(timeout);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       return await res.json();
     } catch (error) {
       lastError = error;
       await sleep(250 * 2 ** attempt);
+    } finally {
+      if (timeout) clearTimeout(timeout);
     }
   }
   throw lastError ?? new Error(`fetch failed for ${url}`);
@@ -123,6 +125,7 @@ async function runPool(items, worker, concurrency) {
   const queue = [...items];
   const outputs = [];
   let failureCount = 0;
+  const errors = [];
   const workers = Array.from({ length: concurrency }, async () => {
     while (queue.length > 0) {
       const next = queue.shift();
@@ -132,11 +135,12 @@ async function runPool(items, worker, concurrency) {
         if (Array.isArray(value)) outputs.push(...value);
       } catch (error) {
         failureCount += 1;
+        if (errors.length < 5) errors.push(error?.message ?? String(error));
       }
     }
   });
   await Promise.all(workers);
-  return { outputs, failureCount };
+  return { outputs, failureCount, errors };
 }
 
 function mapUrbanList(list, source) {
@@ -151,7 +155,7 @@ function mapUrbanList(list, source) {
 
 async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
   const indexes = Array.from({ length: pages }, (_, i) => i + 1);
-  const { outputs, failureCount } = await runPool(
+  const { outputs, failureCount, errors } = await runPool(
     indexes,
     async () => {
       const json = await fetchJson("https://api.urbandictionary.com/v0/random", timeoutMs);
@@ -161,11 +165,11 @@ async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
     concurrency
   );
   if (failureCount > 0) console.warn(`[scraper] urban-define pool failures: ${failureCount}`);
-  return outputs;
+  return { rows: outputs, meta: { name: "urban-define", failureCount, sampleErrors: errors } };
 }
 
 async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
-  const { outputs, failureCount } = await runPool(
+  const { outputs, failureCount, errors } = await runPool(
     seedTerms,
     async (seed) => {
       const url = `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(seed)}`;
@@ -179,7 +183,7 @@ async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
     concurrency
   );
   if (failureCount > 0) console.warn(`[scraper] urban-random pool failures: ${failureCount}`);
-  return outputs;
+  return { rows: outputs, meta: { name: "urban-random", failureCount, sampleErrors: errors } };
 }
 
 async function scrapePtBrOpenGlossary(timeoutMs) {
@@ -198,7 +202,7 @@ async function scrapePtBrOpenGlossary(timeoutMs) {
       });
     }
   }
-  return rows;
+  return { rows, meta: { name: "datamuse-pt", failureCount: 0, sampleErrors: [] } };
 }
 
 async function scrapeWiktionaryPtSeed(timeoutMs) {
@@ -216,6 +220,19 @@ async function scrapeWiktionaryPtSeed(timeoutMs) {
         region: "Brasil",
         category: seed === "regionalismo" ? "regional" : "outros",
       });
+    }
+  }
+  return { rows, meta: { name: "wiktionary-pt", failureCount: 0, sampleErrors: [] } };
+}
+
+
+function expandFallback(limit) {
+  const suffixes = ["", " demais", " total", " memo", " raiz", " br"];
+  const rows = [];
+  for (const [term, meaning] of FALLBACK_GIRIAS) {
+    for (const suffix of suffixes) {
+      rows.push({ term: `${term}${suffix}`.trim(), meaning, source: "fallback-local", region: "Brasil", category: "outros" });
+      if (rows.length >= limit) return rows;
     }
   }
   return rows;
@@ -282,8 +299,10 @@ async function main() {
 
   for (const item of chunks) {
     if (item.status === "fulfilled") {
-      all.push(...item.value);
-      collectorStatus.push({ status: "ok", count: item.value.length });
+      const rows = Array.isArray(item.value?.rows) ? item.value.rows : [];
+      const meta = item.value?.meta ?? {};
+      all.push(...rows);
+      collectorStatus.push({ status: "ok", collector: meta.name ?? "unknown", count: rows.length, failureCount: meta.failureCount ?? 0, sampleErrors: meta.sampleErrors ?? [] });
     } else {
       collectorStatus.push({ status: "failed", reason: item.reason?.message ?? String(item.reason) });
       console.warn("[scraper] collector failed:", item.reason?.message ?? item.reason);
@@ -292,13 +311,7 @@ async function main() {
 
   const withFallback = all.length > 0
     ? all
-    : FALLBACK_GIRIAS.map(([term, meaning]) => ({
-        term,
-        meaning,
-        source: "fallback-local",
-        region: "Brasil",
-        category: "outros",
-      }));
+    : expandFallback(Math.max(limit, 500));
 
   const sanitized = sanitizeCandidates(withFallback, minScore).slice(0, limit);
   if (strictFail && all.length === 0) {
