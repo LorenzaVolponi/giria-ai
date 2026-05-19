@@ -13,8 +13,42 @@ type RegionKey = "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul" | "Br
 
 const regionOrder: RegionKey[] = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul", "Brasil"];
 
+const ufToRegion: Record<string, RegionKey> = {
+  AC: "Norte",
+  AP: "Norte",
+  AM: "Norte",
+  PA: "Norte",
+  RO: "Norte",
+  RR: "Norte",
+  TO: "Norte",
+  AL: "Nordeste",
+  BA: "Nordeste",
+  CE: "Nordeste",
+  MA: "Nordeste",
+  PB: "Nordeste",
+  PE: "Nordeste",
+  PI: "Nordeste",
+  RN: "Nordeste",
+  SE: "Nordeste",
+  DF: "Centro-Oeste",
+  GO: "Centro-Oeste",
+  MT: "Centro-Oeste",
+  MS: "Centro-Oeste",
+  ES: "Sudeste",
+  MG: "Sudeste",
+  RJ: "Sudeste",
+  SP: "Sudeste",
+  PR: "Sul",
+  RS: "Sul",
+  SC: "Sul",
+};
+
 function normalizeRegionLabel(region: string): RegionKey {
   const r = region.toLowerCase();
+  const ufMatch = region.toUpperCase().match(/\b([A-Z]{2})\b|\(([A-Z]{2})\)/);
+  const uf = ufMatch?.[1] ?? ufMatch?.[2] ?? null;
+
+  if (uf && ufToRegion[uf]) return ufToRegion[uf];
   if (r.includes("norte")) return "Norte";
   if (r.includes("nordeste")) return "Nordeste";
   if (r.includes("centro-oeste") || r.includes("centro oeste")) return "Centro-Oeste";
