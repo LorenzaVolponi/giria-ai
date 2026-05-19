@@ -12,6 +12,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_LIMIT = 12_000;
 const DEFAULT_UD_PAGES = 120;
@@ -65,6 +66,7 @@ function parseArgsFrom(args = process.argv.slice(2)) {
     concurrency: DEFAULT_CONCURRENCY,
     minScore: 0.5,
     timeoutMs: DEFAULT_TIMEOUT_MS,
+    strictFail: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -74,6 +76,7 @@ function parseArgsFrom(args = process.argv.slice(2)) {
     else if (args[i] === "--concurrency") out.concurrency = Number(args[++i] ?? DEFAULT_CONCURRENCY);
     else if (args[i] === "--min-score") out.minScore = Number(args[++i] ?? 0.5);
     else if (args[i] === "--timeout-ms") out.timeoutMs = Number(args[++i] ?? DEFAULT_TIMEOUT_MS);
+    else if (args[i] === "--strict-fail") out.strictFail = true;
   }
 
   out.limit = Number.isFinite(out.limit) ? Math.max(100, Math.floor(out.limit)) : DEFAULT_LIMIT;
@@ -83,6 +86,7 @@ function parseArgsFrom(args = process.argv.slice(2)) {
     : DEFAULT_CONCURRENCY;
   out.minScore = Number.isFinite(out.minScore) ? Math.min(0.99, Math.max(0.1, out.minScore)) : 0.5;
   out.timeoutMs = Number.isFinite(out.timeoutMs) ? Math.min(60_000, Math.max(3_000, Math.floor(out.timeoutMs))) : DEFAULT_TIMEOUT_MS;
+  out.strictFail = Boolean(out.strictFail);
 
   return out;
 }
@@ -118,6 +122,7 @@ async function fetchJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
 async function runPool(items, worker, concurrency) {
   const queue = [...items];
   const outputs = [];
+  let failureCount = 0;
   const workers = Array.from({ length: concurrency }, async () => {
     while (queue.length > 0) {
       const next = queue.shift();
@@ -126,12 +131,12 @@ async function runPool(items, worker, concurrency) {
         const value = await worker(next);
         if (Array.isArray(value)) outputs.push(...value);
       } catch (error) {
-        // keep pool resilient and continue processing remaining jobs
+        failureCount += 1;
       }
     }
   });
   await Promise.all(workers);
-  return outputs;
+  return { outputs, failureCount };
 }
 
 function mapUrbanList(list, source) {
@@ -146,7 +151,7 @@ function mapUrbanList(list, source) {
 
 async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
   const indexes = Array.from({ length: pages }, (_, i) => i + 1);
-  return runPool(
+  const { outputs, failureCount } = await runPool(
     indexes,
     async () => {
       const json = await fetchJson("https://api.urbandictionary.com/v0/random", timeoutMs);
@@ -155,10 +160,12 @@ async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
     },
     concurrency
   );
+  if (failureCount > 0) console.warn(`[scraper] urban-define pool failures: ${failureCount}`);
+  return outputs;
 }
 
 async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
-  return runPool(
+  const { outputs, failureCount } = await runPool(
     seedTerms,
     async (seed) => {
       const url = `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(seed)}`;
@@ -171,6 +178,8 @@ async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
     },
     concurrency
   );
+  if (failureCount > 0) console.warn(`[scraper] urban-random pool failures: ${failureCount}`);
+  return outputs;
 }
 
 async function scrapePtBrOpenGlossary(timeoutMs) {
@@ -246,7 +255,7 @@ function sanitizeCandidates(rows, minScore = 0.5) {
 }
 
 async function main() {
-  const { output, limit, udPages, concurrency, minScore, timeoutMs } = parseArgsFrom();
+  const { output, limit, udPages, concurrency, minScore, timeoutMs, strictFail } = parseArgsFrom();
   const udSeedTerms = [
     "giria",
     "meme",
@@ -292,11 +301,16 @@ async function main() {
       }));
 
   const sanitized = sanitizeCandidates(withFallback, minScore).slice(0, limit);
+  if (strictFail && all.length === 0) {
+    throw new Error("strict fail enabled: all collectors returned no data");
+  }
+
   const payload = {
     generatedAt: new Date().toISOString(),
     requestedLimit: limit,
     minScore,
     timeoutMs,
+    strictFail,
     count: sanitized.length,
     collectorStatus,
     queueSummary: {
@@ -332,7 +346,7 @@ async function main() {
   console.log(`[scraper] wrote ${sanitized.length} candidates to ${abs}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => {
     console.error("[scraper] fatal:", err);
     process.exit(1);

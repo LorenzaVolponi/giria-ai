@@ -23,6 +23,13 @@ describe("slang-scraper helpers", () => {
     expect(parsed.timeoutMs).toBe(3000);
   });
 
+
+
+  it("enables strict fail mode", () => {
+    const parsed = parseArgsFrom(["--strict-fail"]);
+    expect(parsed.strictFail).toBe(true);
+  });
+
   it("filters and sorts candidates by quality score", () => {
     const rows = [
       { term: "bora", meaning: "vamos agora", source: "wiktionary-pt-seed", region: "Brasil", category: "outros" },
