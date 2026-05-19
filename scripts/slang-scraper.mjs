@@ -16,6 +16,7 @@ import path from "node:path";
 const DEFAULT_LIMIT = 12_000;
 const DEFAULT_UD_PAGES = 120;
 const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_TIMEOUT_MS = 12_000;
 
 const SOURCE_RELIABILITY = {
   "urbandictionary-random": 0.45,
@@ -63,6 +64,8 @@ function parseArgs() {
     limit: DEFAULT_LIMIT,
     udPages: DEFAULT_UD_PAGES,
     concurrency: DEFAULT_CONCURRENCY,
+    minScore: 0.5,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -70,6 +73,8 @@ function parseArgs() {
     else if (args[i] === "--limit") out.limit = Number(args[++i] ?? DEFAULT_LIMIT);
     else if (args[i] === "--ud-pages") out.udPages = Number(args[++i] ?? DEFAULT_UD_PAGES);
     else if (args[i] === "--concurrency") out.concurrency = Number(args[++i] ?? DEFAULT_CONCURRENCY);
+    else if (args[i] === "--min-score") out.minScore = Number(args[++i] ?? 0.5);
+    else if (args[i] === "--timeout-ms") out.timeoutMs = Number(args[++i] ?? DEFAULT_TIMEOUT_MS);
   }
 
   out.limit = Number.isFinite(out.limit) ? Math.max(100, Math.floor(out.limit)) : DEFAULT_LIMIT;
@@ -77,6 +82,8 @@ function parseArgs() {
   out.concurrency = Number.isFinite(out.concurrency)
     ? Math.min(20, Math.max(1, Math.floor(out.concurrency)))
     : DEFAULT_CONCURRENCY;
+  out.minScore = Number.isFinite(out.minScore) ? Math.min(0.99, Math.max(0.1, out.minScore)) : 0.5;
+  out.timeoutMs = Number.isFinite(out.timeoutMs) ? Math.min(60_000, Math.max(3_000, Math.floor(out.timeoutMs))) : DEFAULT_TIMEOUT_MS;
 
   return out;
 }
@@ -85,16 +92,20 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
   let lastError = null;
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch(url, {
         headers: {
           "user-agent": "giria-ai-scraper/2.0 (+https://example.local)",
           accept: "application/json,text/plain,*/*",
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       return await res.json();
     } catch (error) {
@@ -112,8 +123,12 @@ async function runPool(items, worker, concurrency) {
     while (queue.length > 0) {
       const next = queue.shift();
       if (next === undefined) break;
-      const value = await worker(next);
-      if (Array.isArray(value)) outputs.push(...value);
+      try {
+        const value = await worker(next);
+        if (Array.isArray(value)) outputs.push(...value);
+      } catch (error) {
+        // keep pool resilient and continue processing remaining jobs
+      }
     }
   });
   await Promise.all(workers);
@@ -130,12 +145,12 @@ function mapUrbanList(list, source) {
   }));
 }
 
-async function scrapeUrbanDictionaryRandom(pages, concurrency) {
+async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
   const indexes = Array.from({ length: pages }, (_, i) => i + 1);
   return runPool(
     indexes,
     async () => {
-      const json = await fetchJson("https://api.urbandictionary.com/v0/random");
+      const json = await fetchJson("https://api.urbandictionary.com/v0/random", timeoutMs);
       const list = Array.isArray(json?.list) ? json.list : [];
       return mapUrbanList(list, "urbandictionary-random");
     },
@@ -143,12 +158,12 @@ async function scrapeUrbanDictionaryRandom(pages, concurrency) {
   );
 }
 
-async function scrapeUrbanDictionaryDefined(seedTerms, concurrency) {
+async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
   return runPool(
     seedTerms,
     async (seed) => {
       const url = `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(seed)}`;
-      const json = await fetchJson(url);
+      const json = await fetchJson(url, timeoutMs);
       const list = Array.isArray(json?.list) ? json.list : [];
       return mapUrbanList(list, "urbandictionary-defined").map((row) => ({
         ...row,
@@ -159,12 +174,12 @@ async function scrapeUrbanDictionaryDefined(seedTerms, concurrency) {
   );
 }
 
-async function scrapePtBrOpenGlossary() {
+async function scrapePtBrOpenGlossary(timeoutMs) {
   const seeds = ["gíria", "meme", "tiktok", "funk", "regional", "streamer", "internet", "favela"];
   const rows = [];
   for (const seed of seeds) {
     const url = `https://api.datamuse.com/words?ml=${encodeURIComponent(seed)}&max=1000&v=pt`;
-    const json = await fetchJson(url);
+    const json = await fetchJson(url, timeoutMs);
     for (const item of json) {
       rows.push({
         term: String(item.word ?? "").trim(),
@@ -178,12 +193,12 @@ async function scrapePtBrOpenGlossary() {
   return rows;
 }
 
-async function scrapeWiktionaryPtSeed() {
+async function scrapeWiktionaryPtSeed(timeoutMs) {
   const seeds = ["gíria", "regionalismo", "internet", "Brasil", "juventude"];
   const rows = [];
   for (const seed of seeds) {
     const url = `https://pt.wiktionary.org/w/api.php?action=opensearch&search=${encodeURIComponent(seed)}&limit=500&namespace=0&format=json&origin=*`;
-    const json = await fetchJson(url);
+    const json = await fetchJson(url, timeoutMs);
     const titles = Array.isArray(json?.[1]) ? json[1] : [];
     for (const title of titles) {
       rows.push({
@@ -198,7 +213,7 @@ async function scrapeWiktionaryPtSeed() {
   return rows;
 }
 
-function sanitizeCandidates(rows) {
+function sanitizeCandidates(rows, minScore = 0.5) {
   const map = new Map();
   for (const row of rows) {
     const term = String(row.term ?? "").trim();
@@ -226,11 +241,13 @@ function sanitizeCandidates(rows) {
       });
     }
   }
-  return [...map.values()];
+  return [...map.values()]
+    .filter((row) => row.qualityScore >= minScore)
+    .sort((a, b) => b.qualityScore - a.qualityScore || a.term.localeCompare(b.term, "pt-BR"));
 }
 
 async function main() {
-  const { output, limit, udPages, concurrency } = parseArgs();
+  const { output, limit, udPages, concurrency, minScore, timeoutMs } = parseArgs();
   const udSeedTerms = [
     "giria",
     "meme",
@@ -245,10 +262,10 @@ async function main() {
   ];
 
   const collectors = [
-    () => scrapeUrbanDictionaryRandom(udPages, concurrency),
-    () => scrapeUrbanDictionaryDefined(udSeedTerms, concurrency),
-    scrapePtBrOpenGlossary,
-    scrapeWiktionaryPtSeed,
+    () => scrapeUrbanDictionaryRandom(udPages, concurrency, timeoutMs),
+    () => scrapeUrbanDictionaryDefined(udSeedTerms, concurrency, timeoutMs),
+    () => scrapePtBrOpenGlossary(timeoutMs),
+    () => scrapeWiktionaryPtSeed(timeoutMs),
   ];
 
   const chunks = await Promise.allSettled(collectors.map((fn) => fn()));
@@ -275,10 +292,12 @@ async function main() {
         category: "outros",
       }));
 
-  const sanitized = sanitizeCandidates(withFallback).slice(0, limit);
+  const sanitized = sanitizeCandidates(withFallback, minScore).slice(0, limit);
   const payload = {
     generatedAt: new Date().toISOString(),
     requestedLimit: limit,
+    minScore,
+    timeoutMs,
     count: sanitized.length,
     collectorStatus,
     queueSummary: {
