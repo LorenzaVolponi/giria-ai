@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSessionResponse } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 import { appendAdminAudit } from "@/lib/admin-audit";
-import { authenticator } from "otplib";
 
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN || "admin007";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin007";
 const ADMIN_CODES = new Set((process.env.ADMIN_CODES || "6390,5109").split(",").map((x) => x.trim()).filter(Boolean));
-const ADMIN_TOTP_SECRET = (process.env.ADMIN_TOTP_SECRET || "").trim();
 const loginAttempts = new Map<string, { count: number; blockedUntil?: number }>();
 
 function getIpKey(request: NextRequest) {
@@ -23,14 +21,6 @@ export async function POST(request: NextRequest) {
     return withSecurityHeaders(NextResponse.json({ error: "Muitas tentativas. Aguarde alguns minutos." }, { status: 429 }));
   }
 
-  const body = (await request.json().catch(() => ({}))) as { login?: string; password?: string; code?: string; totp?: string };
-  const login = (body.login || "").trim();
-  const password = (body.password || "").trim();
-  const code = (body.code || "").trim();
-  const totp = (body.totp || "").trim();
-  const validTotp = ADMIN_TOTP_SECRET ? authenticator.check(totp, ADMIN_TOTP_SECRET) : true;
-
-  if (login !== ADMIN_LOGIN || password !== ADMIN_PASSWORD || !ADMIN_CODES.has(code) || !validTotp) {
   const body = (await request.json().catch(() => ({}))) as { login?: string; password?: string; code?: string };
   const login = (body.login || "").trim();
   const password = (body.password || "").trim();
