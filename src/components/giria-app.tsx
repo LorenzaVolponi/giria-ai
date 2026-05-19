@@ -56,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes" | "regionais";
 
 interface TranslationResult {
   term: string;
@@ -279,7 +279,10 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
-    void loadCommunity();
+    const id = setTimeout(() => {
+      void loadCommunity();
+    }, 0);
+    return () => clearTimeout(id);
   }, [loadCommunity]);
 
   useEffect(() => {
@@ -641,6 +644,12 @@ export default function GiriaApp() {
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",
     },
+    {
+      id: "regionais",
+      label: "Regionais",
+      icon: <Globe className="h-4 w-4" />,
+      href: "/girias/regionais",
+    },
     { id: "sobre", label: "Sobre", icon: <Shield className="h-4 w-4" /> },
   ];
 
@@ -754,6 +763,9 @@ export default function GiriaApp() {
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto">
           Digite uma gíria ou frase e receba a tradução objetiva
+        </p>
+        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+          Quer regionalismos? Acesse <Link href="/girias/regionais" className="underline font-medium">Gírias Regionais no menu</Link>.
         </p>
       </div>
 

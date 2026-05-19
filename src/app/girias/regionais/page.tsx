@@ -109,11 +109,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             Busca ativa por <strong>&ldquo;{queryReadable}&rdquo;</strong>.
           </p>
         ) : null}
-        {riskFilter ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Filtro de risco ativo: <strong>{riskFilter}</strong>.
-          </p>
-        ) : null}
       </section>
 
       <div className="mt-8 space-y-8">

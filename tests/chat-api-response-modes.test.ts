@@ -105,8 +105,13 @@ describe("chat API response modes", () => {
   });
 
   it("does not send deprecation headers when using responseMode", async () => {
-    const req = makeRequest({ message: "oi", responseMode: "single" });
+    const req = makeRequest({
+      message: "oi",
+      responseMode: "list",
+      history: [{ role: "assistant", content: "anterior" }],
+    });
     const res = await chatPost(req);
+    const json = await res.json();
     expect(res.status).toBe(200);
     expect(res.headers.get("x-api-warn")).toBeNull();
     expect(res.headers.get("deprecation")).toBeNull();
