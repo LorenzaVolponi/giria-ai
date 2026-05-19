@@ -540,18 +540,40 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
-  // Auto-scroll to bottom on new messages
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    if (!scrollRef.current) return;
+    const viewport = scrollRef.current.querySelector(
+      "[data-slot='scroll-area-viewport']"
+    ) as HTMLElement | null;
+    if (!viewport) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+  }, []);
+
+  // Auto-scroll to bottom on new messages only when user is already near the end
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector(
-        "[data-slot='scroll-area-viewport']"
-      );
-      if (viewport) {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-      }
-    }
-  }, [messages, isLoading]);
+    if (!isNearBottom) return;
+    scrollToBottom("smooth");
+  }, [messages, isLoading, isNearBottom, scrollToBottom]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const viewport = scrollRef.current.querySelector(
+      "[data-slot='scroll-area-viewport']"
+    ) as HTMLElement | null;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      setIsNearBottom(distanceFromBottom < 96);
+    };
+
+    handleScroll();
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [messages.length]);
 
   // Focus input on mount
   useEffect(() => {
@@ -733,6 +755,21 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
               {isLoading && <TypingIndicator />}
             </div>
           </ScrollArea>
+          {!isNearBottom ? (
+            <div className="px-4 pb-2">
+              <div className="max-w-3xl mx-auto flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => scrollToBottom("smooth")}
+                  className="rounded-full"
+                >
+                  Voltar para o fim
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <div
             className={cn(
@@ -764,6 +801,9 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
                     "text-sm"
                   )}
                 />
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 px-1">
+                  Enter para enviar{input.length > 0 ? ` • ${input.length} caracteres` : ""}
+                </p>
               </div>
               <Button
                 type="submit"

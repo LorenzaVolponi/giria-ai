@@ -70,7 +70,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!ok) return;
     void reloadDashboard(metricsWindow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -80,7 +79,6 @@ export default function AdminPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password, code, totp }),
-      body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
       setMessage("Login inválido.");
