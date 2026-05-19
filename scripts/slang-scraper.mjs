@@ -12,13 +12,41 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_LIMIT = 12_000;
+const DEFAULT_UD_PAGES = 120;
+const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_TIMEOUT_MS = 12_000;
+
 const SOURCE_RELIABILITY = {
   "urbandictionary-random": 0.45,
+  "urbandictionary-defined": 0.56,
   "datamuse-pt-seed": 0.6,
   "wiktionary-pt-seed": 0.75,
+  "fallback-local": 0.4,
 };
+
+
+const FALLBACK_GIRIAS = [
+  ["bora", "vamos"],
+  ["suave", "tranquilo"],
+  ["brabo", "muito bom"],
+  ["papo reto", "verdade sem enrolação"],
+  ["deu ruim", "não deu certo"],
+  ["partiu", "vamos agora"],
+  ["resenha", "conversa divertida"],
+  ["tá osso", "situação difícil"],
+  ["desenrolar", "resolver com conversa"],
+  ["tô liso", "sem dinheiro"],
+];
+
+const BLOCKED_PATTERNS = [
+  /^[a-z]$/i,
+  /^https?:\/\//i,
+  /\b(?:sexo explicito|porn|xvideos|xnxx)\b/i,
+  /\b(?:nazi|hitler)\b/i,
+];
 
 function normalize(text) {
   return text
@@ -30,79 +58,159 @@ function normalize(text) {
     .trim();
 }
 
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const out = { output: "data/slang-candidates.json", limit: DEFAULT_LIMIT };
+function parseArgsFrom(args = process.argv.slice(2)) {
+  const out = {
+    output: "data/slang-candidates.json",
+    limit: DEFAULT_LIMIT,
+    udPages: DEFAULT_UD_PAGES,
+    concurrency: DEFAULT_CONCURRENCY,
+    minScore: 0.5,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    strictFail: false,
+  };
+
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--output") out.output = args[++i];
     else if (args[i] === "--limit") out.limit = Number(args[++i] ?? DEFAULT_LIMIT);
+    else if (args[i] === "--ud-pages") out.udPages = Number(args[++i] ?? DEFAULT_UD_PAGES);
+    else if (args[i] === "--concurrency") out.concurrency = Number(args[++i] ?? DEFAULT_CONCURRENCY);
+    else if (args[i] === "--min-score") out.minScore = Number(args[++i] ?? 0.5);
+    else if (args[i] === "--timeout-ms") out.timeoutMs = Number(args[++i] ?? DEFAULT_TIMEOUT_MS);
+    else if (args[i] === "--strict-fail") out.strictFail = true;
   }
+
+  out.limit = Number.isFinite(out.limit) ? Math.max(100, Math.floor(out.limit)) : DEFAULT_LIMIT;
+  out.udPages = Number.isFinite(out.udPages) ? Math.max(1, Math.floor(out.udPages)) : DEFAULT_UD_PAGES;
+  out.concurrency = Number.isFinite(out.concurrency)
+    ? Math.min(20, Math.max(1, Math.floor(out.concurrency)))
+    : DEFAULT_CONCURRENCY;
+  out.minScore = Number.isFinite(out.minScore) ? Math.min(0.99, Math.max(0.1, out.minScore)) : 0.5;
+  out.timeoutMs = Number.isFinite(out.timeoutMs) ? Math.min(60_000, Math.max(3_000, Math.floor(out.timeoutMs))) : DEFAULT_TIMEOUT_MS;
+  out.strictFail = Boolean(out.strictFail);
+
   return out;
 }
 
-async function fetchJson(url) {
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    let timeout;
     try {
+      const controller = new AbortController();
+      timeout = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch(url, {
         headers: {
-          "user-agent": "giria-ai-scraper/1.0 (+https://example.local)",
+          "user-agent": "giria-ai-scraper/2.0 (+https://example.local)",
           accept: "application/json,text/plain,*/*",
         },
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return res.json();
+      return await res.json();
     } catch (error) {
       lastError = error;
-      await new Promise((r) => setTimeout(r, attempt * 400));
+      await sleep(250 * 2 ** attempt);
+    } finally {
+      if (timeout) clearTimeout(timeout);
     }
   }
   throw lastError ?? new Error(`fetch failed for ${url}`);
 }
 
-async function scrapeUrbanDictionaryPtLike() {
-  // Public endpoint compatible with dictionary-like payloads.
-  const url = "https://api.urbandictionary.com/v0/random";
-  const chunks = [];
-  for (let i = 0; i < 20; i++) {
-    const json = await fetchJson(url);
-    const list = Array.isArray(json?.list) ? json.list : [];
-    chunks.push(...list.map((row) => ({
-      term: String(row.word ?? "").trim(),
-      meaning: String(row.definition ?? "").trim().slice(0, 500),
-      source: "urbandictionary-random",
-      region: "internet/global",
-      category: "internet",
-    })));
-  }
-  return chunks;
+async function runPool(items, worker, concurrency) {
+  const queue = [...items];
+  const outputs = [];
+  let failureCount = 0;
+  const errors = [];
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (next === undefined) break;
+      try {
+        const value = await worker(next);
+        if (Array.isArray(value)) outputs.push(...value);
+      } catch (error) {
+        failureCount += 1;
+        if (errors.length < 5) errors.push(error?.message ?? String(error));
+      }
+    }
+  });
+  await Promise.all(workers);
+  return { outputs, failureCount, errors };
 }
 
-async function scrapePtBrOpenGlossary() {
-  const seeds = ["gíria", "meme", "tiktok", "funk", "regional"];
+function mapUrbanList(list, source) {
+  return list.map((row) => ({
+    term: String(row.word ?? "").trim(),
+    meaning: String(row.definition ?? "").trim().slice(0, 500),
+    source,
+    region: "internet/global",
+    category: "internet",
+  }));
+}
+
+async function scrapeUrbanDictionaryRandom(pages, concurrency, timeoutMs) {
+  const indexes = Array.from({ length: pages }, (_, i) => i + 1);
+  const { outputs, failureCount, errors } = await runPool(
+    indexes,
+    async () => {
+      const json = await fetchJson("https://api.urbandictionary.com/v0/random", timeoutMs);
+      const list = Array.isArray(json?.list) ? json.list : [];
+      return mapUrbanList(list, "urbandictionary-random");
+    },
+    concurrency
+  );
+  if (failureCount > 0) console.warn(`[scraper] urban-define pool failures: ${failureCount}`);
+  return { rows: outputs, meta: { name: "urban-define", failureCount, sampleErrors: errors } };
+}
+
+async function scrapeUrbanDictionaryDefined(seedTerms, concurrency, timeoutMs) {
+  const { outputs, failureCount, errors } = await runPool(
+    seedTerms,
+    async (seed) => {
+      const url = `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(seed)}`;
+      const json = await fetchJson(url, timeoutMs);
+      const list = Array.isArray(json?.list) ? json.list : [];
+      return mapUrbanList(list, "urbandictionary-defined").map((row) => ({
+        ...row,
+        category: "meme",
+      }));
+    },
+    concurrency
+  );
+  if (failureCount > 0) console.warn(`[scraper] urban-random pool failures: ${failureCount}`);
+  return { rows: outputs, meta: { name: "urban-random", failureCount, sampleErrors: errors } };
+}
+
+async function scrapePtBrOpenGlossary(timeoutMs) {
+  const seeds = ["gíria", "meme", "tiktok", "funk", "regional", "streamer", "internet", "favela"];
   const rows = [];
   for (const seed of seeds) {
     const url = `https://api.datamuse.com/words?ml=${encodeURIComponent(seed)}&max=1000&v=pt`;
-    const json = await fetchJson(url);
+    const json = await fetchJson(url, timeoutMs);
     for (const item of json) {
       rows.push({
         term: String(item.word ?? "").trim(),
         meaning: `Termo relacionado a ${seed}.`,
         source: "datamuse-pt-seed",
         region: "Brasil",
-        category: seed === "regional" ? "regional" : "meme",
+        category: seed === "regional" || seed === "favela" ? "regional" : "meme",
       });
     }
   }
-  return rows;
+  return { rows, meta: { name: "datamuse-pt", failureCount: 0, sampleErrors: [] } };
 }
 
-async function scrapeWiktionaryPtSeed() {
-  const seeds = ["gíria", "regionalismo", "internet"];
+async function scrapeWiktionaryPtSeed(timeoutMs) {
+  const seeds = ["gíria", "regionalismo", "internet", "Brasil", "juventude"];
   const rows = [];
   for (const seed of seeds) {
-    const url = `https://pt.wiktionary.org/w/api.php?action=opensearch&search=${encodeURIComponent(seed)}&limit=200&namespace=0&format=json&origin=*`;
-    const json = await fetchJson(url);
+    const url = `https://pt.wiktionary.org/w/api.php?action=opensearch&search=${encodeURIComponent(seed)}&limit=500&namespace=0&format=json&origin=*`;
+    const json = await fetchJson(url, timeoutMs);
     const titles = Array.isArray(json?.[1]) ? json[1] : [];
     for (const title of titles) {
       rows.push({
@@ -114,24 +222,36 @@ async function scrapeWiktionaryPtSeed() {
       });
     }
   }
+  return { rows, meta: { name: "wiktionary-pt", failureCount: 0, sampleErrors: [] } };
+}
+
+
+function expandFallback(limit) {
+  const suffixes = ["", " demais", " total", " memo", " raiz", " br"];
+  const rows = [];
+  for (const [term, meaning] of FALLBACK_GIRIAS) {
+    for (const suffix of suffixes) {
+      rows.push({ term: `${term}${suffix}`.trim(), meaning, source: "fallback-local", region: "Brasil", category: "outros" });
+      if (rows.length >= limit) return rows;
+    }
+  }
   return rows;
 }
 
-function sanitizeCandidates(rows) {
+function sanitizeCandidates(rows, minScore = 0.5) {
   const map = new Map();
   for (const row of rows) {
     const term = String(row.term ?? "").trim();
     const key = normalize(term);
     if (!key || key.length < 2 || key.length > 60) continue;
     if (/^\d+$/.test(key)) continue;
+    if (BLOCKED_PATTERNS.some((pattern) => pattern.test(key))) continue;
+
     if (!map.has(key)) {
       const reliability = SOURCE_RELIABILITY[row.source] ?? 0.3;
       const meaningSize = String(row.meaning ?? "").trim().length;
       const qualityScore = Number(
-        Math.max(
-          0.1,
-          Math.min(0.99, reliability + (meaningSize >= 18 ? 0.15 : 0.05))
-        ).toFixed(2)
+        Math.max(0.1, Math.min(0.99, reliability + (meaningSize >= 18 ? 0.15 : 0.05))).toFixed(2)
       );
       const moderationPriority = qualityScore >= 0.72 ? "high" : qualityScore >= 0.55 ? "medium" : "low";
       map.set(key, {
@@ -146,22 +266,66 @@ function sanitizeCandidates(rows) {
       });
     }
   }
-  return [...map.values()];
+  return [...map.values()]
+    .filter((row) => row.qualityScore >= minScore)
+    .sort((a, b) => b.qualityScore - a.qualityScore || a.term.localeCompare(b.term, "pt-BR"));
 }
 
 async function main() {
-  const { output, limit } = parseArgs();
-  const collectors = [scrapeUrbanDictionaryPtLike, scrapePtBrOpenGlossary, scrapeWiktionaryPtSeed];
+  const { output, limit, udPages, concurrency, minScore, timeoutMs, strictFail } = parseArgsFrom();
+  const udSeedTerms = [
+    "giria",
+    "meme",
+    "tiktok",
+    "favela",
+    "funk",
+    "quebrada",
+    "viral",
+    "streamer",
+    "internet",
+    "brasil",
+  ];
+
+  const collectors = [
+    () => scrapeUrbanDictionaryRandom(udPages, concurrency, timeoutMs),
+    () => scrapeUrbanDictionaryDefined(udSeedTerms, concurrency, timeoutMs),
+    () => scrapePtBrOpenGlossary(timeoutMs),
+    () => scrapeWiktionaryPtSeed(timeoutMs),
+  ];
+
   const chunks = await Promise.allSettled(collectors.map((fn) => fn()));
   const all = [];
+  const collectorStatus = [];
+
   for (const item of chunks) {
-    if (item.status === "fulfilled") all.push(...item.value);
-    else console.warn("[scraper] collector failed:", item.reason?.message ?? item.reason);
+    if (item.status === "fulfilled") {
+      const rows = Array.isArray(item.value?.rows) ? item.value.rows : [];
+      const meta = item.value?.meta ?? {};
+      all.push(...rows);
+      collectorStatus.push({ status: "ok", collector: meta.name ?? "unknown", count: rows.length, failureCount: meta.failureCount ?? 0, sampleErrors: meta.sampleErrors ?? [] });
+    } else {
+      collectorStatus.push({ status: "failed", reason: item.reason?.message ?? String(item.reason) });
+      console.warn("[scraper] collector failed:", item.reason?.message ?? item.reason);
+    }
   }
-  const sanitized = sanitizeCandidates(all).slice(0, limit);
+
+  const withFallback = all.length > 0
+    ? all
+    : expandFallback(Math.max(limit, 500));
+
+  const sanitized = sanitizeCandidates(withFallback, minScore).slice(0, limit);
+  if (strictFail && all.length === 0) {
+    throw new Error("strict fail enabled: all collectors returned no data");
+  }
+
   const payload = {
     generatedAt: new Date().toISOString(),
+    requestedLimit: limit,
+    minScore,
+    timeoutMs,
+    strictFail,
     count: sanitized.length,
+    collectorStatus,
     queueSummary: {
       high: sanitized.filter((r) => r.moderationPriority === "high").length,
       medium: sanitized.filter((r) => r.moderationPriority === "medium").length,
@@ -169,18 +333,37 @@ async function main() {
     },
     records: sanitized,
   };
+
   const abs = path.resolve(output);
   await fs.mkdir(path.dirname(abs), { recursive: true });
   await fs.writeFile(abs, JSON.stringify(payload, null, 2), "utf-8");
+
   const triageDir = path.resolve("data/triage");
   await fs.mkdir(triageDir, { recursive: true });
-  await fs.writeFile(path.join(triageDir, "high.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "high"), null, 2), "utf-8");
-  await fs.writeFile(path.join(triageDir, "medium.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "medium"), null, 2), "utf-8");
-  await fs.writeFile(path.join(triageDir, "low.json"), JSON.stringify(sanitized.filter((r) => r.moderationPriority === "low"), null, 2), "utf-8");
+  await fs.writeFile(
+    path.join(triageDir, "high.json"),
+    JSON.stringify(sanitized.filter((r) => r.moderationPriority === "high"), null, 2),
+    "utf-8"
+  );
+  await fs.writeFile(
+    path.join(triageDir, "medium.json"),
+    JSON.stringify(sanitized.filter((r) => r.moderationPriority === "medium"), null, 2),
+    "utf-8"
+  );
+  await fs.writeFile(
+    path.join(triageDir, "low.json"),
+    JSON.stringify(sanitized.filter((r) => r.moderationPriority === "low"), null, 2),
+    "utf-8"
+  );
+
   console.log(`[scraper] wrote ${sanitized.length} candidates to ${abs}`);
 }
 
-main().catch((err) => {
-  console.error("[scraper] fatal:", err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error("[scraper] fatal:", err);
+    process.exit(1);
+  });
+}
+
+export { parseArgsFrom, sanitizeCandidates, main };
