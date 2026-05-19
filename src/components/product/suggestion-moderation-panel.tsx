@@ -71,7 +71,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = setTimeout(() => setPage(1), 0);
+    return () => clearTimeout(timer);
   }, [statusFilter, minScore, termQuery, fromDate, toDate]);
 
   useEffect(() => {
@@ -87,7 +88,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+    const timer = setTimeout(() => {
+      setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+    }, 0);
+    return () => clearTimeout(timer);
   }, [items]);
 
 

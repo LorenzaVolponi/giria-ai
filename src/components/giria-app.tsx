@@ -279,7 +279,10 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
-    void loadCommunity();
+    const timer = setTimeout(() => {
+      void loadCommunity();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadCommunity]);
 
   useEffect(() => {
