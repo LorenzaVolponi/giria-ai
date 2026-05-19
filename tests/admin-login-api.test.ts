@@ -35,6 +35,16 @@ describe("admin login api", () => {
     expect(res.status).toBe(200);
   });
 
+  it("ignores legacy totp field in payload and still authenticates", async () => {
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ login: "admin007", password: "admin007", code: "6390", totp: "123456" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+  });
+
   it("validates admin session cookie", async () => {
     const loginReq = new NextRequest("http://localhost/api/v1/admin/login", {
       method: "POST",
