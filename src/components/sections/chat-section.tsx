@@ -551,10 +551,11 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
     viewport.scrollTo({ top: viewport.scrollHeight, behavior });
   }, []);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages only when user is already near the end
   useEffect(() => {
+    if (!isNearBottom) return;
     scrollToBottom("smooth");
-  }, [messages, isLoading, scrollToBottom]);
+  }, [messages, isLoading, isNearBottom, scrollToBottom]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -801,7 +802,7 @@ export default function ChatSection({ onSearchTerm }: ChatSectionProps) {
                   )}
                 />
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 px-1">
-                  Enter para enviar • {input.length} caracteres
+                  Enter para enviar{input.length > 0 ? ` • ${input.length} caracteres` : ""}
                 </p>
               </div>
               <Button

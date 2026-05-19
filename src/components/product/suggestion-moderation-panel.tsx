@@ -197,7 +197,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {
