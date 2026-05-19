@@ -535,23 +535,54 @@ export default function GiriaApp() {
   );
 
   // ---- Copy to clipboard ----
-  const handleCopy = useCallback(
-    async (text: string) => {
+  const copyTextToClipboard = useCallback(async (text: string): Promise<boolean> => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // continue to fallback for iOS/Android browsers without clipboard permissions
+      }
+    }
+
+    if (typeof document !== "undefined") {
+      const tempInput = document.createElement("textarea");
+      tempInput.value = text;
+      tempInput.setAttribute("readonly", "");
+      tempInput.style.position = "fixed";
+      tempInput.style.top = "-9999px";
+      tempInput.style.left = "-9999px";
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      tempInput.setSelectionRange(0, tempInput.value.length);
+
+      try {
+        const copied = document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        return copied;
+      } catch {
+        document.body.removeChild(tempInput);
+      }
+    }
+
+    return false;
+  }, []);
+
+  const handleCopy = useCallback(
+    async (text: string) => {
+      const copiedOk = await copyTextToClipboard(text);
+      if (copiedOk) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      } catch {
-        // fallback
       }
     },
-    []
+    [copyTextToClipboard]
   );
 
   const handleCopyPix = useCallback(async () => {
     const pixKey = "007aibr@gmail.com";
-    try {
-      await navigator.clipboard.writeText(pixKey);
+    const copiedOk = await copyTextToClipboard(pixKey);
+    if (copiedOk) {
       setPixCopied(true);
       setPixFeedback("Chave PIX copiada com sucesso.");
       void fetch("/api/v1/visits", {
@@ -561,12 +592,13 @@ export default function GiriaApp() {
       }).catch(() => null);
       setTimeout(() => setPixCopied(false), 1800);
       setTimeout(() => setPixFeedback(null), 2400);
-    } catch {
-      setPixCopied(false);
-      setPixFeedback("Não foi possível copiar automaticamente.");
-      setTimeout(() => setPixFeedback(null), 2400);
+      return;
     }
-  }, []);
+
+    setPixCopied(false);
+    setPixFeedback("Não foi possível copiar automaticamente. Selecione e copie a chave abaixo.");
+    setTimeout(() => setPixFeedback(null), 3200);
+  }, [copyTextToClipboard]);
 
   const handleSponsorClick = useCallback(() => {
     void fetch("/api/v1/visits", {
@@ -1715,7 +1747,7 @@ export default function GiriaApp() {
   // Main render
   // =========================================================================
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen min-h-dvh flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -1820,7 +1852,36 @@ export default function GiriaApp() {
           >
             <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
+              <label className="sr-only" htmlFor="pix-key">Chave PIX</label>
+              <div className="flex items-center gap-1 rounded-md border border-emerald-200 bg-white/90 px-2 py-1 dark:border-emerald-900 dark:bg-gray-950/60">
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">PIX</span>
+                <input
+                  id="pix-key"
+                  type="text"
+                  readOnly
+                  value="007aibr@gmail.com"
+                  onFocus={(event) => event.currentTarget.select()}
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-[144px] bg-transparent text-[11px] font-semibold text-gray-700 outline-none dark:text-gray-200"
+                  aria-label="Chave PIX copiável"
+                />
+                <span className="text-[10px] text-gray-500 dark:text-gray-400">· Lorenza Volponi</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const pixInput = document.getElementById("pix-key") as HTMLInputElement | null;
+                  pixInput?.focus();
+                  pixInput?.select();
+                }}
+                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                aria-label="Selecionar chave PIX"
+              >
+                Selecionar chave
+              </button>
               <button
                 type="button"
                 onClick={() => {
