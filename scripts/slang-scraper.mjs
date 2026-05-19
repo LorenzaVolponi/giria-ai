@@ -57,8 +57,7 @@ function normalize(text) {
     .trim();
 }
 
-function parseArgs() {
-  const args = process.argv.slice(2);
+function parseArgsFrom(args = process.argv.slice(2)) {
   const out = {
     output: "data/slang-candidates.json",
     limit: DEFAULT_LIMIT,
@@ -247,7 +246,7 @@ function sanitizeCandidates(rows, minScore = 0.5) {
 }
 
 async function main() {
-  const { output, limit, udPages, concurrency, minScore, timeoutMs } = parseArgs();
+  const { output, limit, udPages, concurrency, minScore, timeoutMs } = parseArgsFrom();
   const udSeedTerms = [
     "giria",
     "meme",
@@ -333,7 +332,11 @@ async function main() {
   console.log(`[scraper] wrote ${sanitized.length} candidates to ${abs}`);
 }
 
-main().catch((err) => {
-  console.error("[scraper] fatal:", err);
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error("[scraper] fatal:", err);
+    process.exit(1);
+  });
+}
+
+export { parseArgsFrom, sanitizeCandidates, main };
