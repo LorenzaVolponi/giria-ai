@@ -1032,10 +1032,12 @@ export async function POST(request: NextRequest) {
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
       const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
       recordGroundingMetric(false);
-      return withSecurityHeaders(NextResponse.json({
+      const confirmRes = NextResponse.json({
+        mode: resolvedMode,
         response: confirmResponse,
         grounding,
-      }));
+      });
+      return withSecurityHeaders(applyCommonResponseHeaders(applyLegacyDeprecationHeaders(confirmRes), resolvedMode));
     }
 
     recordGroundingMetric(grounding.grounded);

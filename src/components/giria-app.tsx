@@ -1861,11 +1861,27 @@ export default function GiriaApp() {
                   readOnly
                   value="007aibr@gmail.com"
                   onFocus={(event) => event.currentTarget.select()}
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-[144px] bg-transparent text-[11px] font-semibold text-gray-700 outline-none dark:text-gray-200"
                   aria-label="Chave PIX copiável"
                 />
                 <span className="text-[10px] text-gray-500 dark:text-gray-400">· Lorenza Volponi</span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const pixInput = document.getElementById("pix-key") as HTMLInputElement | null;
+                  pixInput?.focus();
+                  pixInput?.select();
+                }}
+                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                aria-label="Selecionar chave PIX"
+              >
+                Selecionar chave
+              </button>
               <button
                 type="button"
                 onClick={() => {
