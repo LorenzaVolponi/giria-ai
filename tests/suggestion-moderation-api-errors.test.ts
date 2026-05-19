@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { adminModerationHeaders } from "./helpers/admin-auth";
 
 const { moderateSuggestionStatusMock } = vi.hoisted(() => ({
   moderateSuggestionStatusMock: vi.fn(),
@@ -27,7 +28,10 @@ describe("suggestion moderation API - error paths", () => {
     const req = new NextRequest("http://localhost/api/v1/suggestions/abc", {
       method: "PATCH",
       body: JSON.stringify({ status: "invalid" }),
-      headers: { "content-type": "application/json", cookie: "giria_admin_session=admin-panel-session" },
+      headers: {
+        "content-type": "application/json",
+        ...adminModerationHeaders(),
+      },
     });
 
     const res = await PATCH(req, { params: Promise.resolve({ id: "abc" }) });
