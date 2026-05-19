@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { POST as visitsPost, GET as visitsGet } from "../src/app/api/v1/visits/route";
+import { adminSessionCookie } from "./helpers/admin-auth";
 
 function makeRequest(url: string, method: string, body?: unknown, headers?: Record<string, string>) {
   return new NextRequest(url, {
@@ -42,7 +43,7 @@ describe("API v1 integration", () => {
     expect(postRes.status).toBe(200);
 
     const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, {
-      cookie: "giria_admin_session=admin-panel-session",
+      cookie: adminSessionCookie(),
     });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { adminModerationHeaders } from "./helpers/admin-auth";
 
 const { moderateSuggestionStatusMock } = vi.hoisted(() => ({
   moderateSuggestionStatusMock: vi.fn(),
@@ -20,8 +21,7 @@ describe("suggestion moderation API", () => {
       body: JSON.stringify({ status: "rejected" }),
       headers: {
         "content-type": "application/json",
-        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf; giria_admin_role=owner",
-        "x-csrf-token": "test-csrf",
+        ...adminModerationHeaders(),
       },
     });
 
