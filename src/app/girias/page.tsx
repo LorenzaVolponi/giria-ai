@@ -10,18 +10,40 @@ export const metadata: Metadata = {
 };
 
 export default function GiriasPage() {
-  const topTerms = SLANG_DATA.slice(0, 50);
+  const topTerms = SLANG_DATA.slice(0, 36);
+  const regionalTerms = SLANG_DATA.filter((term) => term.category === "regional").slice(0, 18);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="text-3xl font-bold">Glossário de gírias populares</h1>
       <p className="mt-3 text-muted-foreground">Clique em uma gíria para abrir a explicação detalhada.</p>
-      <p className="mt-2 text-sm">
-        Quer focar por localização?{" "}
-        <Link href="/girias/regionais" className="underline font-medium">
-          Ver página de gírias regionais
-        </Link>
-      </p>
+      <section className="mt-10 rounded-xl border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">Gírias regionais em destaque</h2>
+          <Link href="/girias/regionais" className="text-sm underline font-medium">
+            Ver catálogo regional completo
+          </Link>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Descubra expressões de diferentes regiões sem sair do menu inicial.
+        </p>
+        {regionalTerms.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">Ainda não há gírias regionais mapeadas.</p>
+        ) : (
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {regionalTerms.map((term) => (
+              <li key={`regional-${term.term}`} className="rounded-lg border p-3 hover:bg-muted/50">
+                <Link href={`/girias/${encodeURIComponent(term.term)}`} className="font-semibold">
+                  {term.term}
+                </Link>
+                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{term.meaning}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{term.region || "Brasil"}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
         {topTerms.map((term) => (
           <li key={term.term} className="rounded-lg border p-4 hover:bg-muted/50">

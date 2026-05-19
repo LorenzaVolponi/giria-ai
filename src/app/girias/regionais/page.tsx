@@ -22,6 +22,10 @@ function normalizeRegionLabel(region: string): RegionKey {
   return "Brasil";
 }
 
+function toAnchorId(region: string) {
+  return `regiao-${region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
 interface Props {
   searchParams?: Promise<{ uf?: string; q?: string }>;
 }
@@ -66,11 +70,11 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       <p className="mt-3 text-muted-foreground">
         Página dedicada às expressões regionais. Clique em uma gíria para ver significado, contexto e orientação.
       </p>
-      <nav className="mt-4 flex flex-wrap gap-2">
+      <nav aria-label="Navegação por regiões" className="mt-4 flex flex-wrap gap-2">
         {regionOrder.map((region) => (
           <a
             key={`nav-${region}`}
-            href={`#regiao-${encodeURIComponent(region)}`}
+            href={`#${toAnchorId(region)}`}
             className="rounded-full border px-3 py-1 text-xs hover:bg-muted"
           >
             {region}
@@ -109,12 +113,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             Busca ativa por <strong>&ldquo;{queryReadable}&rdquo;</strong>.
           </p>
         ) : null}
-        {riskFilter ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Filtro de risco ativo: <strong>{riskFilter}</strong>.
-          </p>
-        ) : null}
-      </section>
+              </section>
 
       <div className="mt-8 space-y-8">
         <section className="rounded-xl border p-4">
@@ -142,7 +141,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
           const terms = grouped.get(region) ?? [];
           if (terms.length === 0) return null;
           return (
-            <section id={`regiao-${region}`} key={region} className="rounded-xl border p-4">
+            <section id={toAnchorId(region)} key={region} className="rounded-xl border p-4">
               <h2 className="text-xl font-semibold">{region}</h2>
               <p className="text-xs text-muted-foreground mt-1">{terms.length} gírias nesta região</p>
               <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
