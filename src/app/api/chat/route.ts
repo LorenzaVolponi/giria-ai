@@ -8,34 +8,7 @@ import {
 } from "@/lib/slang-data";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { recordGroundingMetric } from "@/lib/metrics";
-
-// ---------------------------------------------------------------------------
-// Rate limiting — simple in-memory (best-effort for serverless)
-// ---------------------------------------------------------------------------
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 30;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = rateLimitMap.get(ip) ?? [];
-  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  recent.push(now);
-  rateLimitMap.set(ip, recent);
-  return recent.length > RATE_LIMIT_MAX_REQUESTS;
-}
-
-// Periodic cleanup
-if (typeof globalThis !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, timestamps] of rateLimitMap.entries()) {
-      const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-      if (recent.length === 0) rateLimitMap.delete(ip);
-      else rateLimitMap.set(ip, recent);
-    }
-  }, 30_000);
-}
+import { applyRateLimitHeaders, checkRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -791,7 +764,6 @@ Me diga qual delas você quer aprofundar e eu trago significado, contexto e orie
         }
 
         const previous = previousCandidates[0];
-        const previous = Array.from(previousTerms.values())[0];
         if (previous) {
           const rc = RISK_CONFIG[previous.riskLevel];
           return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
@@ -876,11 +848,14 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const ip = getClientIp(request);
-    if (isRateLimited(ip)) {
-      return withSecurityHeaders(NextResponse.json(
-        { error: "Muitas requisições. Aguarde um momento." },
+    const rate = await checkRateLimit(`chat:${ip}`, 30, 60);
+    if (rate.limited) {
+      const limited = withSecurityHeaders(NextResponse.json(
+        { error: "Muitas requisições. Tente novamente em instantes." },
         { status: 429 }
       ));
+      applyRateLimitHeaders(limited.headers, { maxRequests: 30, windowSec: 60, rate });
+      return limited;
     }
 
     let body: unknown;
@@ -924,7 +899,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (responseMode !== undefined && !CHAT_RESPONSE_MODES.includes(responseMode)) {
-    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`responseMode` deve ser: default, single ou list." },
         { status: 400 }
@@ -934,7 +908,6 @@ export async function POST(request: NextRequest) {
     const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
 
     if (responseMode !== undefined && usesLegacyFlags) {
-    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
         { status: 400 }
@@ -1002,6 +975,10 @@ export async function POST(request: NextRequest) {
 
     const applyCommonResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
       res.headers.set("X-Response-Mode", mode);
+      applyRateLimitHeaders(res.headers, { maxRequests: 30, windowSec: 60, rate });
+      return res;
+    };
+
     const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
       if (usesLegacyFlags) {
         res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
@@ -1021,37 +998,35 @@ export async function POST(request: NextRequest) {
         mode: resolvedMode,
         responses: [...priorAssistantResponses, response],
       });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(listRes));
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(listRes, resolvedMode)));
     }
 
     if (resolvedMode === "single") {
       const singleRes = NextResponse.json({ mode: resolvedMode, response });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(singleRes));
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(singleRes, resolvedMode)));
     }
 
-    const defaultRes = NextResponse.json({
-      mode: resolvedMode,
     const grounding = buildGroundingMetadata(currentMessage);
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
-      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝
+
+Você quis dizer uma dessas opções?
+- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}
+
+Se nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
       recordGroundingMetric(false);
-      return withSecurityHeaders(NextResponse.json({
-        response: confirmResponse,
-        grounding,
-      }));
+      const confirmRes = NextResponse.json({ mode: resolvedMode, response: confirmResponse, grounding });
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(confirmRes, resolvedMode)));
     }
     recordGroundingMetric(grounding.grounded);
 
-    return withSecurityHeaders(NextResponse.json({
+    const defaultRes = NextResponse.json({
+      mode: resolvedMode,
       response,
       grounding,
       ...slangData,
     });
-    return withSecurityHeaders(applyLegacyDeprecationHeaders(defaultRes));
-    if (usesLegacyFlags) {
-      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-    }
-    return withSecurityHeaders(defaultRes);
+    return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(defaultRes, resolvedMode)));
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";
