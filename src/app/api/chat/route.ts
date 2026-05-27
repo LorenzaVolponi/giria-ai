@@ -8,6 +8,13 @@ import {
 } from "@/lib/slang-data";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { recordGroundingMetric } from "@/lib/metrics";
+import {
+  findClosestTermsWithScore,
+  getTermIndex,
+  lookupMultipleTerms,
+  lookupTerm,
+  normalize,
+} from "@/lib/slang-search";
 
 // ---------------------------------------------------------------------------
 // Rate limiting — simple in-memory (best-effort for serverless)
@@ -69,159 +76,6 @@ const PROMPT_BACKEND_RULES = [
   "Priorize utilidade para o usuário final: resposta curta no topo e detalhes opcionais abaixo.",
   "Sempre que possível, inclua orientação prática de conversa entre responsável e adolescente.",
 ] as const;
-
-/** Normalizes a string for matching: lowercase, no diacritics, no extra spaces. */
-function normalize(str: string): string {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[''""]/g, "")
-    .replace(/[.,;:!?]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/** Build an index of normalized term → SlangTerm for fast lookup. */
-function buildTermIndex(): Map<string, SlangTerm[]> {
-  const index = new Map<string, SlangTerm[]>();
-  for (const term of SLANG_DATA) {
-    const key = normalize(term.term);
-    const existing = index.get(key);
-    if (existing) existing.push(term);
-    else index.set(key, [term]);
-
-    // Also index variations
-    if (Array.isArray(term.variations)) {
-      for (const v of term.variations) {
-        const vKey = normalize(v);
-        if (vKey && vKey !== key) {
-          const vExisting = index.get(vKey);
-          if (vExisting) vExisting.push(term);
-          else index.set(vKey, [term]);
-        }
-      }
-    }
-  }
-  return index;
-}
-
-let _termIndex: Map<string, SlangTerm[]> | null = null;
-let _normalizedTermsCache: Array<{ normalized: string; term: SlangTerm }> | null = null;
-const fuzzyCache = new Map<string, { ts: number; items: Array<{ term: SlangTerm; score: number }> }>();
-const FUZZY_CACHE_TTL_MS = 5 * 60 * 1000;
-function getTermIndex(): Map<string, SlangTerm[]> {
-  if (!_termIndex) _termIndex = buildTermIndex();
-  return _termIndex;
-}
-
-function getNormalizedTermsCache(): Array<{ normalized: string; term: SlangTerm }> {
-  if (_normalizedTermsCache) return _normalizedTermsCache;
-  _normalizedTermsCache = SLANG_DATA.map((term) => ({
-    normalized: normalize(term.term),
-    term,
-  }));
-  return _normalizedTermsCache;
-}
-
-/** Look up a term in the index (exact or fuzzy). */
-function lookupTerm(query: string): SlangTerm[] {
-  const index = getTermIndex();
-  const normalized = normalize(query);
-
-  // Exact match
-  const exact = index.get(normalized);
-  if (exact && exact.length > 0) return exact;
-
-  // Contains match: term contains query (avoid reverse match to reduce false positives)
-  const contains: SlangTerm[] = [];
-  if (normalized.length < 3) return [];
-  for (const [key, terms] of index.entries()) {
-    if (key.includes(normalized)) {
-      contains.push(...terms);
-    }
-  }
-  if (contains.length > 0) return contains.slice(0, 5);
-
-  return [];
-}
-
-/** Look up multiple terms from a phrase. */
-function lookupMultipleTerms(phrase: string): Map<string, SlangTerm> {
-  const index = getTermIndex();
-  const words = normalize(phrase).split(" ");
-  const found = new Map<string, SlangTerm>();
-
-  // Try multi-word phrases first (up to 4 words)
-  for (let len = 4; len >= 2; len--) {
-    for (let i = 0; i <= words.length - len; i++) {
-      const chunk = words.slice(i, i + len).join(" ");
-      const match = index.get(chunk);
-      if (match && match.length > 0 && !found.has(normalize(match[0].term))) {
-        found.set(normalize(match[0].term), match[0]);
-      }
-    }
-  }
-
-  // Then single words
-  for (const word of words) {
-    if (word.length < 2) continue;
-    if (found.has(word)) continue;
-    const match = index.get(word);
-    if (match && match.length > 0) {
-      found.set(word, match[0]);
-    }
-  }
-
-  return found;
-}
-
-function levenshtein(a: string, b: string): number {
-  const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
-  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + cost
-      );
-    }
-  }
-  return dp[a.length][b.length];
-}
-
-function findClosestTermsWithScore(query: string, limit = 5): Array<{ term: SlangTerm; score: number }> {
-  const normalizedQuery = normalize(query);
-  const cacheKey = `${normalizedQuery}:${limit}`;
-  const cached = fuzzyCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < FUZZY_CACHE_TTL_MS) {
-    return cached.items;
-  }
-
-  const pool = getNormalizedTermsCache();
-  const firstChar = normalizedQuery[0];
-  const candidates = pool.filter((entry) => entry.normalized[0] === firstChar || Math.abs(entry.normalized.length - normalizedQuery.length) <= 3);
-  const ranked = (candidates.length > 0 ? candidates : pool).map((entry) => ({
-    term: entry.term,
-    score: levenshtein(normalizedQuery, entry.normalized),
-  }))
-    .sort((a, b) => a.score - b.score)
-    .slice(0, limit);
-
-  fuzzyCache.set(cacheKey, { ts: Date.now(), items: ranked });
-  if (fuzzyCache.size > 500) {
-    const entries = Array.from(fuzzyCache.entries()).sort((a, b) => a[1].ts - b[1].ts);
-    for (const [key] of entries.slice(0, entries.length - 500)) fuzzyCache.delete(key);
-  }
-  return ranked;
-}
-
-function findClosestTerms(query: string, limit = 5): SlangTerm[] {
-  return findClosestTermsWithScore(query, limit).map((x) => x.term);
-}
 
 function confidenceLabel(term: SlangTerm): string {
   if (term.popularityStatus === "ativo" || term.popularityStatus === "regional") return "alta";
@@ -490,7 +344,7 @@ function detectIntent(message: string): {
   if (quotedTerms) {
     for (const qt of quotedTerms) {
       const results = lookupTerm(qt);
-      if (results.length > 0) foundTerms.push(qt);
+      if (results.items.length > 0) foundTerms.push(qt);
     }
   }
 
@@ -519,8 +373,8 @@ function detectIntent(message: string): {
       if (word.length < 4) continue;
       if (foundTerms.some((f) => normalize(f) === normalize(word))) continue;
       const results = lookupTerm(word);
-      if (results.length > 0) {
-        const best = results[0];
+      if (results.items.length > 0) {
+        const best = results.items[0];
         const normalizedWord = normalize(word);
         const normalizedBest = normalize(best.term);
         if (normalizedBest.includes(normalizedWord) || normalizedWord.includes(normalizedBest)) {
@@ -694,7 +548,7 @@ ${disambiguationPrompt}
 Se não estiver na base ainda, você pode enviar essa gíria aqui: ${SUGGESTION_PAGE_LINK}
 Tente pesquisar uma gíria similar ou me pergunte sobre outra!`;
       }
-      return `${groundedOnlyNotice()}\n\n${formatTermCard(results[0])}`;
+      return `${groundedOnlyNotice()}\n\n${formatTermCard(results.items[0])}`;
     }
 
     case "phrase_translation": {
@@ -791,7 +645,6 @@ Me diga qual delas você quer aprofundar e eu trago significado, contexto e orie
         }
 
         const previous = previousCandidates[0];
-        const previous = Array.from(previousTerms.values())[0];
         if (previous) {
           const rc = RISK_CONFIG[previous.riskLevel];
           return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
@@ -906,7 +759,6 @@ export async function POST(request: NextRequest) {
       onlyChatResponse?: boolean;
       listChatResponses?: boolean;
       responseMode?: ChatResponseMode;
-      responseMode?: "default" | "single" | "list";
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -924,7 +776,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (responseMode !== undefined && !CHAT_RESPONSE_MODES.includes(responseMode)) {
-    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`responseMode` deve ser: default, single ou list." },
         { status: 400 }
@@ -934,7 +785,6 @@ export async function POST(request: NextRequest) {
     const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
 
     if (responseMode !== undefined && usesLegacyFlags) {
-    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
         { status: 400 }
@@ -985,8 +835,8 @@ export async function POST(request: NextRequest) {
     const { extractedTerms } = detectIntent(currentMessage);
     if (extractedTerms.length === 1) {
       const results = lookupTerm(extractedTerms[0]);
-      if (results.length > 0) {
-        const t = results[0];
+      if (results.items.length > 0) {
+        const t = results.items[0];
         slangData = {
           slang: t.term,
           category: t.category,
@@ -1002,6 +852,8 @@ export async function POST(request: NextRequest) {
 
     const applyCommonResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
       res.headers.set("X-Response-Mode", mode);
+      return res;
+    };
     const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
       if (usesLegacyFlags) {
         res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
@@ -1012,28 +864,9 @@ export async function POST(request: NextRequest) {
       return res;
     };
 
-    if (resolvedMode === "list") {
-      const priorAssistantResponses = recentHistory
-        .filter((m) => m.role === "assistant")
-        .map((m) => m.content);
-
-      const listRes = NextResponse.json({
-        mode: resolvedMode,
-        responses: [...priorAssistantResponses, response],
-      });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(listRes));
-    }
-
-    if (resolvedMode === "single") {
-      const singleRes = NextResponse.json({ mode: resolvedMode, response });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(singleRes));
-    }
-
-    const defaultRes = NextResponse.json({
-      mode: resolvedMode,
     const grounding = buildGroundingMetadata(currentMessage);
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
-      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
+      const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
       recordGroundingMetric(false);
       return withSecurityHeaders(NextResponse.json({
         response: confirmResponse,
@@ -1042,24 +875,25 @@ export async function POST(request: NextRequest) {
     }
     recordGroundingMetric(grounding.grounded);
 
-    return withSecurityHeaders(NextResponse.json({
-      response,
-      grounding,
-      ...slangData,
-    });
-    return withSecurityHeaders(applyLegacyDeprecationHeaders(defaultRes));
-    if (usesLegacyFlags) {
-      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-    }
-    return withSecurityHeaders(defaultRes);
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Erro interno do servidor";
-    console.error("Chat API error:", message);
+    if (resolvedMode === "list") {
+      const priorAssistantResponses = recentHistory
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content);
 
-    return withSecurityHeaders(NextResponse.json(
-      { error: "Ocorreu um erro ao processar sua mensagem. Tente novamente." },
-      { status: 500 }
-    ));
+      const listRes = NextResponse.json({ mode: resolvedMode, responses: [...priorAssistantResponses, response], grounding, ...slangData });
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(listRes, resolvedMode)));
+    }
+
+    if (resolvedMode === "single") {
+      const singleRes = NextResponse.json({ mode: resolvedMode, response, grounding, ...slangData });
+      return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(singleRes, resolvedMode)));
+    }
+
+    const defaultRes = NextResponse.json({ mode: resolvedMode, response, grounding, ...slangData });
+    return withSecurityHeaders(applyLegacyDeprecationHeaders(applyCommonResponseHeaders(defaultRes, resolvedMode)));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro interno do servidor";
+    console.error("Chat API error:", message);
+    return withSecurityHeaders(NextResponse.json({ error: "Ocorreu um erro ao processar sua mensagem. Tente novamente." }, { status: 500 }));
   }
 }

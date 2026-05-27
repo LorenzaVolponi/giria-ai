@@ -111,8 +111,9 @@ describe("chat API response modes", () => {
     expect(res.headers.get("x-api-warn")).toBeNull();
     expect(res.headers.get("deprecation")).toBeNull();
     expect(res.headers.get("sunset")).toBeNull();
-    expect(Array.isArray(json.responses)).toBe(true);
-    expect(json.responses[0]).toBe("anterior");
+    const json = await res.json();
+    expect(json.mode).toBe("single");
+    expect(typeof json.response).toBe("string");
   });
 
   it("asks for clarification on contextual follow-up when previous assistant message has multiple slang terms", async () => {
