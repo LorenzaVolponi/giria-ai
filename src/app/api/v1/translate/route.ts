@@ -4,7 +4,7 @@ import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/secur
 import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { z } from "zod";
-import { isRateLimited } from "@/lib/rate-limit";
+import { applyRateLimitHeaders, checkRateLimit } from "@/lib/rate-limit";
 
 const translateSchema = z.object({
   text: z.string().trim().min(1).max(220).optional(),
@@ -23,11 +23,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const ip = getClientIp(request);
-    const rate = await isRateLimited(ip, 25, 60);
+    const rate = await checkRateLimit(ip, 25, 60);
     if (rate.limited) {
       const limitedResponse = withSecurityHeaders(NextResponse.json({ error: "Muitas requisições. Tente novamente em instantes." }, { status: 429 }));
-      limitedResponse.headers.set("Retry-After", "60");
-      limitedResponse.headers.set("X-RateLimit-Remaining", String(rate.remaining));
+      applyRateLimitHeaders(limitedResponse.headers, { maxRequests: 25, windowSec: 60, rate });
       limitedResponse.headers.set("x-request-id", requestId);
       logApiEvent({ requestId, route: "/api/v1/translate", status: 429, durationMs: Date.now() - startedAt, message: "rate_limited" });
       return limitedResponse;
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("x-request-id", requestId);
-    response.headers.set("X-RateLimit-Remaining", String(rate.remaining));
+    applyRateLimitHeaders(response.headers, { maxRequests: 25, windowSec: 60, rate });
     const secured = withSecurityHeaders(response);
     logApiEvent({ requestId, route: "/api/v1/translate", status: 200, durationMs: Date.now() - startedAt, fallbackUsed: result.source !== "local" });
     return secured;

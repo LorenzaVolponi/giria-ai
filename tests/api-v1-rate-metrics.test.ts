@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
+import { POST as visitsPost } from "../src/app/api/v1/visits/route";
+import { POST as chatPost } from "../src/app/api/chat/route";
 import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
 import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
 
@@ -15,7 +17,7 @@ function makeRequest(url: string, method: string, body?: unknown, headers?: Reco
   });
 }
 
-describe("API v1 rate-limit and metrics", () => {
+describe("API rate-limit consistency", () => {
   beforeEach(() => {
     resetRateLimitStoreForTests();
     delete process.env.ADMIN_API_TOKEN;
@@ -23,7 +25,22 @@ describe("API v1 rate-limit and metrics", () => {
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
   });
 
-  it("returns rate-limit headers and 429 after burst", async () => {
+  it("returns standardized rate-limit headers for critical endpoints", async () => {
+    const ip = { "x-forwarded-for": "9.9.9.9" };
+    const translate = await translatePost(makeRequest("http://localhost/api/v1/translate", "POST", { text: "slay" }, ip));
+    const visits = await visitsPost(makeRequest("http://localhost/api/v1/visits", "POST", { path: "/" }, ip));
+    const chat = await chatPost(makeRequest("http://localhost/api/chat", "POST", { messages: [{ role: "user", content: "o que é slay?" }] }, ip));
+
+    for (const res of [translate, visits, chat]) {
+      expect(res.headers.get("X-RateLimit-Limit")).not.toBeNull();
+      expect(res.headers.get("X-RateLimit-Remaining")).not.toBeNull();
+      expect(res.headers.get("X-RateLimit-Window")).toBe("60");
+      expect(res.headers.get("X-RateLimit-Reset")).not.toBeNull();
+      expect(res.headers.get("Retry-After")).not.toBeNull();
+    }
+  });
+
+  it("returns 429 and standardized headers after burst", async () => {
     let lastStatus = 200;
     let lastHeaders: Headers | null = null;
 
@@ -35,7 +52,9 @@ describe("API v1 rate-limit and metrics", () => {
     }
 
     expect(lastStatus).toBe(429);
-    expect(lastHeaders?.get("Retry-After")).toBe("60");
+    expect(lastHeaders?.get("Retry-After")).not.toBeNull();
+    expect(lastHeaders?.get("X-RateLimit-Limit")).toBe("25");
+    expect(lastHeaders?.get("X-RateLimit-Window")).toBe("60");
     expect(lastHeaders?.get("X-RateLimit-Remaining")).not.toBeNull();
   });
 
