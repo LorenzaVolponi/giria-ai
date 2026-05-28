@@ -791,7 +791,6 @@ Me diga qual delas você quer aprofundar e eu trago significado, contexto e orie
         }
 
         const previous = previousCandidates[0];
-        const previous = Array.from(previousTerms.values())[0];
         if (previous) {
           const rc = RISK_CONFIG[previous.riskLevel];
           return `Boa continuação — pela conversa anterior, você parece estar falando de **"${previous.term}"**.
@@ -906,7 +905,6 @@ export async function POST(request: NextRequest) {
       onlyChatResponse?: boolean;
       listChatResponses?: boolean;
       responseMode?: ChatResponseMode;
-      responseMode?: "default" | "single" | "list";
     };
 
     if (messages !== undefined && !Array.isArray(messages)) {
@@ -924,7 +922,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (responseMode !== undefined && !CHAT_RESPONSE_MODES.includes(responseMode)) {
-    if (responseMode !== undefined && !["default", "single", "list"].includes(responseMode)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "`responseMode` deve ser: default, single ou list." },
         { status: 400 }
@@ -934,7 +931,6 @@ export async function POST(request: NextRequest) {
     const usesLegacyFlags = onlyChatResponse === true || listChatResponses === true;
 
     if (responseMode !== undefined && usesLegacyFlags) {
-    if (responseMode !== undefined && (onlyChatResponse === true || listChatResponses === true)) {
       return withSecurityHeaders(NextResponse.json(
         { error: "Use apenas `responseMode` ou as flags legadas (`onlyChatResponse`/`listChatResponses`)." },
         { status: 400 }
@@ -1000,9 +996,8 @@ export async function POST(request: NextRequest) {
       responseMode ??
       (listChatResponses === true ? "list" : onlyChatResponse === true ? "single" : "default");
 
-    const applyCommonResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
+    const applyResponseHeaders = (res: NextResponse, mode: ChatResponseMode): NextResponse => {
       res.headers.set("X-Response-Mode", mode);
-    const applyLegacyDeprecationHeaders = (res: NextResponse): NextResponse => {
       if (usesLegacyFlags) {
         res.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
         res.headers.set("Deprecation", "true");
@@ -1021,37 +1016,34 @@ export async function POST(request: NextRequest) {
         mode: resolvedMode,
         responses: [...priorAssistantResponses, response],
       });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(listRes));
+      return withSecurityHeaders(applyResponseHeaders(listRes, resolvedMode));
     }
 
     if (resolvedMode === "single") {
       const singleRes = NextResponse.json({ mode: resolvedMode, response });
-      return withSecurityHeaders(applyLegacyDeprecationHeaders(singleRes));
+      return withSecurityHeaders(applyResponseHeaders(singleRes, resolvedMode));
     }
 
-    const defaultRes = NextResponse.json({
-      mode: resolvedMode,
     const grounding = buildGroundingMetadata(currentMessage);
     if (grounding.confidence < grounding.threshold && grounding.candidates.length > 0) {
       const confirmResponse = `Não tenho confiança suficiente para responder de forma definitiva ainda. 🤝\n\nVocê quis dizer uma dessas opções?\n- ${grounding.candidates.map((t) => `"${t}"`).join("\n- ")}\n\nSe nenhuma for correta, você pode sugerir nova gíria aqui: ${SUGGESTION_PAGE_LINK}`;
       recordGroundingMetric(false);
-      return withSecurityHeaders(NextResponse.json({
+      const confirmRes = NextResponse.json({
+        mode: resolvedMode,
         response: confirmResponse,
         grounding,
-      }));
+      });
+      return withSecurityHeaders(applyResponseHeaders(confirmRes, resolvedMode));
     }
     recordGroundingMetric(grounding.grounded);
 
-    return withSecurityHeaders(NextResponse.json({
+    const defaultRes = NextResponse.json({
+      mode: resolvedMode,
       response,
       grounding,
       ...slangData,
     });
-    return withSecurityHeaders(applyLegacyDeprecationHeaders(defaultRes));
-    if (usesLegacyFlags) {
-      defaultRes.headers.set("X-API-Warn", "Legacy chat flags are deprecated. Use responseMode.");
-    }
-    return withSecurityHeaders(defaultRes);
+    return withSecurityHeaders(applyResponseHeaders(defaultRes, resolvedMode));
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro interno do servidor";

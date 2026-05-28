@@ -7,7 +7,6 @@ export default function AdminPage() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [totp, setTotp] = useState("");
   const [ok, setOk] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [dash, setDash] = useState<{
@@ -70,7 +69,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!ok) return;
     void reloadDashboard(metricsWindow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -79,7 +77,6 @@ export default function AdminPage() {
     const res = await fetch("/api/v1/admin/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ login, password, code, totp }),
       body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
@@ -97,7 +94,6 @@ export default function AdminPage() {
     setLogin("");
     setPassword("");
     setCode("");
-    setTotp("");
     setMessage("Sessão encerrada.");
   }
 
@@ -118,7 +114,6 @@ export default function AdminPage() {
           <input className="w-full rounded border p-2" placeholder="Login" value={login} onChange={(e) => setLogin(e.target.value)} required />
           <input className="w-full rounded border p-2" placeholder="Senha admin" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
           <input className="w-full rounded border p-2" placeholder="Código de validação" value={code} onChange={(e) => setCode(e.target.value)} required />
-          <input className="w-full rounded border p-2" placeholder="Código 2FA (TOTP, se habilitado)" value={totp} onChange={(e) => setTotp(e.target.value)} />
           <button className="rounded bg-black px-4 py-2 text-white" type="submit">Entrar no admin</button>
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         </form>

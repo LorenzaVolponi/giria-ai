@@ -279,6 +279,7 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCommunity();
   }, [loadCommunity]);
 

@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const denied = requireAdminToken(request);
-  if (denied) return denied;
+  if (process.env.ADMIN_API_TOKEN) {
+    const denied = requireAdminToken(request);
+    if (denied) return denied;
+  }
   return withSecurityHeaders(NextResponse.json(await getVisitorStats()));
 }

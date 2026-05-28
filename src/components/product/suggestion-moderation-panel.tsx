@@ -71,6 +71,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [statusFilter, minScore, termQuery, fromDate, toDate]);
 
@@ -87,6 +88,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
   }, [items]);
 
@@ -193,7 +195,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {
