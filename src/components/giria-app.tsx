@@ -34,6 +34,7 @@ import {
   Sun,
   Moon,
   Calendar,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "regionais" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
 
 interface TranslationResult {
   term: string;
@@ -82,6 +83,12 @@ interface TranslationResult {
 // ---------------------------------------------------------------------------
 const FAVORITES_KEY = "giria-ai-favorites";
 const SEARCH_HISTORY_KEY = "giria-ai-history";
+
+const REGIONAL_TAB_KEYS = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
+
+function matchesMacroRegion(termRegion: string, region: string) {
+  return termRegion.toLowerCase().includes(region.toLowerCase());
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -606,6 +613,11 @@ export default function GiriaApp() {
     return terms;
   })();
 
+  const regionalHighlights = REGIONAL_TAB_KEYS.map((region) => {
+    const terms = SLANG_DATA.filter((term) => term.category === "regional" && matchesMacroRegion(term.region, region));
+    return { region, terms, preview: terms.slice(0, 8) };
+  });
+
   // ---- Favorites data ----
   const favoriteTerms = favorites
     .map((f) => getTerm(f))
@@ -627,6 +639,11 @@ export default function GiriaApp() {
       id: "glossario",
       label: "Glossário",
       icon: <BookMarked className="h-4 w-4" />,
+    },
+    {
+      id: "regionais",
+      label: "Regionais",
+      icon: <MapPin className="h-4 w-4" />,
     },
     {
       id: "favoritos",
@@ -1315,8 +1332,59 @@ export default function GiriaApp() {
     </div>
   );
 
+
   // =========================================================================
-  // TAB 3 — FAVORITOS
+  // TAB 3 — REGIONAIS
+  // =========================================================================
+  const renderRegionais = () => (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Aba Regionais</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Cobertura ampliada com {SLANG_DATA.filter((term) => term.category === "regional").length.toLocaleString("pt-BR")} gírias e variações regionais.
+            </p>
+          </div>
+          <Link href="/girias/regionais" className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+            Página regional completa
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {regionalHighlights.map(({ region, terms, preview }) => (
+          <Card key={region} className="border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{region}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{terms.length.toLocaleString("pt-BR")} entradas</p>
+                </div>
+                <Badge variant="outline" className="text-xs">regional</Badge>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {preview.map((term) => (
+                  <button
+                    key={`${region}-${term.term}`}
+                    type="button"
+                    onClick={() => searchAndGo(term.term)}
+                    className="rounded-full border px-2 py-1 text-xs text-gray-700 hover:border-emerald-300 hover:text-emerald-700 dark:text-gray-300 dark:hover:text-emerald-300"
+                  >
+                    {term.term}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  // =========================================================================
+  // TAB 4 — FAVORITOS
   // =========================================================================
   const renderFavoritos = () => (
     <div className="space-y-4">
@@ -1804,6 +1872,7 @@ export default function GiriaApp() {
           >
             {activeTab === "busca" && renderBusca()}
             {activeTab === "glossario" && renderGlossario()}
+            {activeTab === "regionais" && renderRegionais()}
             {activeTab === "favoritos" && renderFavoritos()}
             {activeTab === "comunidade" && renderComunidade()}
             {activeTab === "sobre" && renderSobre()}

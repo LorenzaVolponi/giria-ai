@@ -45,7 +45,7 @@ interface ExploreSectionProps {
   onSearchTerm: (term: string) => void;
 }
 
-type SubTab = "categorias" | "regioes" | "glossario";
+type SubTab = "categorias" | "regionais" | "glossario";
 type GlossarySort = "az" | "za";
 
 // =============================================================================
@@ -53,6 +53,11 @@ type GlossarySort = "az" | "za";
 // =============================================================================
 const REGIONS = [
   "Brasil",
+  "Norte",
+  "Nordeste",
+  "Centro-Oeste",
+  "Sudeste",
+  "Sul",
   "SP",
   "RJ",
   "MG",
@@ -66,6 +71,11 @@ const REGIONS = [
 
 const REGION_META: Record<string, { label: string; gradient: string; darkGradient: string; icon: string }> = {
   Brasil: { label: "Brasil", gradient: "from-emerald-500 to-teal-600", darkGradient: "from-emerald-700 to-teal-800", icon: "🇧🇷" },
+  Norte: { label: "Norte", gradient: "from-green-500 to-emerald-700", darkGradient: "from-green-700 to-emerald-900", icon: "🌴" },
+  Nordeste: { label: "Nordeste", gradient: "from-orange-500 to-red-600", darkGradient: "from-orange-700 to-red-800", icon: "☀️" },
+  "Centro-Oeste": { label: "Centro-Oeste", gradient: "from-lime-500 to-green-700", darkGradient: "from-lime-700 to-green-900", icon: "🌾" },
+  Sudeste: { label: "Sudeste", gradient: "from-slate-500 to-blue-700", darkGradient: "from-slate-700 to-blue-900", icon: "🏙️" },
+  Sul: { label: "Sul", gradient: "from-cyan-500 to-sky-700", darkGradient: "from-cyan-700 to-sky-900", icon: "🧉" },
   SP: { label: "São Paulo", gradient: "from-blue-500 to-indigo-600", darkGradient: "from-blue-700 to-indigo-800", icon: "🌆" },
   RJ: { label: "Rio de Janeiro", gradient: "from-amber-500 to-orange-600", darkGradient: "from-amber-700 to-orange-800", icon: "🏖️" },
   MG: { label: "Minas Gerais", gradient: "from-stone-500 to-stone-700", darkGradient: "from-stone-600 to-stone-800", icon: "⛰️" },
@@ -107,6 +117,14 @@ const GLOSSARY_PAGE_SIZE = 30;
 function truncate(str: string, max: number): string {
   if (str.length <= max) return str;
   return str.slice(0, max).trimEnd() + "…";
+}
+
+function matchesRegion(termRegion: string, regionKey: string): boolean {
+  const region = termRegion.toLowerCase();
+  const key = regionKey.toLowerCase();
+  if (key === "brasil") return region !== "internacional";
+  if (key === "internacional") return region.includes("internacional");
+  return region === key || region.includes(key);
 }
 
 // =============================================================================
@@ -158,7 +176,11 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
     const counts: Record<string, number> = {};
     for (const term of SLANG_DATA) {
       if (!term) continue;
-      counts[term.region] = (counts[term.region] || 0) + 1;
+      for (const regionKey of REGIONS) {
+        if (matchesRegion(term.region, regionKey)) {
+          counts[regionKey] = (counts[regionKey] || 0) + 1;
+        }
+      }
     }
     return counts;
   }, []);
@@ -168,8 +190,11 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
     const samples: Record<string, SlangTerm[]> = {};
     for (const term of SLANG_DATA) {
       if (!term) continue;
-      if (!samples[term.region]) samples[term.region] = [];
-      if (samples[term.region].length < 5) samples[term.region].push(term);
+      for (const regionKey of REGIONS) {
+        if (!matchesRegion(term.region, regionKey)) continue;
+        if (!samples[regionKey]) samples[regionKey] = [];
+        if (samples[regionKey].length < 5) samples[regionKey].push(term);
+      }
     }
     return samples;
   }, []);
@@ -227,9 +252,7 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
     }
 
     if (selectedRegion) {
-      terms = terms.filter(
-        (t) => t.region.toLowerCase() === selectedRegion.toLowerCase()
-      );
+      terms = terms.filter((t) => matchesRegion(t.region, selectedRegion));
     }
 
     if (selectedPopularity !== "all") {
@@ -274,9 +297,7 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
   }, []);
 
   const openRegionSheet = useCallback((regionKey: string) => {
-    const terms = SLANG_DATA.filter(
-      (t) => t && t.region.toLowerCase() === regionKey.toLowerCase()
-    );
+    const terms = SLANG_DATA.filter((t) => t && matchesRegion(t.region, regionKey));
     terms.sort((a, b) => a.term.localeCompare(b.term, "pt-BR"));
     setSheetTitle(REGION_META[regionKey]?.label ?? regionKey);
     setSheetTerms(terms);
@@ -305,7 +326,7 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
   // =========================================================================
   const subTabs: { id: SubTab; label: string; icon: React.ReactNode }[] = [
     { id: "categorias", label: "Categorias", icon: <Grid3X3 className="h-4 w-4" /> },
-    { id: "regioes", label: "Regiões", icon: <MapPin className="h-4 w-4" /> },
+    { id: "regionais", label: "Regionais", icon: <MapPin className="h-4 w-4" /> },
     { id: "glossario", label: "Glossário", icon: <BookOpen className="h-4 w-4" /> },
   ];
 
@@ -407,17 +428,17 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
   );
 
   // =========================================================================
-  // TAB: REGIÕES
+  // TAB: REGIONAIS
   // =========================================================================
-  const renderRegioes = () => (
+  const renderRegionais = () => (
     <div className="space-y-4 animate-in fade-in duration-200">
       {/* Header */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-          Regiões
+          Regionais
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Explore gírias por região do Brasil e do mundo
+          Explore as novas gírias regionais por macro-região, UF e contexto
         </p>
       </div>
 
@@ -919,7 +940,7 @@ export default function ExploreSection({ onSearchTerm }: ExploreSectionProps) {
 
       {/* Tab content */}
       {subTab === "categorias" && renderCategorias()}
-      {subTab === "regioes" && renderRegioes()}
+      {subTab === "regionais" && renderRegionais()}
       {subTab === "glossario" && renderGlossario()}
 
       {/* Detail Sheet */}
