@@ -15,6 +15,7 @@ export default function AdminPage() {
     topIps?: Array<{ ip: string; total: number; approved: number; rejected: number; pending: number; lastAt: number }>;
     alerts?: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
+    auditPreview?: Array<{ at: string; action: string; ip?: string }>;
   }>({});
   const [metrics, setMetrics] = useState<{
     chatGrounding?: {
@@ -41,6 +42,14 @@ export default function AdminPage() {
     };
   }>({});
   const [metricsWindow, setMetricsWindow] = useState<"15" | "60" | "1440" | "10080">("60");
+
+  function getCsrfToken() {
+    return document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("giria_admin_csrf="))
+      ?.split("=")[1] || "";
+  }
 
   useEffect(() => {
     const boot = async () => {
@@ -70,7 +79,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!ok) return;
     void reloadDashboard(metricsWindow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -80,7 +88,6 @@ export default function AdminPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password, code, totp }),
-      body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
       setMessage("Login inválido.");
@@ -277,12 +284,12 @@ export default function AdminPage() {
             </div>
             <h3 className="mt-4 mb-2 font-semibold">Últimos eventos de auditoria</h3>
             <div className="space-y-1 text-xs text-muted-foreground">
-              {auditPreview.map((e, idx) => (
+              {(dash.auditPreview || []).map((e, idx) => (
                 <p key={`${e.at}-${idx}`}>{new Date(e.at).toLocaleString("pt-BR")} · {e.action} · {e.ip || "sem-ip"}</p>
               ))}
             </div>
           </section>
-          <SuggestionModerationPanel initialPending={[]} initialAuthenticated />
+          <SuggestionModerationPanel initialPending={[]} initialAuthenticated csrfToken={getCsrfToken()} />
         </>
       )}
     </main>
