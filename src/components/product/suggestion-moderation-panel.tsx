@@ -15,7 +15,15 @@ type SuggestionItem = {
   status: "pending" | "approved" | "rejected";
 };
 
-export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
+export function SuggestionModerationPanel({
+  initialPending,
+  initialAuthenticated = false,
+  csrfToken = "",
+}: {
+  initialPending: SuggestionItem[];
+  initialAuthenticated?: boolean;
+  csrfToken?: string;
+}) {
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated);
   const [items, setItems] = useState(initialPending);
   const [loading, setLoading] = useState(false);
@@ -71,7 +79,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setPage(1);
+    const id = setTimeout(() => setPage(1), 0);
+    return () => clearTimeout(id);
   }, [statusFilter, minScore, termQuery, fromDate, toDate]);
 
   useEffect(() => {
@@ -87,7 +96,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+    const id = setTimeout(() => {
+      setSelectedIds((prev) => prev.filter((selectedId) => items.some((item) => item.id === selectedId && item.status === "pending")));
+    }, 0);
+    return () => clearTimeout(id);
   }, [items]);
 
 
@@ -193,7 +205,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {

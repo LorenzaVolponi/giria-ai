@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { withSecurityHeaders } from "@/lib/security";
 import { getSuggestionStatusCounts, listSuggestionsByStatus, listIngressIpMetrics } from "@/lib/suggestion-pipeline";
+import { listAdminAudit } from "@/lib/admin-audit";
 
 export async function GET(request: NextRequest) {
   const unauthorized = requireAdminToken(request);
@@ -9,9 +10,10 @@ export async function GET(request: NextRequest) {
   const forbidden = requireAdminRole(request, ["viewer", "moderator", "owner"]);
   if (forbidden) return forbidden;
 
-  const [summary, recent] = await Promise.all([
+  const [summary, recent, auditPreview] = await Promise.all([
     getSuggestionStatusCounts(),
     listSuggestionsByStatus("all", 10),
+    listAdminAudit(8),
   ]);
   const topIps = listIngressIpMetrics(12);
   const alerts: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }> = [];
@@ -38,6 +40,11 @@ export async function GET(request: NextRequest) {
         score: x.score,
         submitterName: x.submitterName,
         createdAt: x.createdAt,
+      })),
+      auditPreview: auditPreview.map((event) => ({
+        at: event.at,
+        action: event.action,
+        ip: event.ip,
       })),
     }),
   );
