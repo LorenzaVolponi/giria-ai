@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getTerm, getTermsByRegion, searchTerms } from "../src/lib/slang-data";
+import { getTerm, getTermsByRegion, searchTerms, SLANG_DATA } from "../src/lib/slang-data";
+import { REGIONAL_DEEP_EXPANSION_COUNT } from "../src/lib/slang-regional-deep-expansion";
 
 describe("regional slang support", () => {
   it("loads explicit regional terms", () => {
@@ -36,4 +37,29 @@ it("supports expanded Sudeste/Centro-Oeste terms", () => {
   const capiau = getTerm("capiau");
   expect(capiau).toBeDefined();
   expect(capiau?.region.toLowerCase()).toContain("sudeste");
+});
+
+
+it("includes newer regional expansion across all macro-regions", () => {
+  expect(getTerm("arre diacho")?.region).toContain("AC");
+  expect(getTerm("arre égua")?.region).toContain("CE");
+  expect(getTerm("camelo")?.region).toContain("Centro-Oeste");
+  expect(getTerm("pão de sal")?.region).toContain("MG");
+  expect(getTerm("cacetinho")?.region).toContain("RS");
+});
+
+it("exposes UF-specific regional entries for quick filters", () => {
+  const ceTerms = getTermsByRegion("CE");
+  const rsTerms = getTermsByRegion("RS");
+  expect(ceTerms.some((t) => t.term === "carioquinha")).toBe(true);
+  expect(rsTerms.some((t) => t.term === "bergamota")).toBe(true);
+});
+
+
+it("adds more than seven thousand deep regional contextual entries", () => {
+  expect(REGIONAL_DEEP_EXPANSION_COUNT).toBeGreaterThanOrEqual(7000);
+  expect(SLANG_DATA.length).toBeGreaterThanOrEqual(7000);
+  expect(getTerm("arre diacho no zap")?.region).toBe("Norte");
+  expect(getTerm("oxente do São João")?.region).toBe("Nordeste");
+  expect(getTerm("baita do chimarrão")?.region).toBe("Sul");
 });

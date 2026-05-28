@@ -279,10 +279,6 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
-    void loadCommunity();
-  }, [loadCommunity]);
-
-  useEffect(() => {
     if (activeTab !== "comunidade") return;
     const id = setInterval(() => {
       void loadCommunity();
@@ -618,6 +614,13 @@ export default function GiriaApp() {
   // =========================================================================
   // Tab navigation config
   // =========================================================================
+  const handleTabChange = useCallback((tabId: TabId) => {
+    setActiveTab(tabId);
+    if (tabId === "comunidade" && communityItems.length === 0 && !communityLoading) {
+      void loadCommunity();
+    }
+  }, [communityItems.length, communityLoading, loadCommunity]);
+
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; href?: string }> = [
     { id: "busca", label: "Busca", icon: <Search className="h-4 w-4" /> },
     {
@@ -1772,7 +1775,7 @@ export default function GiriaApp() {
               ) : (
               <button
                 key={tab.label}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? "border-emerald-600 text-emerald-600 dark:text-emerald-400"
@@ -1866,7 +1869,7 @@ export default function GiriaApp() {
             ) : (
             <button
               key={tab.label}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors ${
                 activeTab === tab.id
                   ? "text-emerald-600 dark:text-emerald-400"

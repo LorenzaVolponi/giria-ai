@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SLANG_DATA } from "@/lib/slang-data";
+import { RISK_CONFIG, SLANG_DATA, type RiskLevel } from "@/lib/slang-data";
 
 export const metadata: Metadata = {
   title: "Gírias Regionais do Brasil | Gíria AI",
@@ -23,7 +23,12 @@ function normalizeRegionLabel(region: string): RegionKey {
 }
 
 interface Props {
-  searchParams?: Promise<{ uf?: string; q?: string }>;
+  searchParams?: Promise<{ uf?: string; q?: string; risk?: string }>;
+}
+
+function parseRiskFilter(value?: string): RiskLevel | null {
+  if (!value) return null;
+  return value in RISK_CONFIG ? (value as RiskLevel) : null;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
@@ -31,7 +36,14 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
   const query = (sp?.q || "").trim().toLowerCase();
   const queryReadable = (sp?.q || "").trim();
-  const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
+  const riskFilter = parseRiskFilter(sp?.risk);
+  const regionalTerms = SLANG_DATA
+    .filter((term) => term.category === "regional")
+    .filter((term) => !riskFilter || term.riskLevel === riskFilter)
+    .filter((term) => {
+      if (!query) return true;
+      return `${term.term} ${term.meaning} ${term.context} ${term.region}`.toLowerCase().includes(query);
+    });
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
   for (const key of regionOrder) grouped.set(key, []);
@@ -51,7 +63,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
 
   const allStates = Array.from(
     new Set(
-      regionalTerms
+      SLANG_DATA.filter((term) => term.category === "regional")
         .map((t) => {
           const m = t.region.match(/\(([A-Z]{2})\)/);
           return m?.[1] ?? null;
