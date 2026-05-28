@@ -15,7 +15,15 @@ type SuggestionItem = {
   status: "pending" | "approved" | "rejected";
 };
 
-export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
+export function SuggestionModerationPanel({
+  initialPending,
+  initialAuthenticated = false,
+  csrfToken = "",
+}: {
+  initialPending: SuggestionItem[];
+  initialAuthenticated?: boolean;
+  csrfToken?: string;
+}) {
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated);
   const [items, setItems] = useState(initialPending);
   const [loading, setLoading] = useState(false);
@@ -36,6 +44,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; failed: number; running: boolean }>({ total: 0, done: 0, failed: 0, running: false });
   const [sessionStats, setSessionStats] = useState<{ approved: number; rejected: number; failed: number; batchAvgMs: number; batches: number }>({ approved: 0, rejected: 0, failed: 0, batchAvgMs: 0, batches: 0 });
   const pageSize = 12;
+  const selectedPendingIds = selectedIds.filter((selectedId) => items.some((item) => item.id === selectedId && item.status === "pending"));
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -70,14 +79,14 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     void reloadPending();
   }, [statusFilter, fromDate, toDate]);
 
-  useEffect(() => {
+  function resetToFirstPage() {
     setPage(1);
-  }, [statusFilter, minScore, termQuery, fromDate, toDate]);
+  }
 
   useEffect(() => {
     if (!isAuthenticated) return;
     void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, csrfToken]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -85,10 +94,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     }, 15000);
     return () => clearInterval(id);
   }, [statusFilter, fromDate, toDate]);
-
-  useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
-  }, [items]);
 
 
   function statusBadge(status: SuggestionItem["status"]) {
@@ -184,7 +189,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }
 
   async function moderateBatch(status: "approved" | "rejected") {
-    const pendingIds = selectedIds.filter((id) => items.some((item) => item.id === id && item.status === "pending"));
+    const pendingIds = selectedPendingIds;
     if (!pendingIds.length) return;
     const batchStart = performance.now();
     setBatchProgress({ total: pendingIds.length, done: 0, failed: 0, running: true });
@@ -193,7 +198,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {
@@ -256,18 +260,18 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       <p className="text-sm text-muted-foreground mt-1">Sessão admin ativa via /admin com cookie HttpOnly.</p>
       {!isAuthenticated ? <p className="mt-3 rounded border p-2 text-sm">Faça login em <strong>/admin</strong> para liberar a moderação.</p> : null}
       <div className="mt-3 grid gap-2 md:grid-cols-4">
-        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
+        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected"); resetToFirstPage(); }}>
           <option value="pending">Pendentes</option>
           <option value="approved">Aprovadas</option>
           <option value="rejected">Rejeitadas</option>
           <option value="all">Todas</option>
         </select>
-        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
-        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
+        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => { setMinScore(Number(e.target.value) || 0); resetToFirstPage(); }} placeholder="Score mínimo" />
+        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => { setTermQuery(e.target.value); resetToFirstPage(); }} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
-        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); resetToFirstPage(); }} />
+        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); resetToFirstPage(); }} />
       </div>
       <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
         <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
@@ -307,10 +311,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!lastAction} onClick={undoLastAction}>
           Desfazer última ação
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("approved")}>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedPendingIds.length || batchProgress.running} onClick={() => void moderateBatch("approved")}>
           Aprovar selecionadas
         </button>
-        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("rejected")}>
+        <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedPendingIds.length || batchProgress.running} onClick={() => void moderateBatch("rejected")}>
           Rejeitar selecionadas
         </button>
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => setSelectedIds([])}>
@@ -364,7 +368,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-2 py-1" type="button" onClick={() => toggleSelectAllPage(pendingPagedIds)}>Selecionar página</button>
         <button className="rounded border px-2 py-1" type="button" onClick={() => selectAllFiltered(pendingFilteredIds)}>Selecionar filtradas</button>
         <button className="rounded border px-2 py-1" type="button" onClick={() => setSelectedIds([])}>Nenhuma</button>
-        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedIds.length}</strong></p>
+        <p className="rounded border px-2 py-1">Selecionadas: <strong>{selectedPendingIds.length}</strong></p>
       </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {paged.map((item) => (
