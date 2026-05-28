@@ -154,7 +154,17 @@ async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeani
 export async function saveValidatedSlang(input: SuggestionInput & { score: number; status: ValidationStatus; evidence: string[] }) {
   try {
     const saved = await db.validatedSlang.create({
-      data: { ...input, evidence: JSON.stringify(input.evidence) },
+      data: {
+        term: input.term,
+        meaning: input.meaning,
+        context: input.context || "geral",
+        submitterName: input.submitterName,
+        submitterWhatsapp: input.submitterWhatsapp,
+        submitterEmail: input.submitterEmail,
+        score: input.score,
+        status: input.status,
+        evidence: JSON.stringify(input.evidence),
+      },
     });
     return { id: saved.id, createdAt: saved.createdAt.toISOString() };
   } catch {
@@ -345,11 +355,15 @@ export async function moderateSuggestionStatus(
 export async function autoPromoteApprovedSlang(input: SuggestionInput & { meaning: string; status: ValidationStatus }) {
   if (input.status !== "approved") return { promoted: false as const };
   try {
-    const existing = await db.translation.findFirst({
-      where: { slang: { equals: input.term, mode: "insensitive" } },
-      select: { id: true },
+    const existingTranslations = await db.translation.findMany({
+      where: { slang: { equals: input.term } },
+      select: { id: true, slang: true },
+      take: 10,
     });
-    if (existing) return { promoted: false as const, reason: "already_exists" as const };
+    const normalizedTerm = input.term.toLowerCase();
+    if (existingTranslations.some((item) => item.slang.toLowerCase() === normalizedTerm)) {
+      return { promoted: false as const, reason: "already_exists" as const };
+    }
 
     await db.translation.create({
       data: {
@@ -417,8 +431,14 @@ export async function isSuggestionEligible(termRaw: string) {
   if (term.length >= 6 && consonants > vowels * 4) return { ok: false as const, reason: "Termo suspeito: padrão de escrita artificial." };
 
   try {
-    const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term, mode: "insensitive" }, status: { in: ["approved", "pending"] } }, select: { id: true } });
-    if (existing) return { ok: false as const, reason: "Essa gíria já foi enviada." };
+    const existingSuggestions = await db.validatedSlang.findMany({
+      where: { status: { in: ["approved", "pending"] } },
+      select: { id: true, term: true },
+      take: 200,
+    });
+    if (existingSuggestions.some((item) => item.term.toLowerCase() === term)) {
+      return { ok: false as const, reason: "Essa gíria já foi enviada." };
+    }
   } catch {}
 
   return { ok: true as const, term };
