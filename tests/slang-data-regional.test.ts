@@ -37,3 +37,19 @@ it("supports expanded Sudeste/Centro-Oeste terms", () => {
   expect(capiau).toBeDefined();
   expect(capiau?.region.toLowerCase()).toContain("sudeste");
 });
+
+
+it("includes newer regional expansion across all macro-regions", () => {
+  expect(getTerm("arre diacho")?.region).toContain("AC");
+  expect(getTerm("arre égua")?.region).toContain("CE");
+  expect(getTerm("camelo")?.region).toContain("Centro-Oeste");
+  expect(getTerm("pão de sal")?.region).toContain("MG");
+  expect(getTerm("cacetinho")?.region).toContain("RS");
+});
+
+it("exposes UF-specific regional entries for quick filters", () => {
+  const ceTerms = getTermsByRegion("CE");
+  const rsTerms = getTermsByRegion("RS");
+  expect(ceTerms.some((t) => t.term === "carioquinha")).toBe(true);
+  expect(rsTerms.some((t) => t.term === "bergamota")).toBe(true);
+});
