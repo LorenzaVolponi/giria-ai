@@ -107,12 +107,14 @@ describe("chat API response modes", () => {
   it("does not send deprecation headers when using responseMode", async () => {
     const req = makeRequest({ message: "oi", responseMode: "single" });
     const res = await chatPost(req);
+    const json = await res.json();
+
     expect(res.status).toBe(200);
+    expect(json.mode).toBe("single");
+    expect(json).toHaveProperty("response");
     expect(res.headers.get("x-api-warn")).toBeNull();
     expect(res.headers.get("deprecation")).toBeNull();
     expect(res.headers.get("sunset")).toBeNull();
-    expect(Array.isArray(json.responses)).toBe(true);
-    expect(json.responses[0]).toBe("anterior");
   });
 
   it("asks for clarification on contextual follow-up when previous assistant message has multiple slang terms", async () => {

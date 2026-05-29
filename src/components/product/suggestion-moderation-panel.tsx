@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 
+
+function getCsrfToken() {
+  if (typeof document === "undefined") return "";
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("giria_admin_csrf="))
+    ?.split("=")[1] || "";
+}
+
 type SuggestionItem = {
   id: string;
   term: string;
@@ -71,12 +81,8 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setPage(1);
-  }, [statusFilter, minScore, termQuery, fromDate, toDate]);
-
-  useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": getCsrfToken() } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -87,7 +93,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+    const id = window.setTimeout(() => {
+      setSelectedIds((prev) => prev.filter((selectedId) => items.some((item) => item.id === selectedId && item.status === "pending")));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [items]);
 
 
@@ -193,7 +202,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {
@@ -256,18 +264,18 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       <p className="text-sm text-muted-foreground mt-1">Sessão admin ativa via /admin com cookie HttpOnly.</p>
       {!isAuthenticated ? <p className="mt-3 rounded border p-2 text-sm">Faça login em <strong>/admin</strong> para liberar a moderação.</p> : null}
       <div className="mt-3 grid gap-2 md:grid-cols-4">
-        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
+        <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected"); setPage(1); }}>
           <option value="pending">Pendentes</option>
           <option value="approved">Aprovadas</option>
           <option value="rejected">Rejeitadas</option>
           <option value="all">Todas</option>
         </select>
-        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
-        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
+        <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => { setMinScore(Number(e.target.value) || 0); setPage(1); }} placeholder="Score mínimo" />
+        <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => { setTermQuery(e.target.value); setPage(1); }} placeholder="Buscar por gíria, contexto ou submitter" />
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
-        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(1); }} />
+        <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(1); }} />
       </div>
       <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
         <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>

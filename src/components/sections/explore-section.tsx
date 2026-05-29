@@ -83,6 +83,7 @@ REGION_META["PE"] = { label: "Pernambuco", gradient: "from-yellow-500 to-amber-6
 
 const POPULARITY_MAP: Record<PopularityStatus, { label: string; icon: React.ReactNode }> = {
   ativo: { label: "Ativo", icon: <TrendingUp className="h-3 w-3" /> },
+  trending: { label: "Em alta", icon: <TrendingUp className="h-3 w-3" /> },
   em_queda: { label: "Em Queda", icon: <TrendingDown className="h-3 w-3" /> },
   regional: { label: "Regional", icon: <Crosshair className="h-3 w-3" /> },
   internacional: { label: "Internacional", icon: <Languages className="h-3 w-3" /> },
@@ -91,6 +92,7 @@ const POPULARITY_MAP: Record<PopularityStatus, { label: string; icon: React.Reac
 const POPULARITY_FILTERS: { value: PopularityStatus | "all"; label: string }[] = [
   { value: "all", label: "Todas" },
   { value: "ativo", label: "🔥 Ativo" },
+  { value: "trending", label: "🚀 Em alta" },
   { value: "em_queda", label: "📉 Em Queda" },
   { value: "regional", label: "📍 Regional" },
   { value: "internacional", label: "🌍 Internacional" },
