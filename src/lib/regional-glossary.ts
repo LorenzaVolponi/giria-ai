@@ -66,13 +66,55 @@ export function parseRiskFilter(value?: string): RiskLevel | null {
 }
 
 
+export type RegionalContextGroupKey = "digital" | "comida" | "festa" | "territorio" | "cotidiano";
+
+export interface RegionalVariationGroup {
+  key: RegionalContextGroupKey;
+  label: string;
+  variations: SlangTerm[];
+}
+
 export interface RegionalGlossaryEntry {
   key: string;
   rootTerm: string;
   summary: string;
   primary: SlangTerm;
   variations: SlangTerm[];
+  featuredVariations: SlangTerm[];
+  variationGroups: RegionalVariationGroup[];
   totalVariants: number;
+}
+
+const FEATURED_ROOTS_BY_REGION: Record<RegionKey, string[]> = {
+  Norte: ["égua", "pai d'égua", "de rocha", "cunhantã", "curumim", "arre diacho", "tacacá mood", "açaí raiz"],
+  Nordeste: ["oxente", "oxe", "arre égua", "arretado", "avexado", "brocado", "carioquinha", "macaxeira"],
+  "Centro-Oeste": ["uai sô", "arreda", "camelo", "trem bão", "pequiado", "cerrado raiz", "dá conta"],
+  Sudeste: ["pão de sal", "pão de queijo", "trem", "uai", "mano", "pocar", "biscoito de polvilho"],
+  Sul: ["bah", "tchê", "guri", "bergamota", "cacetinho", "baita", "chimarrão", "tri massa"],
+  Brasil: [],
+};
+
+const REGION_PREFERRED_CONTEXTS: Record<RegionKey, string[]> = {
+  Norte: ["açaí", "amazônia", "tacacá", "maniçoba", "igarapé", "rio", "zap"],
+  Nordeste: ["são joão", "sertão", "forró", "carnaval", "praia", "interior", "zap"],
+  "Centro-Oeste": ["cerrado", "pequi", "roça", "cidade pequena", "sertão", "interior", "zap"],
+  Sudeste: ["pão de queijo", "praia carioca", "serra", "padoca", "cidade", "zap"],
+  Sul: ["chimarrão", "fronteira", "serra", "churrasco", "cidade pequena", "zap"],
+  Brasil: ["zap", "rua", "turma", "família"],
+};
+
+const LOW_VALUE_CONTEXTS = [" do x", "do chat", "do discord", "de domingo", "da turma", "de cria"];
+
+const CONTEXT_GROUPS: Array<{ key: RegionalContextGroupKey; label: string; matcher: RegExp }> = [
+  { key: "digital", label: "Digital", matcher: /zap|tiktok|instagram|discord|chat|live|meme|rede social|online|story/i },
+  { key: "comida", label: "Comida e costumes", matcher: /açaí|chimarrão|pequi|pão de queijo|padoca|mercado|churrasco|comida|alimentar/i },
+  { key: "festa", label: "Festa e cultura", matcher: /são joão|carnaval|festa|forró|encontro social/i },
+  { key: "territorio", label: "Território", matcher: /amazônia|cerrado|sertão|serra|fronteira|roça|cidade pequena|bairro|rua|interior|local/i },
+  { key: "cotidiano", label: "Cotidiano", matcher: /família|turma|noite|cedinho|susto|moral|boa|cotidiana|conversa/i },
+];
+
+function normalizeForMatch(value: string): string {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function extractRegionalRootTerm(term: SlangTerm): string {
@@ -95,8 +137,74 @@ function summarizeRegionalMeaning(term: SlangTerm): string {
     .trim();
 }
 
+function variationContextText(term: SlangTerm): string {
+  return `${term.term} ${term.context} ${term.contextNotes} ${term.origin}`;
+}
+
+function scoreRegionalVariation(term: SlangTerm, region: RegionKey): number {
+  const normalized = normalizeForMatch(variationContextText(term));
+  let score = 0;
+
+  REGION_PREFERRED_CONTEXTS[region].forEach((preferred, index) => {
+    if (normalized.includes(normalizeForMatch(preferred))) score += 110 - index * 8;
+  });
+
+  if (term.popularityStatus === "trending") score += 20;
+  if (term.term.length <= 32) score += 10;
+
+  const matchedGroup = CONTEXT_GROUPS.find((group) => group.matcher.test(variationContextText(term)));
+  if (matchedGroup?.key === "territorio" || matchedGroup?.key === "comida" || matchedGroup?.key === "festa") score += 25;
+  if (matchedGroup?.key === "digital") score += 15;
+
+  for (const lowValue of LOW_VALUE_CONTEXTS) {
+    if (normalized.includes(normalizeForMatch(lowValue))) score -= 120;
+  }
+
+  return score;
+}
+
+function sortVariationsByQuality(variations: SlangTerm[], region: RegionKey): SlangTerm[] {
+  return [...variations].sort((a, b) => {
+    const byScore = scoreRegionalVariation(b, region) - scoreRegionalVariation(a, region);
+    if (byScore !== 0) return byScore;
+    return a.term.localeCompare(b.term, "pt-BR");
+  });
+}
+
+function groupVariationsByContext(variations: SlangTerm[], region: RegionKey): RegionalVariationGroup[] {
+  const grouped = new Map<RegionalContextGroupKey, SlangTerm[]>();
+  for (const group of CONTEXT_GROUPS) grouped.set(group.key, []);
+
+  for (const variation of sortVariationsByQuality(variations, region)) {
+    const text = variationContextText(variation);
+    const group = CONTEXT_GROUPS.find((item) => item.matcher.test(text)) ?? CONTEXT_GROUPS[CONTEXT_GROUPS.length - 1];
+    grouped.set(group.key, [...(grouped.get(group.key) ?? []), variation]);
+  }
+
+  return CONTEXT_GROUPS.map((group) => ({
+    key: group.key,
+    label: group.label,
+    variations: grouped.get(group.key) ?? [],
+  })).filter((group) => group.variations.length > 0);
+}
+
 function compareRegionalTerms(a: SlangTerm, b: SlangTerm) {
   return a.term.localeCompare(b.term, "pt-BR");
+}
+
+function compareRegionalEntries(region: RegionKey, a: RegionalGlossaryEntry, b: RegionalGlossaryEntry) {
+  const featured = FEATURED_ROOTS_BY_REGION[region].map((term) => normalizeForMatch(term));
+  const aFeatured = featured.indexOf(normalizeForMatch(a.rootTerm));
+  const bFeatured = featured.indexOf(normalizeForMatch(b.rootTerm));
+  if (aFeatured !== -1 || bFeatured !== -1) {
+    if (aFeatured === -1) return 1;
+    if (bFeatured === -1) return -1;
+    return aFeatured - bFeatured;
+  }
+
+  const byVariantCount = b.totalVariants - a.totalVariants;
+  if (byVariantCount !== 0) return byVariantCount;
+  return a.rootTerm.localeCompare(b.rootTerm, "pt-BR");
 }
 
 interface RegionalFilters {
@@ -149,10 +257,20 @@ export function groupRegionalEntries(terms: SlangTerm[]): Map<RegionKey, Regiona
       const exactRoot = sorted.find((term) => term.term.toLowerCase().trim() === rootTerm.toLowerCase().trim());
       const primary = exactRoot ?? sorted.reduce((best, term) => (term.term.length < best.term.length ? term : best), sorted[0]);
       const variations = sorted.filter((term) => term !== primary);
-      return { key, rootTerm, summary: summarizeRegionalMeaning(primary), primary, variations, totalVariants: variations.length } satisfies RegionalGlossaryEntry;
+      const rankedVariations = sortVariationsByQuality(variations, region);
+      return {
+        key,
+        rootTerm,
+        summary: summarizeRegionalMeaning(primary),
+        primary,
+        variations: rankedVariations,
+        featuredVariations: rankedVariations.slice(0, 3),
+        variationGroups: groupVariationsByContext(rankedVariations, region),
+        totalVariants: variations.length,
+      } satisfies RegionalGlossaryEntry;
     });
 
-    entries.sort((a, b) => compareRegionalTerms(a.primary, b.primary));
+    entries.sort((a, b) => compareRegionalEntries(region, a, b));
     grouped.set(region, entries);
   }
 

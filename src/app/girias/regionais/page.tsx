@@ -63,7 +63,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Glossário regional ampliado</p>
         <h1 className="mt-2 text-3xl font-bold">Gírias regionais do Brasil</h1>
         <p className="mt-3 max-w-3xl text-muted-foreground">
-          Página dedicada às expressões regionais com macro-regiões, UFs, contexto de uso, nível de risco e variações de canal. O glossário já carrega {fullStats.total.toLocaleString("pt-BR")} entradas regionais, incluindo {REGIONAL_DEEP_EXPANSION_COUNT.toLocaleString("pt-BR")} variações contextuais novas.
+          Página dedicada às expressões regionais com macro-regiões, UFs, contexto de uso, nível de risco e exemplos de aplicação por canal. O glossário já carrega {fullStats.total.toLocaleString("pt-BR")} entradas regionais, incluindo {REGIONAL_DEEP_EXPANSION_COUNT.toLocaleString("pt-BR")} contextos de uso novos.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border bg-white/80 p-3">
@@ -71,7 +71,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             <p className="text-2xl font-bold">{fullStats.total.toLocaleString("pt-BR")}</p>
           </div>
           <div className="rounded-xl border bg-white/80 p-3">
-            <p className="text-xs text-muted-foreground">Variações novas</p>
+            <p className="text-xs text-muted-foreground">Contextos novos</p>
             <p className="text-2xl font-bold">{REGIONAL_DEEP_EXPANSION_COUNT.toLocaleString("pt-BR")}</p>
           </div>
           <div className="rounded-xl border bg-white/80 p-3">
@@ -210,7 +210,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">{region}</h2>
-                  <p className="text-xs text-muted-foreground mt-1">{entries.length.toLocaleString("pt-BR")} expressões-base · {terms.length.toLocaleString("pt-BR")} variações nesta região</p>
+                  <p className="text-xs text-muted-foreground mt-1">{entries.length.toLocaleString("pt-BR")} expressões principais · {terms.length.toLocaleString("pt-BR")} contextos de uso nesta região</p>
                 </div>
                 <Link href={buildRegionaisHref({ q: region })} className="text-sm underline">
                   Ver filtro desta região
@@ -225,16 +225,16 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
                       </Link>
                       {entry.totalVariants > 0 ? (
                         <span className="shrink-0 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                          +{entry.totalVariants} variações
+                          +{entry.totalVariants} contextos
                         </span>
                       ) : null}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{entry.summary}</p>
-                    {entry.variations.length > 0 ? (
+                    {entry.featuredVariations.length > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {entry.variations.slice(0, 5).map((variation) => (
+                        {entry.featuredVariations.map((variation) => (
                           <Link
-                            key={`${entry.key}-${variation.term}`}
+                            key={`${entry.key}-featured-${variation.term}`}
                             href={`/girias/${encodeURIComponent(variation.term)}`}
                             className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
                           >
@@ -242,6 +242,36 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
                           </Link>
                         ))}
                       </div>
+                    ) : null}
+                    {entry.totalVariants > entry.featuredVariations.length ? (
+                      <details className="mt-2 rounded-lg border bg-muted/20 p-2 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-foreground/80">
+                          Ver contextos agrupados ({entry.totalVariants.toLocaleString("pt-BR")})
+                        </summary>
+                        <div className="mt-2 space-y-2">
+                          {entry.variationGroups.map((group) => (
+                            <div key={`${entry.key}-${group.key}`}>
+                              <p className="mb-1 font-medium text-foreground/70">{group.label}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {group.variations.slice(0, 6).map((variation) => (
+                                  <Link
+                                    key={`${entry.key}-${group.key}-${variation.term}`}
+                                    href={`/girias/${encodeURIComponent(variation.term)}`}
+                                    className="rounded-full border bg-background px-2 py-0.5 hover:bg-muted"
+                                  >
+                                    {variation.term}
+                                  </Link>
+                                ))}
+                                {group.variations.length > 6 ? (
+                                  <span className="rounded-full border bg-background px-2 py-0.5">
+                                    +{(group.variations.length - 6).toLocaleString("pt-BR")}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
                       <span className="rounded-full border px-2 py-0.5">{entry.primary.region}</span>

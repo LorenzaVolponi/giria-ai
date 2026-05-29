@@ -106,5 +106,13 @@ it("groups repetitive contextual slang as variations of the base expression", ()
   expect(arredaEntry).toBeDefined();
   expect(arredaEntry?.summary).toBe("pedido para abrir espaço");
   expect(arredaEntry?.totalVariants).toBeGreaterThan(20);
+  expect(arredaEntry?.featuredVariations.length).toBeLessThanOrEqual(3);
+  expect(arredaEntry?.featuredVariations.map((term) => term.term)).not.toContain("arreda do X");
+  expect(arredaEntry?.variationGroups.map((group) => group.label)).toEqual(expect.arrayContaining(["Digital", "Território"]));
   expect(arredaEntry?.variations.map((term) => term.term)).toEqual(expect.arrayContaining(["arreda da rua", "arreda da serra"]));
+});
+
+it("orders regional glossary cards by curated roots before generated volume", () => {
+  const nordesteEntries = groupRegionalEntries(getRegionalTerms()).get("Nordeste") ?? [];
+  expect(nordesteEntries.slice(0, 4).map((entry) => entry.rootTerm)).toEqual(["oxente", "arre égua", "arretado", "avexado"]);
 });
