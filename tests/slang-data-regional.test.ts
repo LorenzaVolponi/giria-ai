@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { getTerm, getTermsByRegion, searchTerms, SLANG_DATA } from "../src/lib/slang-data";
 import { REGIONAL_DEEP_EXPANSION_COUNT } from "../src/lib/slang-regional-deep-expansion";
-
+import {
+  getAvailableRegionalStates,
+  getRegionalCoverageStats,
+  getRegionalTerms,
+  groupRegionalTerms,
+  normalizeRegionLabel,
+} from "../src/lib/regional-glossary";
 describe("regional slang support", () => {
   it("loads explicit regional terms", () => {
     const term = getTerm("oxi mainha");
@@ -62,4 +68,31 @@ it("adds more than seven thousand deep regional contextual entries", () => {
   expect(getTerm("arre diacho no zap")?.region).toBe("Norte");
   expect(getTerm("oxente do São João")?.region).toBe("Nordeste");
   expect(getTerm("baita do chimarrão")?.region).toBe("Sul");
+});
+
+it("normalizes UF-specific regional labels into macro-regions", () => {
+  expect(normalizeRegionLabel("Nordeste (CE/PB/RN)")).toBe("Nordeste");
+  expect(normalizeRegionLabel("Sul (RS/SC/PR)")).toBe("Sul");
+  expect(normalizeRegionLabel("Centro-Oeste / Sudeste (DF/RJ)")).toBe("Brasil");
+  expect(normalizeRegionLabel("São Paulo / Brasília")).toBe("Brasil");
+});
+
+it("builds regional glossary stats for the public Regionais tab", () => {
+  const regionalTerms = getRegionalTerms();
+  const stats = getRegionalCoverageStats(regionalTerms);
+  const grouped = groupRegionalTerms(regionalTerms);
+
+  expect(stats.total).toBe(regionalTerms.length);
+  expect(stats.trending).toBeGreaterThan(0);
+  expect(getAvailableRegionalStates(regionalTerms)).toEqual(expect.arrayContaining(["AC", "CE", "MG", "RS"]));
+  expect(grouped.get("Norte")?.some((term) => term.term === "arre diacho")).toBe(true);
+  expect(grouped.get("Nordeste")?.some((term) => term.term === "carioquinha")).toBe(true);
+  expect(grouped.get("Sul")?.some((term) => term.term === "bergamota")).toBe(true);
+});
+
+it("filters regional glossary by UF, risk and contextual search", () => {
+  const ceTerms = getRegionalTerms({ uf: "CE", q: "pão", risk: "green" });
+  expect(ceTerms.some((term) => term.term === "carioquinha")).toBe(true);
+  expect(ceTerms.every((term) => term.riskLevel === "green")).toBe(true);
+  expect(ceTerms.every((term) => term.region.includes("CE"))).toBe(true);
 });
