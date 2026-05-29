@@ -5,6 +5,7 @@ import {
   getAvailableRegionalStates,
   getRegionalCoverageStats,
   getRegionalTerms,
+  groupRegionalEntries,
   groupRegionalTerms,
   normalizeRegionLabel,
 } from "../src/lib/regional-glossary";
@@ -95,4 +96,15 @@ it("filters regional glossary by UF, risk and contextual search", () => {
   expect(ceTerms.some((term) => term.term === "carioquinha")).toBe(true);
   expect(ceTerms.every((term) => term.riskLevel === "green")).toBe(true);
   expect(ceTerms.every((term) => term.region.includes("CE"))).toBe(true);
+});
+
+
+it("groups repetitive contextual slang as variations of the base expression", () => {
+  const centroOesteEntries = groupRegionalEntries(getRegionalTerms()).get("Centro-Oeste") ?? [];
+  const arredaEntry = centroOesteEntries.find((entry) => entry.rootTerm === "arreda");
+
+  expect(arredaEntry).toBeDefined();
+  expect(arredaEntry?.summary).toBe("pedido para abrir espaço");
+  expect(arredaEntry?.totalVariants).toBeGreaterThan(20);
+  expect(arredaEntry?.variations.map((term) => term.term)).toEqual(expect.arrayContaining(["arreda da rua", "arreda da serra"]));
 });

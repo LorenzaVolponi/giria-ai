@@ -65,6 +65,40 @@ export function parseRiskFilter(value?: string): RiskLevel | null {
   return value in RISK_CONFIG ? (value as RiskLevel) : null;
 }
 
+
+export interface RegionalGlossaryEntry {
+  key: string;
+  rootTerm: string;
+  summary: string;
+  primary: SlangTerm;
+  variations: SlangTerm[];
+  totalVariants: number;
+}
+
+function extractRegionalRootTerm(term: SlangTerm): string {
+  const originRoot = term.origin.match(/expressão regional "(.+?)"/i)?.[1];
+  if (originRoot) return originRoot.trim();
+
+  const firstVariation = term.variations.find((variation) => {
+    const normalizedVariation = variation.toLowerCase().trim();
+    const normalizedTerm = term.term.toLowerCase().trim();
+    return normalizedVariation && normalizedVariation !== normalizedTerm && normalizedTerm.startsWith(normalizedVariation);
+  });
+
+  return firstVariation?.trim() || term.term.trim();
+}
+
+function summarizeRegionalMeaning(term: SlangTerm): string {
+  return term.meaning
+    .replace(/^Variação contextual de "[^"]+" — /, "")
+    .replace(/ — usada .+$/, "")
+    .trim();
+}
+
+function compareRegionalTerms(a: SlangTerm, b: SlangTerm) {
+  return a.term.localeCompare(b.term, "pt-BR");
+}
+
 interface RegionalFilters {
   uf?: string;
   q?: string;
@@ -90,6 +124,36 @@ export function groupRegionalTerms(terms: SlangTerm[]): Map<RegionKey, SlangTerm
 
   for (const term of terms) {
     grouped.get(normalizeRegionLabel(term.region))!.push(term);
+  }
+
+  return grouped;
+}
+
+export function groupRegionalEntries(terms: SlangTerm[]): Map<RegionKey, RegionalGlossaryEntry[]> {
+  const buckets = new Map<RegionKey, Map<string, SlangTerm[]>>();
+  for (const key of REGION_ORDER) buckets.set(key, new Map());
+
+  for (const term of terms) {
+    const region = normalizeRegionLabel(term.region);
+    const rootTerm = extractRegionalRootTerm(term);
+    const groupKey = `${region}:${rootTerm.toLowerCase().trim()}`;
+    const regionBucket = buckets.get(region)!;
+    regionBucket.set(groupKey, [...(regionBucket.get(groupKey) ?? []), term]);
+  }
+
+  const grouped = new Map<RegionKey, RegionalGlossaryEntry[]>();
+  for (const region of REGION_ORDER) {
+    const entries = Array.from(buckets.get(region)!.entries()).map(([key, list]) => {
+      const sorted = [...list].sort(compareRegionalTerms);
+      const rootTerm = extractRegionalRootTerm(sorted[0]);
+      const exactRoot = sorted.find((term) => term.term.toLowerCase().trim() === rootTerm.toLowerCase().trim());
+      const primary = exactRoot ?? sorted.reduce((best, term) => (term.term.length < best.term.length ? term : best), sorted[0]);
+      const variations = sorted.filter((term) => term !== primary);
+      return { key, rootTerm, summary: summarizeRegionalMeaning(primary), primary, variations, totalVariants: variations.length } satisfies RegionalGlossaryEntry;
+    });
+
+    entries.sort((a, b) => compareRegionalTerms(a.primary, b.primary));
+    grouped.set(region, entries);
   }
 
   return grouped;

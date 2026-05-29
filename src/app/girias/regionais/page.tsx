@@ -7,6 +7,7 @@ import {
   getAvailableRegionalStates,
   getRegionalCoverageStats,
   getRegionalTerms,
+  groupRegionalEntries,
   groupRegionalTerms,
   parseRiskFilter,
 } from "@/lib/regional-glossary";
@@ -49,6 +50,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const allRegionalTerms = getRegionalTerms();
   const regionalTerms = getRegionalTerms({ uf: ufFilter, q: queryReadable, risk: riskFilter });
   const grouped = groupRegionalTerms(regionalTerms);
+  const groupedEntries = groupRegionalEntries(regionalTerms);
   const fullStats = getRegionalCoverageStats(allRegionalTerms);
   const filteredStats = getRegionalCoverageStats(regionalTerms);
   const filteredCount = filteredStats.total;
@@ -201,29 +203,50 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
 
         {REGION_ORDER.map((region) => {
           const terms = grouped.get(region) ?? [];
+          const entries = groupedEntries.get(region) ?? [];
           if (terms.length === 0) return null;
           return (
             <section id={`regiao-${region}`} key={region} className="rounded-xl border p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">{region}</h2>
-                  <p className="text-xs text-muted-foreground mt-1">{terms.length.toLocaleString("pt-BR")} gírias nesta região</p>
+                  <p className="text-xs text-muted-foreground mt-1">{entries.length.toLocaleString("pt-BR")} expressões-base · {terms.length.toLocaleString("pt-BR")} variações nesta região</p>
                 </div>
                 <Link href={buildRegionaisHref({ q: region })} className="text-sm underline">
                   Ver filtro desta região
                 </Link>
               </div>
               <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {[...terms].sort((a, b) => a.term.localeCompare(b.term, "pt-BR")).slice(0, 72).map((term) => (
-                  <li key={`${region}-${term.term}`} className="rounded-lg border p-3 hover:bg-muted/50">
-                    <Link href={`/girias/${encodeURIComponent(term.term)}`} className="font-semibold">
-                      {term.term}
-                    </Link>
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{term.meaning}</p>
+                {entries.slice(0, 72).map((entry) => (
+                  <li key={`${region}-${entry.key}`} className="rounded-lg border p-3 hover:bg-muted/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <Link href={`/girias/${encodeURIComponent(entry.primary.term)}`} className="font-semibold">
+                        {entry.rootTerm}
+                      </Link>
+                      {entry.totalVariants > 0 ? (
+                        <span className="shrink-0 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                          +{entry.totalVariants} variações
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{entry.summary}</p>
+                    {entry.variations.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {entry.variations.slice(0, 5).map((variation) => (
+                          <Link
+                            key={`${entry.key}-${variation.term}`}
+                            href={`/girias/${encodeURIComponent(variation.term)}`}
+                            className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
+                          >
+                            {variation.term}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                      <span className="rounded-full border px-2 py-0.5">{term.region}</span>
-                      <span className="rounded-full border px-2 py-0.5">{RISK_CONFIG[term.riskLevel].label}</span>
-                      <span className="rounded-full border px-2 py-0.5">{term.popularityStatus}</span>
+                      <span className="rounded-full border px-2 py-0.5">{entry.primary.region}</span>
+                      <span className="rounded-full border px-2 py-0.5">{RISK_CONFIG[entry.primary.riskLevel].label}</span>
+                      <span className="rounded-full border px-2 py-0.5">{entry.primary.popularityStatus}</span>
                     </div>
                   </li>
                 ))}
