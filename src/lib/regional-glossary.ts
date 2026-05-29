@@ -85,6 +85,11 @@ export interface RegionalGlossaryEntry {
   totalVariants: number;
 }
 
+export interface RegionalEntryLookup {
+  region: RegionKey;
+  entry: RegionalGlossaryEntry;
+}
+
 const FEATURED_ROOTS_BY_REGION: Record<RegionKey, string[]> = {
   Norte: ["égua", "pai d'égua", "de rocha", "cunhantã", "curumim", "arre diacho", "tacacá mood", "açaí raiz"],
   Nordeste: ["oxente", "oxe", "arre égua", "arretado", "avexado", "brocado", "carioquinha", "macaxeira"],
@@ -275,6 +280,23 @@ export function groupRegionalEntries(terms: SlangTerm[]): Map<RegionKey, Regiona
   }
 
   return grouped;
+}
+
+
+export function getRegionalEntryByRoot(rootTerm: string, region?: string): RegionalEntryLookup | null {
+  const wantedRoot = normalizeForMatch(decodeURIComponent(rootTerm).trim());
+  if (!wantedRoot) return null;
+
+  const wantedRegion = region ? normalizeRegionLabel(region) : null;
+  const grouped = groupRegionalEntries(getRegionalTerms());
+  const regionsToCheck = wantedRegion ? [wantedRegion] : REGION_ORDER;
+
+  for (const regionKey of regionsToCheck) {
+    const match = (grouped.get(regionKey) ?? []).find((entry) => normalizeForMatch(entry.rootTerm) === wantedRoot);
+    if (match) return { region: regionKey, entry: match };
+  }
+
+  return null;
 }
 
 export function getAvailableRegionalStates(terms: SlangTerm[] = getRegionalTerms()): string[] {

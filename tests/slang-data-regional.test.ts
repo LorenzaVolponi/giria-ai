@@ -4,6 +4,7 @@ import { REGIONAL_DEEP_EXPANSION_COUNT } from "../src/lib/slang-regional-deep-ex
 import {
   getAvailableRegionalStates,
   getRegionalCoverageStats,
+  getRegionalEntryByRoot,
   getRegionalTerms,
   groupRegionalEntries,
   groupRegionalTerms,
@@ -115,4 +116,13 @@ it("groups repetitive contextual slang as variations of the base expression", ()
 it("orders regional glossary cards by curated roots before generated volume", () => {
   const nordesteEntries = groupRegionalEntries(getRegionalTerms()).get("Nordeste") ?? [];
   expect(nordesteEntries.slice(0, 4).map((entry) => entry.rootTerm)).toEqual(["oxente", "arre égua", "arretado", "avexado"]);
+});
+
+
+it("resolves a regional expression root page lookup by root and region", () => {
+  const lookup = getRegionalEntryByRoot("arreda", "Centro-Oeste");
+
+  expect(lookup?.region).toBe("Centro-Oeste");
+  expect(lookup?.entry.rootTerm).toBe("arreda");
+  expect(lookup?.entry.featuredVariations.length).toBeGreaterThan(0);
 });

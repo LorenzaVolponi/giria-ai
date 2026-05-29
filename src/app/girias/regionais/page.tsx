@@ -42,6 +42,10 @@ function buildRegionaisHref(params: { uf?: string; q?: string; risk?: string }) 
   return qs ? `/girias/regionais?${qs}` : "/girias/regionais";
 }
 
+function regionalExpressionHref(rootTerm: string, region: string) {
+  return `/girias/regionais/${encodeURIComponent(rootTerm)}?regiao=${encodeURIComponent(region)}`;
+}
+
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const sp = await searchParams;
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
@@ -220,7 +224,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
                 {entries.slice(0, 72).map((entry) => (
                   <li key={`${region}-${entry.key}`} className="rounded-lg border p-3 hover:bg-muted/50">
                     <div className="flex items-start justify-between gap-3">
-                      <Link href={`/girias/${encodeURIComponent(entry.primary.term)}`} className="font-semibold">
+                      <Link href={regionalExpressionHref(entry.rootTerm, region)} className="font-semibold">
                         {entry.rootTerm}
                       </Link>
                       {entry.totalVariants > 0 ? (
