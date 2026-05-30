@@ -3,6 +3,39 @@
 import { useEffect, useState } from "react";
 import { SuggestionModerationPanel } from "@/components/product/suggestion-moderation-panel";
 
+function readCsrfToken() {
+  if (typeof document === "undefined") return "";
+  const raw = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("giria_admin_csrf="))
+    ?.split("=")[1] || "";
+  try {
+    return raw ? decodeURIComponent(raw) : "";
+  } catch {
+    return raw;
+  }
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR");
+}
+
+function formatTime(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function numberOrZero(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function AdminPage() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -15,6 +48,7 @@ export default function AdminPage() {
     topIps?: Array<{ ip: string; total: number; approved: number; rejected: number; pending: number; lastAt: number }>;
     alerts?: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
+    auditPreview?: Array<{ at: string; action: string; ip?: string }>;
   }>({});
   const [metrics, setMetrics] = useState<{
     chatGrounding?: {
@@ -41,12 +75,14 @@ export default function AdminPage() {
     };
   }>({});
   const [metricsWindow, setMetricsWindow] = useState<"15" | "60" | "1440" | "10080">("60");
+  const [csrfToken, setCsrfToken] = useState("");
 
   useEffect(() => {
     const boot = async () => {
       const res = await fetch("/api/v1/admin/session", { cache: "no-store" }).catch(() => null);
       if (res?.ok) {
         setOk(true);
+        setCsrfToken(readCsrfToken());
         void reloadDashboard();
       }
     };
@@ -70,7 +106,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!ok) return;
     void reloadDashboard(metricsWindow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -80,26 +115,37 @@ export default function AdminPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password, code, totp }),
-      body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
       setMessage("Login inválido.");
       return;
     }
     setOk(true);
+    setCsrfToken(readCsrfToken());
     setMessage("Login admin efetuado.");
     void reloadDashboard();
   }
 
   async function handleLogout() {
-    await fetch("/api/v1/admin/session", { method: "DELETE", headers: { "x-csrf-token": getCsrfToken() } }).catch(() => null);
+    await fetch("/api/v1/admin/session", { method: "DELETE", headers: { "x-csrf-token": csrfToken || readCsrfToken() } }).catch(() => null);
     setOk(false);
     setLogin("");
     setPassword("");
     setCode("");
     setTotp("");
+    setCsrfToken("");
     setMessage("Sessão encerrada.");
   }
+
+
+  const topIps = Array.isArray(dash.topIps) ? dash.topIps : [];
+  const alerts = Array.isArray(dash.alerts) ? dash.alerts : [];
+  const recent = Array.isArray(dash.recent) ? dash.recent : [];
+  const auditPreview = Array.isArray(dash.auditPreview) ? dash.auditPreview : [];
+  const groundingSeries = Array.isArray(metrics.chatGrounding?.series) ? metrics.chatGrounding.series : [];
+  const feedbackReasons = metrics.chatFeedback?.reasons && typeof metrics.chatFeedback.reasons === "object"
+    ? Object.entries(metrics.chatFeedback.reasons).filter((entry): entry is [string, number] => typeof entry[1] === "number")
+    : [];
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
@@ -192,10 +238,10 @@ export default function AdminPage() {
           <section className="rounded-xl border bg-white p-4">
             <h2 className="mb-3 font-semibold">Motivos de feedback (chat)</h2>
             <div className="space-y-2 text-sm">
-              {Object.entries(metrics.chatFeedback?.reasons || {}).length === 0 ? (
+              {feedbackReasons.length === 0 ? (
                 <p className="text-muted-foreground text-xs">Sem motivos registrados ainda.</p>
               ) : (
-                Object.entries(metrics.chatFeedback?.reasons || {})
+                feedbackReasons
                   .sort((a, b) => b[1] - a[1])
                   .map(([reason, count]) => (
                     <div key={reason} className="flex items-center justify-between rounded border p-2">
@@ -226,11 +272,13 @@ export default function AdminPage() {
                 </select>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {(metrics.chatGrounding?.series || []).slice(-8).map((point) => {
-                  const rate = point.total > 0 ? Math.round((point.grounded / point.total) * 100) : 0;
+                {groundingSeries.slice(-8).map((point) => {
+                  const total = numberOrZero(point.total);
+                  const grounded = numberOrZero(point.grounded);
+                  const rate = total > 0 ? Math.round((grounded / total) * 100) : 0;
                   return (
                     <div key={point.ts} className="rounded border p-2">
-                      <p className="text-[11px] text-muted-foreground">{new Date(point.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatTime(point.ts)}</p>
                       <p className="text-sm font-semibold">{rate}% grounded</p>
                       <div className="mt-1 h-2 w-full rounded bg-slate-100">
                         <div className="h-2 rounded bg-emerald-500" style={{ width: `${rate}%` }} />
@@ -246,10 +294,10 @@ export default function AdminPage() {
                 <button className="rounded border px-3 py-1 text-xs" type="button" onClick={() => void reloadDashboard()}>Atualizar</button>
               </div>
               <div className="space-y-2 text-sm">
-                {(dash.topIps || []).map((ip) => (
+                {topIps.map((ip) => (
                   <div key={ip.ip} className="rounded border p-2">
                     <p className="font-mono text-xs">{ip.ip}</p>
-                    <p>Total: <strong>{ip.total}</strong> · Aprov: {ip.approved} · Pend: {ip.pending} · Rej: {ip.rejected}</p>
+                    <p>Total: <strong>{numberOrZero(ip.total)}</strong> · Aprov: {numberOrZero(ip.approved)} · Pend: {numberOrZero(ip.pending)} · Rej: {numberOrZero(ip.rejected)}</p>
                   </div>
                 ))}
               </div>
@@ -257,10 +305,10 @@ export default function AdminPage() {
             <section className="rounded-xl border bg-white p-4">
               <h2 className="mb-3 font-semibold">Últimas sugestões processadas</h2>
               <div className="space-y-2 text-sm">
-                {(dash.recent || []).map((row) => (
+                {recent.map((row) => (
                   <div key={row.id} className="rounded border p-2">
                     <p className="font-semibold">{row.term} <span className="text-xs text-muted-foreground">({row.status})</span></p>
-                    <p className="text-xs text-muted-foreground">{row.submitterName} · score {row.score.toFixed(2)} · {row.createdAt ? new Date(row.createdAt).toLocaleString("pt-BR") : "-"}</p>
+                    <p className="text-xs text-muted-foreground">{row.submitterName || "sem nome"} · score {numberOrZero(row.score).toFixed(2)} · {formatDateTime(row.createdAt)}</p>
                   </div>
                 ))}
               </div>
@@ -269,20 +317,23 @@ export default function AdminPage() {
           <section className="rounded-xl border bg-white p-4">
             <h2 className="mb-3 font-semibold">Alertas operacionais</h2>
             <div className="space-y-2 text-sm">
-              {(dash.alerts || []).map((a) => (
-                <p key={a.code} className={`rounded border p-2 ${a.level === "critical" ? "border-rose-300 bg-rose-50" : a.level === "warning" ? "border-amber-300 bg-amber-50" : "border-emerald-300 bg-emerald-50"}`}>
-                  <strong>{a.level.toUpperCase()}</strong> · {a.message}
-                </p>
-              ))}
+              {alerts.map((a, idx) => {
+                const level = a.level === "critical" || a.level === "warning" || a.level === "info" ? a.level : "info";
+                return (
+                  <p key={a.code || `${level}-${idx}`} className={`rounded border p-2 ${level === "critical" ? "border-rose-300 bg-rose-50" : level === "warning" ? "border-amber-300 bg-amber-50" : "border-emerald-300 bg-emerald-50"}`}>
+                    <strong>{level.toUpperCase()}</strong> · {a.message || "Sem detalhes."}
+                  </p>
+                );
+              })}
             </div>
             <h3 className="mt-4 mb-2 font-semibold">Últimos eventos de auditoria</h3>
             <div className="space-y-1 text-xs text-muted-foreground">
               {auditPreview.map((e, idx) => (
-                <p key={`${e.at}-${idx}`}>{new Date(e.at).toLocaleString("pt-BR")} · {e.action} · {e.ip || "sem-ip"}</p>
+                <p key={`${e.at}-${idx}`}>{formatDateTime(e.at)} · {e.action || "evento"} · {e.ip || "sem-ip"}</p>
               ))}
             </div>
           </section>
-          <SuggestionModerationPanel initialPending={[]} initialAuthenticated />
+          <SuggestionModerationPanel initialPending={[]} initialAuthenticated csrfToken={csrfToken} />
         </>
       )}
     </main>
