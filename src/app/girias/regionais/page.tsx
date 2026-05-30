@@ -57,9 +57,48 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const filteredCount = filteredStats.total;
   const allStates = getAvailableRegionalStates(allRegionalTerms);
   const activeFilters = [ufFilter ? `UF ${ufFilter}` : null, queryReadable ? `busca “${queryReadable}”` : null, riskFilter ? `risco ${RISK_CONFIG[riskFilter].label}` : null].filter(Boolean);
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const featuredRegionalEntries = REGION_ORDER.flatMap((region) =>
+    (groupedEntries.get(region) ?? []).slice(0, 5).map((entry) => ({ region, entry })),
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Gírias regionais do Brasil",
+            description: "Glossário regional com expressões brasileiras agrupadas por macro-região, UF e contexto de uso.",
+            url: `${site}/girias/regionais`,
+            mainEntity: {
+              "@type": "ItemList",
+              itemListElement: featuredRegionalEntries.map(({ region, entry }, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                name: entry.rootTerm,
+                url: `${site}${regionalExpressionPath(entry.rootTerm, region)}`,
+              })),
+            },
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: `${site}/` },
+              { "@type": "ListItem", position: 2, name: "Gírias", item: `${site}/girias` },
+              { "@type": "ListItem", position: 3, name: "Regionais", item: `${site}/girias/regionais` },
+            ],
+          }),
+        }}
+      />
       <div className="rounded-2xl border bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Glossário regional ampliado</p>
         <h1 className="mt-2 text-3xl font-bold">Gírias regionais do Brasil</h1>

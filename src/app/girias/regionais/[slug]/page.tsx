@@ -63,11 +63,32 @@ export default async function RegionalExpressionPage({ params, searchParams }: P
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: `${site}/` },
+              { "@type": "ListItem", position: 2, name: "Gírias", item: `${site}/girias` },
+              { "@type": "ListItem", position: 3, name: "Regionais", item: `${site}/girias/regionais` },
+              { "@type": "ListItem", position: 4, name: entry.rootTerm, item: `${site}${canonicalPath}` },
+            ],
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
             "@type": "DefinedTerm",
             name: entry.rootTerm,
             description: entry.summary,
             inDefinedTermSet: `${site}/girias/regionais`,
             url: `${site}${canonicalPath}`,
+            hasDefinedTerm: entry.featuredVariations.map((variation) => ({
+              "@type": "DefinedTerm",
+              name: variation.term,
+              description: variation.meaning,
+              url: `${site}/girias/${encodeURIComponent(variation.term)}`,
+            })),
           }),
         }}
       />
