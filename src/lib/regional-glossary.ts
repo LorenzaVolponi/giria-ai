@@ -4,6 +4,39 @@ export type RegionKey = "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul
 
 export const REGION_ORDER: RegionKey[] = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul", "Brasil"];
 
+export const REGION_CONTENT: Record<RegionKey, { title: string; description: string; highlights: string[] }> = {
+  Norte: {
+    title: "Norte amazônico",
+    description: "Expressões de identidade amazônica, fala paraense/acreana e referências a rio, açaí, tacacá e cotidiano local.",
+    highlights: ["açaí", "Amazônia", "tacacá", "igarapé"],
+  },
+  Nordeste: {
+    title: "Nordeste popular",
+    description: "Interjeições, vocativos e usos de festa/interior conectados a São João, sertão, praia e conversa familiar.",
+    highlights: ["São João", "sertão", "forró", "mainha"],
+  },
+  "Centro-Oeste": {
+    title: "Centro-Oeste e cerrado",
+    description: "Falas do cerrado, interior e cotidiano com pequi, roça, cidade pequena, Brasília/Goiás e expressões de aproximação.",
+    highlights: ["cerrado", "pequi", "roça", "uai sô"],
+  },
+  Sudeste: {
+    title: "Sudeste urbano/interior",
+    description: "Mistura de fala urbana e interiorana, com Minas, Rio, São Paulo, padoca, praia, serra e comida local.",
+    highlights: ["pão de queijo", "padoca", "praia", "serra"],
+  },
+  Sul: {
+    title: "Sul gaúcho e fronteira",
+    description: "Termos ligados a chimarrão, fronteira, serra, churrasco e vocativos clássicos do Sul brasileiro.",
+    highlights: ["chimarrão", "fronteira", "tchê", "bergamota"],
+  },
+  Brasil: {
+    title: "Brasil geral",
+    description: "Expressões regionais amplas ou cruzadas entre mais de uma macro-região, úteis quando o uso não pertence a um único território.",
+    highlights: ["Brasil", "uso amplo", "múltiplas regiões"],
+  },
+};
+
 const STATE_TO_REGION: Record<string, RegionKey> = {
   AC: "Norte",
   AP: "Norte",

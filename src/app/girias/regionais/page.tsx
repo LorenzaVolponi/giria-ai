@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RISK_CONFIG } from "@/lib/slang-data";
 import { REGIONAL_DEEP_EXPANSION_COUNT } from "@/lib/slang-regional-deep-expansion";
 import {
+  REGION_CONTENT,
   REGION_ORDER,
   getAvailableRegionalStates,
   getRegionalCoverageStats,
@@ -246,13 +247,23 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         {REGION_ORDER.map((region) => {
           const terms = grouped.get(region) ?? [];
           const entries = groupedEntries.get(region) ?? [];
+          const regionContent = REGION_CONTENT[region];
           if (terms.length === 0) return null;
           return (
             <section id={`regiao-${region}`} key={region} className="rounded-xl border p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">{regionContent.title}</p>
                   <h2 className="text-xl font-semibold">{region}</h2>
-                  <p className="text-xs text-muted-foreground mt-1">{entries.length.toLocaleString("pt-BR")} expressões principais · {terms.length.toLocaleString("pt-BR")} contextos de uso nesta região</p>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{regionContent.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {regionContent.highlights.map((highlight) => (
+                      <Link key={`${region}-${highlight}`} href={buildRegionaisHref({ q: highlight })} className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted">
+                        {highlight}
+                      </Link>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{entries.length.toLocaleString("pt-BR")} expressões principais · {terms.length.toLocaleString("pt-BR")} contextos de uso nesta região</p>
                 </div>
                 <Link href={buildRegionaisHref({ q: region })} className="text-sm underline">
                   Ver filtro desta região

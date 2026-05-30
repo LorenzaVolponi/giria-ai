@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getTerm, getTermsByRegion, searchTerms, SLANG_DATA } from "../src/lib/slang-data";
 import { REGIONAL_DEEP_EXPANSION_COUNT } from "../src/lib/slang-regional-deep-expansion";
 import {
+  REGION_CONTENT,
   getAvailableRegionalStates,
   getRegionalCoverageStats,
   getRegionalEntryByRoot,
@@ -170,4 +171,11 @@ it("counts regional entries by UF for quick filters", () => {
   expect(ce?.count).toBeGreaterThan(0);
   expect(rs?.count).toBeGreaterThan(0);
   expect(stateCounts.map((item) => item.state)).toEqual([...stateCounts.map((item) => item.state)].sort());
+});
+
+
+it("documents each macro-region with curated content metadata", () => {
+  expect(REGION_CONTENT.Nordeste.highlights).toEqual(expect.arrayContaining(["São João", "sertão"]));
+  expect(REGION_CONTENT.Sul.description.toLowerCase()).toContain("chimarrão");
+  expect(REGION_CONTENT["Centro-Oeste"].title).toContain("cerrado");
 });

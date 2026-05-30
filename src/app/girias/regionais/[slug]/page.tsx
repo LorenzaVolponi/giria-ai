@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RISK_CONFIG } from "@/lib/slang-data";
-import { getRegionalEntryByRoot, getRegionalExpressionRoutes, getRelatedRegionalEntries, regionalExpressionPath } from "@/lib/regional-glossary";
+import { REGION_CONTENT, getRegionalEntryByRoot, getRegionalExpressionRoutes, getRelatedRegionalEntries, regionalExpressionPath } from "@/lib/regional-glossary";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -55,6 +55,7 @@ export default async function RegionalExpressionPage({ params, searchParams }: P
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const canonicalPath = regionalExpressionPath(entry.rootTerm, region);
   const relatedEntries = getRelatedRegionalEntries(entry.rootTerm, region, 6);
+  const regionContent = REGION_CONTENT[region];
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -98,9 +99,10 @@ export default async function RegionalExpressionPage({ params, searchParams }: P
       </Link>
 
       <header className="mt-5 rounded-2xl border bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Expressão regional · {region}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Expressão regional · {regionContent.title}</p>
         <h1 className="mt-2 text-3xl font-bold">{entry.rootTerm}</h1>
         <p className="mt-3 text-lg text-muted-foreground">{entry.summary}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{regionContent.description}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
           <span className="rounded-full border bg-white/80 px-2 py-1">{entry.totalVariants.toLocaleString("pt-BR")} contextos de uso</span>
           <span className="rounded-full border bg-white/80 px-2 py-1">{RISK_CONFIG[entry.primary.riskLevel].label}</span>
