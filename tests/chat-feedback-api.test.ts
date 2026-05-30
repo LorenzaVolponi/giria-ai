@@ -26,4 +26,14 @@ describe("chat feedback API", () => {
     expect(res.status).toBe(400);
     expect(String(data.error)).toContain("Feedback inválido");
   });
+
+  it("rate-limits excessive feedback from the same IP", async () => {
+    let lastResponse: Response | null = null;
+    for (let i = 0; i < 31; i += 1) {
+      lastResponse = await POST(makeRequest({ helpful: false, reason: "nao_ajudou" }, "198.51.100.99"));
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    expect(lastResponse?.headers.get("retry-after")).toBe("60");
+  });
 });

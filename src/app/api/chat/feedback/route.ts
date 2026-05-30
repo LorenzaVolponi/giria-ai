@@ -14,6 +14,14 @@ const MAX_FEEDBACK_PER_WINDOW = 30;
 
 function isFeedbackRateLimited(ip: string) {
   const now = Date.now();
+  if (rateMap.size > 1000) {
+    for (const [key, timestamps] of rateMap.entries()) {
+      const active = timestamps.filter((ts) => now - ts < WINDOW_MS);
+      if (active.length === 0) rateMap.delete(key);
+      else rateMap.set(key, active);
+    }
+  }
+
   const recent = (rateMap.get(ip) || []).filter((ts) => now - ts < WINDOW_MS);
   recent.push(now);
   rateMap.set(ip, recent);
