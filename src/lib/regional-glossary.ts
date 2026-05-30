@@ -90,6 +90,13 @@ export interface RegionalEntryLookup {
   entry: RegionalGlossaryEntry;
 }
 
+export interface RegionalExpressionRoute {
+  region: RegionKey;
+  rootTerm: string;
+  path: string;
+  priority: number;
+}
+
 const FEATURED_ROOTS_BY_REGION: Record<RegionKey, string[]> = {
   Norte: ["égua", "pai d'égua", "de rocha", "cunhantã", "curumim", "arre diacho", "tacacá mood", "açaí raiz"],
   Nordeste: ["oxente", "oxe", "arre égua", "arretado", "avexado", "brocado", "carioquinha", "macaxeira"],
@@ -297,6 +304,33 @@ export function getRegionalEntryByRoot(rootTerm: string, region?: string): Regio
   }
 
   return null;
+}
+
+
+export function getRelatedRegionalEntries(rootTerm: string, region: RegionKey, limit = 6): RegionalGlossaryEntry[] {
+  const grouped = groupRegionalEntries(getRegionalTerms());
+  const normalizedRoot = normalizeForMatch(rootTerm);
+
+  return (grouped.get(region) ?? [])
+    .filter((entry) => normalizeForMatch(entry.rootTerm) !== normalizedRoot)
+    .slice(0, limit);
+}
+
+export function regionalExpressionPath(rootTerm: string, region: RegionKey): string {
+  return `/girias/regionais/${encodeURIComponent(rootTerm)}?regiao=${encodeURIComponent(region)}`;
+}
+
+export function getRegionalExpressionRoutes(limitPerRegion = 40): RegionalExpressionRoute[] {
+  const grouped = groupRegionalEntries(getRegionalTerms());
+
+  return REGION_ORDER.flatMap((region) =>
+    (grouped.get(region) ?? []).slice(0, limitPerRegion).map((entry, index) => ({
+      region,
+      rootTerm: entry.rootTerm,
+      path: regionalExpressionPath(entry.rootTerm, region),
+      priority: Math.max(0.55, 0.82 - index * 0.005),
+    })),
+  );
 }
 
 export function getAvailableRegionalStates(terms: SlangTerm[] = getRegionalTerms()): string[] {

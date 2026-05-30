@@ -10,6 +10,7 @@ import {
   groupRegionalEntries,
   groupRegionalTerms,
   parseRiskFilter,
+  regionalExpressionPath,
 } from "@/lib/regional-glossary";
 
 export const metadata: Metadata = {
@@ -40,10 +41,6 @@ function buildRegionaisHref(params: { uf?: string; q?: string; risk?: string }) 
   if (params.risk) search.set("risk", params.risk);
   const qs = search.toString();
   return qs ? `/girias/regionais?${qs}` : "/girias/regionais";
-}
-
-function regionalExpressionHref(rootTerm: string, region: string) {
-  return `/girias/regionais/${encodeURIComponent(rootTerm)}?regiao=${encodeURIComponent(region)}`;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
@@ -224,7 +221,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
                 {entries.slice(0, 72).map((entry) => (
                   <li key={`${region}-${entry.key}`} className="rounded-lg border p-3 hover:bg-muted/50">
                     <div className="flex items-start justify-between gap-3">
-                      <Link href={regionalExpressionHref(entry.rootTerm, region)} className="font-semibold">
+                      <Link href={regionalExpressionPath(entry.rootTerm, region)} className="font-semibold">
                         {entry.rootTerm}
                       </Link>
                       {entry.totalVariants > 0 ? (

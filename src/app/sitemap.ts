@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SLANG_DATA } from "@/lib/slang-data";
+import { getRegionalExpressionRoutes } from "@/lib/regional-glossary";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
@@ -26,6 +27,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly",
     priority: 0.75,
   }));
+  const regionalExpressionRoutes: MetadataRoute.Sitemap = getRegionalExpressionRoutes(30).map((route) => ({
+    url: `${site}${route.path}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: route.priority,
+  }));
 
-  return [...staticRoutes, ...slangRoutes, ...intentRoutes];
+  return [...staticRoutes, ...slangRoutes, ...intentRoutes, ...regionalExpressionRoutes];
 }

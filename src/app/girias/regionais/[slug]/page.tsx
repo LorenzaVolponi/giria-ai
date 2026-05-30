@@ -2,15 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RISK_CONFIG } from "@/lib/slang-data";
-import { getRegionalEntryByRoot } from "@/lib/regional-glossary";
+import { getRegionalEntryByRoot, getRegionalExpressionRoutes, getRelatedRegionalEntries, regionalExpressionPath } from "@/lib/regional-glossary";
 
 interface Props {
   params: Promise<{ slug: string }>;
   searchParams?: Promise<{ regiao?: string }>;
 }
 
-function regionaisExpressionHref(rootTerm: string, region: string) {
-  return `/girias/regionais/${encodeURIComponent(rootTerm)}?regiao=${encodeURIComponent(region)}`;
+export function generateStaticParams() {
+  const seen = new Set<string>();
+
+  return getRegionalExpressionRoutes(12)
+    .filter((route) => {
+      const key = route.rootTerm.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80)
+    .map((route) => ({ slug: encodeURIComponent(route.rootTerm) }));
 }
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -20,7 +30,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (!lookup) return { title: "Expressão regional não encontrada | Gíria AI" };
 
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const url = `${site}${regionaisExpressionHref(lookup.entry.rootTerm, lookup.region)}`;
+  const url = `${site}${regionalExpressionPath(lookup.entry.rootTerm, lookup.region)}`;
 
   return {
     title: `${lookup.entry.rootTerm}: usos regionais e contextos | Gíria AI`,
@@ -43,7 +53,8 @@ export default async function RegionalExpressionPage({ params, searchParams }: P
 
   const { region, entry } = lookup;
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const canonicalPath = regionaisExpressionHref(entry.rootTerm, region);
+  const canonicalPath = regionalExpressionPath(entry.rootTerm, region);
+  const relatedEntries = getRelatedRegionalEntries(entry.rootTerm, region, 6);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -93,6 +104,20 @@ export default async function RegionalExpressionPage({ params, searchParams }: P
               <Link key={variation.term} href={`/girias/${encodeURIComponent(variation.term)}`} className="rounded-lg border p-3 hover:bg-muted/50">
                 <p className="font-medium">{variation.term}</p>
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{variation.context}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {relatedEntries.length > 0 ? (
+        <section className="mt-6 rounded-xl border p-4">
+          <h2 className="text-lg font-semibold">Outras expressões de {region}</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedEntries.map((related) => (
+              <Link key={related.key} href={regionalExpressionPath(related.rootTerm, region)} className="rounded-lg border p-3 hover:bg-muted/50">
+                <p className="font-medium">{related.rootTerm}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{related.summary}</p>
               </Link>
             ))}
           </div>

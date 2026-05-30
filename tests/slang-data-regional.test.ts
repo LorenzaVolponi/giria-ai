@@ -5,7 +5,9 @@ import {
   getAvailableRegionalStates,
   getRegionalCoverageStats,
   getRegionalEntryByRoot,
+  getRegionalExpressionRoutes,
   getRegionalTerms,
+  getRelatedRegionalEntries,
   groupRegionalEntries,
   groupRegionalTerms,
   normalizeRegionLabel,
@@ -125,4 +127,15 @@ it("resolves a regional expression root page lookup by root and region", () => {
   expect(lookup?.region).toBe("Centro-Oeste");
   expect(lookup?.entry.rootTerm).toBe("arreda");
   expect(lookup?.entry.featuredVariations.length).toBeGreaterThan(0);
+});
+
+
+it("builds SEO routes and related entries for regional expression pages", () => {
+  const routes = getRegionalExpressionRoutes(3);
+  const related = getRelatedRegionalEntries("arreda", "Centro-Oeste", 3);
+
+  expect(routes.some((route) => route.path.includes("/girias/regionais/") && route.path.includes("regiao="))).toBe(true);
+  expect(routes.every((route) => route.priority >= 0.55)).toBe(true);
+  expect(related).toHaveLength(3);
+  expect(related.every((entry) => entry.rootTerm !== "arreda")).toBe(true);
 });
