@@ -405,8 +405,23 @@ export function getRegionalExpressionRoutes(limitPerRegion = 40): RegionalExpres
   );
 }
 
+
+export function getRegionalStateCounts(terms: SlangTerm[] = getRegionalTerms()): Array<{ state: string; count: number }> {
+  const counts = new Map<string, number>();
+
+  for (const term of terms) {
+    for (const state of extractRegionStates(term.region)) {
+      counts.set(state, (counts.get(state) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(counts.entries())
+    .map(([state, count]) => ({ state, count }))
+    .sort((a, b) => a.state.localeCompare(b.state, "pt-BR"));
+}
+
 export function getAvailableRegionalStates(terms: SlangTerm[] = getRegionalTerms()): string[] {
-  return Array.from(new Set(terms.flatMap((term) => extractRegionStates(term.region)))).sort();
+  return getRegionalStateCounts(terms).map((item) => item.state);
 }
 
 export function getRegionalRiskCounts(terms: SlangTerm[]): Record<RiskLevel, number> {

@@ -6,6 +6,7 @@ import {
   REGION_ORDER,
   getAvailableRegionalStates,
   getRegionalCoverageStats,
+  getRegionalStateCounts,
   getRegionalTerms,
   groupRegionalEntries,
   groupRegionalTerms,
@@ -55,7 +56,8 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const fullStats = getRegionalCoverageStats(allRegionalTerms);
   const filteredStats = getRegionalCoverageStats(regionalTerms);
   const filteredCount = filteredStats.total;
-  const allStates = getAvailableRegionalStates(allRegionalTerms);
+  const stateCounts = getRegionalStateCounts(allRegionalTerms);
+  const allStates = stateCounts.map((item) => item.state);
   const activeFilters = [ufFilter ? `UF ${ufFilter}` : null, queryReadable ? `busca “${queryReadable}”` : null, riskFilter ? `risco ${RISK_CONFIG[riskFilter].label}` : null].filter(Boolean);
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const featuredRegionalEntries = REGION_ORDER.flatMap((region) =>
@@ -152,8 +154,8 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
             <span className="font-medium">UF</span>
             <select name="uf" defaultValue={ufFilter} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
               <option value="">Todas</option>
-              {allStates.map((uf) => (
-                <option key={uf} value={uf}>{uf}</option>
+              {stateCounts.map(({ state, count }) => (
+                <option key={state} value={state}>{state} · {count.toLocaleString("pt-BR")}</option>
               ))}
             </select>
           </label>
@@ -190,13 +192,13 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
           {allStates.length === 0 ? (
             <span className="text-xs text-muted-foreground">Sem UFs mapeadas ainda no dataset regional.</span>
           ) : (
-            allStates.map((uf) => (
+            stateCounts.map(({ state, count }) => (
               <Link
-                key={uf}
-                href={buildRegionaisHref({ uf, q: queryReadable, risk: riskFilter ?? undefined })}
-                className={`rounded-full border px-2 py-0.5 text-xs ${ufFilter === uf ? "bg-emerald-50 border-emerald-300" : ""}`}
+                key={state}
+                href={buildRegionaisHref({ uf: state, q: queryReadable, risk: riskFilter ?? undefined })}
+                className={`rounded-full border px-2 py-0.5 text-xs ${ufFilter === state ? "bg-emerald-50 border-emerald-300" : ""}`}
               >
-                {uf}
+                {state} <span className="text-muted-foreground">{count.toLocaleString("pt-BR")}</span>
               </Link>
             ))
           )}

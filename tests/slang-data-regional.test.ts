@@ -5,6 +5,7 @@ import {
   getAvailableRegionalStates,
   getRegionalCoverageStats,
   getRegionalEntryByRoot,
+  getRegionalStateCounts,
   getRegionalEntryForTerm,
   getRegionalExpressionRoutes,
   getRegionalTerms,
@@ -158,4 +159,15 @@ it("reuses the cached regional grouping for unfiltered lookups", () => {
 
   expect(second).toBe(first);
   expect(getRegionalEntryByRoot("arreda", "Centro-Oeste")?.entry).toBe(first.get("Centro-Oeste")?.find((entry) => entry.rootTerm === "arreda"));
+});
+
+
+it("counts regional entries by UF for quick filters", () => {
+  const stateCounts = getRegionalStateCounts(getRegionalTerms());
+  const ce = stateCounts.find((item) => item.state === "CE");
+  const rs = stateCounts.find((item) => item.state === "RS");
+
+  expect(ce?.count).toBeGreaterThan(0);
+  expect(rs?.count).toBeGreaterThan(0);
+  expect(stateCounts.map((item) => item.state)).toEqual([...stateCounts.map((item) => item.state)].sort());
 });
