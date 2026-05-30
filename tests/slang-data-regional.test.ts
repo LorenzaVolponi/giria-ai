@@ -149,3 +149,13 @@ it("links individual generated regional terms back to their expression root", ()
   expect(lookup?.entry.rootTerm).toBe("arreda");
   expect(lookup?.entry.variations.some((term) => term.term === "arreda da rua")).toBe(true);
 });
+
+
+it("reuses the cached regional grouping for unfiltered lookups", () => {
+  const terms = getRegionalTerms();
+  const first = groupRegionalEntries(terms);
+  const second = groupRegionalEntries(getRegionalTerms());
+
+  expect(second).toBe(first);
+  expect(getRegionalEntryByRoot("arreda", "Centro-Oeste")?.entry).toBe(first.get("Centro-Oeste")?.find((entry) => entry.rootTerm === "arreda"));
+});

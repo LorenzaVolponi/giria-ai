@@ -125,6 +125,23 @@ const CONTEXT_GROUPS: Array<{ key: RegionalContextGroupKey; label: string; match
   { key: "cotidiano", label: "Cotidiano", matcher: /família|turma|noite|cedinho|susto|moral|boa|cotidiana|conversa/i },
 ];
 
+let regionalTermsCache: SlangTerm[] | null = null;
+let regionalEntriesCache: Map<RegionKey, RegionalGlossaryEntry[]> | null = null;
+let regionalRootLookupCache: Map<string, RegionalEntryLookup> | null = null;
+let regionalTermLookupCache: Map<string, RegionalEntryLookup> | null = null;
+
+function getAllRegionalTerms(): SlangTerm[] {
+  if (!regionalTermsCache) {
+    regionalTermsCache = SLANG_DATA.filter((term) => term.category === "regional");
+  }
+  return regionalTermsCache;
+}
+
+function resetRegionalLookupCaches() {
+  regionalRootLookupCache = null;
+  regionalTermLookupCache = null;
+}
+
 function normalizeForMatch(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -228,8 +245,11 @@ interface RegionalFilters {
 export function getRegionalTerms({ uf = "", q = "", risk = null }: RegionalFilters = {}): SlangTerm[] {
   const ufFilter = uf.toUpperCase().trim();
   const query = q.trim().toLowerCase();
+  const terms = getAllRegionalTerms();
 
-  return SLANG_DATA.filter((term) => term.category === "regional")
+  if (!ufFilter && !query && !risk) return terms;
+
+  return terms
     .filter((term) => !risk || term.riskLevel === risk)
     .filter((term) => !ufFilter || extractRegionStates(term.region).includes(ufFilter))
     .filter((term) => {
@@ -250,6 +270,8 @@ export function groupRegionalTerms(terms: SlangTerm[]): Map<RegionKey, SlangTerm
 }
 
 export function groupRegionalEntries(terms: SlangTerm[]): Map<RegionKey, RegionalGlossaryEntry[]> {
+  if (regionalTermsCache && terms === regionalTermsCache && regionalEntriesCache) return regionalEntriesCache;
+
   const buckets = new Map<RegionKey, Map<string, SlangTerm[]>>();
   for (const key of REGION_ORDER) buckets.set(key, new Map());
 
@@ -286,7 +308,53 @@ export function groupRegionalEntries(terms: SlangTerm[]): Map<RegionKey, Regiona
     grouped.set(region, entries);
   }
 
+  if (regionalTermsCache && terms === regionalTermsCache) {
+    regionalEntriesCache = grouped;
+    resetRegionalLookupCaches();
+  }
+
   return grouped;
+}
+
+function getAllRegionalEntries(): Map<RegionKey, RegionalGlossaryEntry[]> {
+  return groupRegionalEntries(getAllRegionalTerms());
+}
+
+function regionalRootLookupKey(region: RegionKey, rootTerm: string): string {
+  return `${region}:${normalizeForMatch(rootTerm)}`;
+}
+
+function getRegionalRootLookupMap(): Map<string, RegionalEntryLookup> {
+  if (regionalRootLookupCache) return regionalRootLookupCache;
+
+  const lookup = new Map<string, RegionalEntryLookup>();
+  const grouped = getAllRegionalEntries();
+  for (const region of REGION_ORDER) {
+    for (const entry of grouped.get(region) ?? []) {
+      lookup.set(regionalRootLookupKey(region, entry.rootTerm), { region, entry });
+    }
+  }
+
+  regionalRootLookupCache = lookup;
+  return lookup;
+}
+
+function getRegionalTermLookupMap(): Map<string, RegionalEntryLookup> {
+  if (regionalTermLookupCache) return regionalTermLookupCache;
+
+  const lookup = new Map<string, RegionalEntryLookup>();
+  const grouped = getAllRegionalEntries();
+  for (const region of REGION_ORDER) {
+    for (const entry of grouped.get(region) ?? []) {
+      const entryLookup = { region, entry };
+      for (const term of [entry.primary, ...entry.variations]) {
+        lookup.set(normalizeForMatch(term.term), entryLookup);
+      }
+    }
+  }
+
+  regionalTermLookupCache = lookup;
+  return lookup;
 }
 
 
@@ -295,38 +363,24 @@ export function getRegionalEntryByRoot(rootTerm: string, region?: string): Regio
   if (!wantedRoot) return null;
 
   const wantedRegion = region ? normalizeRegionLabel(region) : null;
-  const grouped = groupRegionalEntries(getRegionalTerms());
-  const regionsToCheck = wantedRegion ? [wantedRegion] : REGION_ORDER;
+  if (wantedRegion) return getRegionalRootLookupMap().get(regionalRootLookupKey(wantedRegion, wantedRoot)) ?? null;
 
-  for (const regionKey of regionsToCheck) {
-    const match = (grouped.get(regionKey) ?? []).find((entry) => normalizeForMatch(entry.rootTerm) === wantedRoot);
-    if (match) return { region: regionKey, entry: match };
+  for (const regionKey of REGION_ORDER) {
+    const match = getRegionalRootLookupMap().get(regionalRootLookupKey(regionKey, wantedRoot));
+    if (match) return match;
   }
 
   return null;
 }
-
-
 
 export function getRegionalEntryForTerm(termName: string): RegionalEntryLookup | null {
   const wantedTerm = normalizeForMatch(decodeURIComponent(termName).trim());
   if (!wantedTerm) return null;
-
-  const grouped = groupRegionalEntries(getRegionalTerms());
-  for (const region of REGION_ORDER) {
-    for (const entry of grouped.get(region) ?? []) {
-      const allTerms = [entry.primary, ...entry.variations];
-      if (allTerms.some((term) => normalizeForMatch(term.term) === wantedTerm)) {
-        return { region, entry };
-      }
-    }
-  }
-
-  return null;
+  return getRegionalTermLookupMap().get(wantedTerm) ?? null;
 }
 
 export function getRelatedRegionalEntries(rootTerm: string, region: RegionKey, limit = 6): RegionalGlossaryEntry[] {
-  const grouped = groupRegionalEntries(getRegionalTerms());
+  const grouped = getAllRegionalEntries();
   const normalizedRoot = normalizeForMatch(rootTerm);
 
   return (grouped.get(region) ?? [])
@@ -339,7 +393,7 @@ export function regionalExpressionPath(rootTerm: string, region: RegionKey): str
 }
 
 export function getRegionalExpressionRoutes(limitPerRegion = 40): RegionalExpressionRoute[] {
-  const grouped = groupRegionalEntries(getRegionalTerms());
+  const grouped = getAllRegionalEntries();
 
   return REGION_ORDER.flatMap((region) =>
     (grouped.get(region) ?? []).slice(0, limitPerRegion).map((entry, index) => ({
