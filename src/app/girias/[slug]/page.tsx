@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTerm } from "@/lib/slang-data";
+import { getRegionalEntryForTerm, regionalExpressionPath } from "@/lib/regional-glossary";
 import Link from "next/link";
 
 interface Props {
@@ -37,6 +38,7 @@ export default async function GiriaDetalhePage({ params }: Props) {
   const { slug } = await params;
   const term = getTerm(decodeURIComponent(slug));
   if (!term) notFound();
+  const regionalLookup = getRegionalEntryForTerm(term.term);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -74,6 +76,18 @@ export default async function GiriaDetalhePage({ params }: Props) {
         <p><strong>Contexto:</strong> {term.context}</p>
         <p><strong>Intenção social/emocional:</strong> {term.contextNotes}</p>
       </section>
+      {regionalLookup ? (
+        <section className="mt-6 rounded-lg border bg-emerald-50/50 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Contexto regional agrupado</p>
+          <h2 className="mt-2 text-lg font-semibold">Parte da expressão regional “{regionalLookup.entry.rootTerm}”</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Este verbete é um contexto de uso ligado à expressão principal em {regionalLookup.region}. Veja a página curada para comparar usos parecidos sem repetir cards soltos.
+          </p>
+          <Link href={regionalExpressionPath(regionalLookup.entry.rootTerm, regionalLookup.region)} className="mt-3 inline-block text-sm font-medium underline">
+            Ver expressão regional agrupada
+          </Link>
+        </section>
+      ) : null}
       <p className="mt-4 text-sm text-muted-foreground">
         Quer uma resposta direta? Veja:{" "}
         <Link className="underline" href={`/o-que-significa/${encodeURIComponent(term.term)}`}>

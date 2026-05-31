@@ -22,9 +22,10 @@ import { EXTRA_SLANG_DATA_16 } from './slang-extra-16';
 import { EXTRA_SLANG_DATA_17 } from './slang-extra-17';
 import { EXTRA_SLANG_DATA_18 } from './slang-extra-18';
 import { REGIONAL_SLANG_DATA } from './slang-regional';
+import { REGIONAL_DEEP_EXPANSION_DATA } from './slang-regional-deep-expansion';
 
 export type RiskLevel = "green" | "yellow" | "orange" | "red";
-export type PopularityStatus = "ativo" | "em_queda" | "regional" | "internacional";
+export type PopularityStatus = "ativo" | "em_queda" | "regional" | "internacional" | "trending";
 
 export interface SlangTerm {
   term: string;
@@ -118,7 +119,7 @@ export const RISK_CONFIG: Record<
 // =============================================================================
 // Slang Data — 250+ termos (Geração Z, Alpha, Twitter, TikTok, Memes, Gaming)
 // =============================================================================
-const rawSlangData: SlangTerm[] = [
+const rawSlangData: Array<SlangTerm | undefined> = [
   // ---------------------------------------------------------------------------
   // GREEN — Inofensivo
   // ---------------------------------------------------------------------------
@@ -8810,6 +8811,7 @@ const rawSlangData: SlangTerm[] = [
   ...(Array.isArray(EXTRA_SLANG_DATA_17) ? EXTRA_SLANG_DATA_17 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_18) ? EXTRA_SLANG_DATA_18 : []),
   ...(Array.isArray(REGIONAL_SLANG_DATA) ? REGIONAL_SLANG_DATA : []),
+  ...(Array.isArray(REGIONAL_DEEP_EXPANSION_DATA) ? REGIONAL_DEEP_EXPANSION_DATA : []),
 ];
 
 // Deduplicate by lowercase term name (keep first occurrence)
