@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { POST as visitsPost, GET as visitsGet } from "../src/app/api/v1/visits/route";
@@ -14,9 +14,22 @@ function makeRequest(url: string, method: string, body?: unknown, headers?: Reco
   });
 }
 
+const ORIGINAL_ENV = { ...process.env };
+
+function restoreEnv() {
+  for (const key of Object.keys(process.env)) {
+    if (!(key in ORIGINAL_ENV)) delete process.env[key];
+  }
+  Object.assign(process.env, ORIGINAL_ENV);
+}
+
 describe("API v1 integration", () => {
   beforeEach(() => {
     delete process.env.ADMIN_API_TOKEN;
+  });
+
+  afterEach(() => {
+    restoreEnv();
   });
 
   it("translate returns 400 for empty payload", async () => {
@@ -41,7 +54,7 @@ describe("API v1 integration", () => {
     const postRes = await visitsPost(postReq);
     expect(postRes.status).toBe(200);
 
-    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, { "x-admin-token": "admin-panel-session" });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();
 
@@ -54,5 +67,17 @@ describe("API v1 integration", () => {
     const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
     const getRes = await visitsGet(getReq);
     expect(getRes.status).toBe(401);
+  });
+
+  it("visits GET fails closed in production when admin token is missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.ADMIN_API_TOKEN;
+
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    const getRes = await visitsGet(getReq);
+    const data = await getRes.json();
+
+    expect(getRes.status).toBe(503);
+    expect(String(data.error)).toContain("ADMIN_API_TOKEN não configurado");
   });
 });

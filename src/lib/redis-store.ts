@@ -11,9 +11,11 @@ async function getClient() {
     client.on("error", () => {});
   }
   if (!client.isOpen) {
-    if (!booting) booting = client.connect().finally(() => {
-      booting = null;
-    });
+    if (!booting) {
+      booting = client.connect().then(() => undefined).finally(() => {
+        booting = null;
+      });
+    }
     await booting;
   }
   return client;

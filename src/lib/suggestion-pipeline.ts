@@ -154,7 +154,7 @@ async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeani
 export async function saveValidatedSlang(input: SuggestionInput & { score: number; status: ValidationStatus; evidence: string[] }) {
   try {
     const saved = await db.validatedSlang.create({
-      data: { ...input, evidence: JSON.stringify(input.evidence) },
+      data: { ...input, context: input.context || "geral", evidence: JSON.stringify(input.evidence) },
     });
     return { id: saved.id, createdAt: saved.createdAt.toISOString() };
   } catch {
@@ -346,7 +346,7 @@ export async function autoPromoteApprovedSlang(input: SuggestionInput & { meanin
   if (input.status !== "approved") return { promoted: false as const };
   try {
     const existing = await db.translation.findFirst({
-      where: { slang: { equals: input.term, mode: "insensitive" } },
+      where: { slang: { equals: input.term } },
       select: { id: true },
     });
     if (existing) return { promoted: false as const, reason: "already_exists" as const };
@@ -417,7 +417,7 @@ export async function isSuggestionEligible(termRaw: string) {
   if (term.length >= 6 && consonants > vowels * 4) return { ok: false as const, reason: "Termo suspeito: padrão de escrita artificial." };
 
   try {
-    const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term, mode: "insensitive" }, status: { in: ["approved", "pending"] } }, select: { id: true } });
+    const existing = await db.validatedSlang.findFirst({ where: { term: { equals: term }, status: { in: ["approved", "pending"] } }, select: { id: true } });
     if (existing) return { ok: false as const, reason: "Essa gíria já foi enviada." };
   } catch {}
 

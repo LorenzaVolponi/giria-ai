@@ -40,6 +40,10 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
       const m = term.region.match(/\(([A-Z]{2})\)/);
       if (!m || m[1] !== ufFilter) continue;
     }
+    if (query) {
+      const haystack = `${term.term} ${term.meaning} ${term.context} ${term.region}`.toLowerCase();
+      if (!haystack.includes(query)) continue;
+    }
     const bucket = normalizeRegionLabel(term.region);
     grouped.get(bucket)!.push(term);
   }
@@ -107,11 +111,6 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
         {query ? (
           <p className="mt-1 text-xs text-muted-foreground">
             Busca ativa por <strong>&ldquo;{queryReadable}&rdquo;</strong>.
-          </p>
-        ) : null}
-        {riskFilter ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Filtro de risco ativo: <strong>{riskFilter}</strong>.
           </p>
         ) : null}
       </section>

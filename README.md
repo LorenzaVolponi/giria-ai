@@ -27,7 +27,8 @@ Copie e ajuste as variáveis com `cp .env.example .env`.
 - `OPENAI_API_KEY`: reservado para integração futura
 - `DATABASE_URL`: conexão do Prisma (SQLite/Postgres, conforme ambiente)
 - `ADMIN_API_TOKEN`: token de moderação/admin (API e sessão admin)
-- `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_CODES`: credenciais do painel privado `/admin` (códigos separados por vírgula).
+- `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_CODES`: credenciais do painel privado `/admin` (códigos separados por vírgula). Em produção, configure valores próprios; os padrões existem apenas para desenvolvimento/testes.
+- `ADMIN_TOTP_SECRET`, `ADMIN_ROLE`: segredo TOTP opcional do painel admin e papel da sessão (`viewer`, `moderator` ou `owner`).
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: envio de e-mail de lead
 - `OLLAMA_URL`, `OLLAMA_MODEL`: opcional, avaliação local de gírias por LLM
 - `PRODUCTION_BASE_URL` (GitHub Actions Variable): URL usada no smoke automático pós-push na `main`.

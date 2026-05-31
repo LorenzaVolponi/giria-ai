@@ -1,9 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "../src/app/api/v1/admin/login/route";
 import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
 
+const ORIGINAL_ENV = { ...process.env };
+
+function restoreEnv() {
+  for (const key of Object.keys(process.env)) {
+    if (!(key in ORIGINAL_ENV)) delete process.env[key];
+  }
+  Object.assign(process.env, ORIGINAL_ENV);
+}
+
 describe("admin login api", () => {
+  afterEach(() => {
+    restoreEnv();
+  });
   it("rejects invalid credentials", async () => {
     const req = new NextRequest("http://localhost/api/v1/admin/login", {
       method: "POST",
@@ -33,6 +45,41 @@ describe("admin login api", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(200);
+  });
+
+  it("accepts custom configured admin credentials", async () => {
+    process.env.ADMIN_LOGIN = "owner@example.com";
+    process.env.ADMIN_PASSWORD = "strong-password";
+    process.env.ADMIN_CODES = "111111,222222";
+    process.env.ADMIN_API_TOKEN = "custom-session-token";
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ login: "owner@example.com", password: "strong-password", code: "222222" }),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") || "").toContain("custom-session-token");
+  });
+
+  it("fails closed in production when admin credentials are missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.ADMIN_LOGIN;
+    delete process.env.ADMIN_PASSWORD;
+    delete process.env.ADMIN_CODES;
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ login: "admin007", password: "admin007", code: "6390" }),
+    });
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(String(data.error)).toContain("Credenciais admin não configuradas");
   });
 
   it("validates admin session cookie", async () => {

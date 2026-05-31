@@ -6,12 +6,20 @@ const ADMIN_CSRF_COOKIE = "giria_admin_csrf";
 const ADMIN_ROLE_COOKIE = "giria_admin_role";
 
 function getExpectedToken() {
-  return process.env.ADMIN_API_TOKEN || "admin-panel-session";
+  const configuredToken = process.env.ADMIN_API_TOKEN?.trim();
+  if (configuredToken) return configuredToken;
+  return process.env.NODE_ENV === "production" ? "" : "admin-panel-session";
+}
+
+function missingAdminTokenResponse() {
+  return withSecurityHeaders(
+    NextResponse.json({ error: "ADMIN_API_TOKEN não configurado." }, { status: 503 }),
+  );
 }
 
 export function requireAdminToken(request: NextRequest): NextResponse | null {
   const expected = getExpectedToken();
-  if (!expected) return null;
+  if (!expected) return missingAdminTokenResponse();
 
   const providedHeader = request.headers.get("x-admin-token") || "";
   const providedCookie = request.cookies.get(ADMIN_COOKIE)?.value || "";
@@ -25,6 +33,9 @@ export function requireAdminToken(request: NextRequest): NextResponse | null {
 
 export function createAdminSessionResponse(ok = true) {
   const expected = getExpectedToken();
+  if (!expected) {
+    return missingAdminTokenResponse();
+  }
   const csrf = crypto.randomUUID();
   const role = process.env.ADMIN_ROLE || "owner";
 
