@@ -7,6 +7,7 @@ import {
   REGION_ORDER,
   getAvailableRegionalStates,
   getRegionalCoverageStats,
+  getRegionalOverviewCards,
   getRegionalStateCounts,
   getRegionalTerms,
   groupRegionalEntries,
@@ -59,6 +60,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const filteredCount = filteredStats.total;
   const stateCounts = getRegionalStateCounts(allRegionalTerms);
   const allStates = stateCounts.map((item) => item.state);
+  const regionalOverview = getRegionalOverviewCards(regionalTerms);
   const activeFilters = [ufFilter ? `UF ${ufFilter}` : null, queryReadable ? `busca “${queryReadable}”` : null, riskFilter ? `risco ${RISK_CONFIG[riskFilter].label}` : null].filter(Boolean);
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const featuredRegionalEntries = REGION_ORDER.flatMap((region) =>
@@ -139,6 +141,30 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
           </a>
         ))}
       </nav>
+
+      <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Resumo por macro-região">
+        {regionalOverview.map((item) => (
+          <a key={`overview-${item.region}`} href={`#regiao-${encodeURIComponent(item.region)}`} className="rounded-xl border p-4 hover:bg-muted/40">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">{item.title}</p>
+                <h2 className="text-lg font-semibold">{item.region}</h2>
+              </div>
+              <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                {item.count.toLocaleString("pt-BR")}
+              </span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {item.highlights.slice(0, 3).map((highlight) => (
+                <span key={`${item.region}-${highlight}`} className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {highlight}
+                </span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </section>
 
       <section className="mt-4 rounded-lg border p-4">
         <form action="/girias/regionais" className="grid gap-3 md:grid-cols-[1fr_auto_auto]">

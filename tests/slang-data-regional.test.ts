@@ -9,6 +9,7 @@ import {
   getRegionalStateCounts,
   getRegionalEntryForTerm,
   getRegionalExpressionRoutes,
+  getRegionalOverviewCards,
   getRegionalTerms,
   getRelatedRegionalEntries,
   groupRegionalEntries,
@@ -178,4 +179,14 @@ it("documents each macro-region with curated content metadata", () => {
   expect(REGION_CONTENT.Nordeste.highlights).toEqual(expect.arrayContaining(["São João", "sertão"]));
   expect(REGION_CONTENT.Sul.description.toLowerCase()).toContain("chimarrão");
   expect(REGION_CONTENT["Centro-Oeste"].title).toContain("cerrado");
+});
+
+
+it("builds macro-region overview cards with counts and editorial highlights", () => {
+  const overview = getRegionalOverviewCards(getRegionalTerms());
+  const nordeste = overview.find((item) => item.region === "Nordeste");
+
+  expect(overview).toHaveLength(6);
+  expect(nordeste?.count).toBeGreaterThan(0);
+  expect(nordeste?.highlights).toEqual(expect.arrayContaining(["São João"]));
 });

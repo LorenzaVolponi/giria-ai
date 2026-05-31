@@ -130,6 +130,14 @@ export interface RegionalExpressionRoute {
   priority: number;
 }
 
+export interface RegionalOverviewCard {
+  region: RegionKey;
+  title: string;
+  description: string;
+  highlights: string[];
+  count: number;
+}
+
 const FEATURED_ROOTS_BY_REGION: Record<RegionKey, string[]> = {
   Norte: ["égua", "pai d'égua", "de rocha", "cunhantã", "curumim", "arre diacho", "tacacá mood", "açaí raiz"],
   Nordeste: ["oxente", "oxe", "arre égua", "arretado", "avexado", "brocado", "carioquinha", "macaxeira"],
@@ -461,6 +469,17 @@ export function getRegionalRiskCounts(terms: SlangTerm[]): Record<RiskLevel, num
   const counts = { green: 0, yellow: 0, orange: 0, red: 0 } satisfies Record<RiskLevel, number>;
   for (const term of terms) counts[term.riskLevel] += 1;
   return counts;
+}
+
+
+export function getRegionalOverviewCards(terms: SlangTerm[] = getRegionalTerms()): RegionalOverviewCard[] {
+  const grouped = groupRegionalTerms(terms);
+
+  return REGION_ORDER.map((region) => ({
+    region,
+    ...REGION_CONTENT[region],
+    count: grouped.get(region)?.length ?? 0,
+  }));
 }
 
 export function getRegionalCoverageStats(terms: SlangTerm[]) {
