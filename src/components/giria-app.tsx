@@ -279,7 +279,9 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
-    void loadCommunity();
+    queueMicrotask(() => {
+      void loadCommunity();
+    });
   }, [loadCommunity]);
 
   useEffect(() => {
@@ -710,52 +712,69 @@ export default function GiriaApp() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="max-w-xl mx-auto"
+          className="max-w-2xl mx-auto"
         >
-          <div
-            className="relative overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-900 cursor-pointer hover:shadow-md transition-shadow"
+          <button
+            type="button"
+            className="giria-editorial-card group w-full cursor-pointer text-left"
             onClick={() => searchAndGo(termOfDay.term)}
           >
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-600" />
-            <div className="flex items-center gap-3 p-3 sm:p-4 pl-5">
-              <div className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-yellow-300/30 blur-2xl dark:bg-yellow-300/15" />
+            <div className="absolute -bottom-12 left-8 h-28 w-28 rounded-full bg-blue-500/20 blur-2xl dark:bg-blue-400/15" />
+            <div className="relative flex items-start gap-4 p-4 sm:p-5">
+              <div className="giria-icon-chip bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:ring-emerald-800">
+                <Calendar className="h-4 w-4" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white shadow-sm shadow-emerald-900/10 dark:bg-emerald-400 dark:text-emerald-950">
+                    Hoje
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
                     Gíria do Dia
                   </span>
                 </div>
-                <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">
-                  {termOfDay.term}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                  {termOfDay.meaning}
-                </p>
+                <div>
+                  <p className="text-2xl font-black leading-tight text-gray-950 dark:text-white">
+                    “{termOfDay.term}”
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                    {termOfDay.meaning}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 transition-colors group-hover:text-teal-700 dark:text-emerald-300 dark:group-hover:text-teal-200">
+                  Ler contexto completo
+                  <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </div>
               </div>
-              <button className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center gap-1">
-                Ver detalhes
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
             </div>
-          </div>
+          </button>
         </motion.div>
       )}
 
       {/* Hero */}
-      <div className="text-center space-y-2 pt-4 pb-2">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0" />
-          <h2 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+      <section className="giria-hero mx-auto max-w-3xl px-4 py-7 text-center shadow-sm sm:px-8 sm:py-9">
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white/75 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-gray-950/45 dark:text-emerald-200">
+            <Heart className="h-3 w-3 fill-emerald-500 text-emerald-500" />
+            feito no Brasil
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-800 shadow-sm dark:border-blue-800/80 dark:bg-blue-950/35 dark:text-blue-200">
+            <Globe className="h-3 w-3" />
+            gírias brasileiras em contexto
+          </span>
+        </div>
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-3">
+          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500 shrink-0 dark:text-yellow-300" />
+          <h2 className="text-2xl sm:text-4xl font-black text-gray-950 dark:text-white leading-tight tracking-tight">
             Entenda o que os adolescentes estão falando
           </h2>
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0 hidden sm:block" />
+          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 shrink-0 hidden sm:block dark:text-blue-300" />
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto">
-          Digite uma gíria ou frase e receba a tradução objetiva
+        <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+          Traduções rápidas, contexto cultural e sinais de atenção para famílias e educadores — sem perder o sotaque brasileiro.
         </p>
-      </div>
+      </section>
 
       {/* Search bar */}
       <div className="flex gap-2 max-w-xl mx-auto">
@@ -877,7 +896,7 @@ export default function GiriaApp() {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <Card className="max-w-2xl mx-auto overflow-hidden bg-white dark:bg-gray-900">
+        <Card className="giria-soft-card max-w-2xl mx-auto overflow-hidden">
           <div className="h-24 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 animate-pulse" />
           <CardContent className="p-4 space-y-4">
             {[1, 2, 3].map((i) => (
@@ -896,9 +915,9 @@ export default function GiriaApp() {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
         >
-        <Card className="max-w-2xl mx-auto overflow-hidden shadow-lg border-0 bg-white dark:bg-gray-900">
+        <Card className="giria-soft-card max-w-2xl mx-auto overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 text-white">
+          <div className="bg-gradient-to-r from-emerald-700 via-teal-600 to-blue-700 px-4 sm:px-6 py-4 text-white">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <h3 className="text-xl sm:text-2xl font-bold">
@@ -1285,7 +1304,7 @@ export default function GiriaApp() {
           filteredGlossary.map((term) => (
             <Card
               key={term.term}
-              className="cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition-all bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+              className="giria-soft-card cursor-pointer hover:-translate-y-0.5 hover:border-emerald-300 dark:hover:border-emerald-700"
               onClick={() => searchAndGo(term.term)}
             >
               <CardContent className="p-3 sm:p-4">
@@ -1366,7 +1385,7 @@ export default function GiriaApp() {
           {favoriteTerms.map((term) => (
             <Card
               key={term.term}
-              className="hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition-all bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+              className="giria-soft-card hover:-translate-y-0.5 hover:border-emerald-300 dark:hover:border-emerald-700"
             >
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -1715,20 +1734,20 @@ export default function GiriaApp() {
   // Main render
   // =========================================================================
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen flex flex-col bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#ecfdf5_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_28%),linear-gradient(180deg,#020617_0%,#042f2e_48%,#020617_100%)]">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-emerald-100/80 bg-white/85 shadow-sm backdrop-blur-xl dark:border-emerald-900/60 dark:bg-gray-950/85">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center shadow-sm shadow-emerald-900/20">
               <MessageCircle className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              <h1 className="text-lg font-black text-gray-950 dark:text-gray-100 leading-tight">
                 Gíria AI
               </h1>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-none hidden sm:block">
-                Tradutor de Gírias Brasileiras
+              <p className="text-[10px] text-emerald-700/70 dark:text-emerald-300/75 leading-none hidden sm:block">
+                Feito no Brasil · gírias em contexto
               </p>
             </div>
           </div>
@@ -1790,7 +1809,7 @@ export default function GiriaApp() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-5 pb-24 sm:pb-5">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6 pb-24 sm:pb-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1809,7 +1828,7 @@ export default function GiriaApp() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-emerald-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-gray-900 dark:to-gray-950 pb-20 sm:pb-0">
+      <footer className="mt-auto border-t border-emerald-100 dark:border-emerald-900/60 bg-gradient-to-r from-emerald-50/90 via-white/80 to-blue-50/80 dark:from-gray-950 dark:via-emerald-950/40 dark:to-gray-950 pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
