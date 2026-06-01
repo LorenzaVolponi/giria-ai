@@ -43,6 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import Image from "next/image";
 import {
   getTerm,
   searchTerms,
@@ -56,7 +57,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes" | "apoie";
 
 interface TranslationResult {
   term: string;
@@ -82,6 +83,9 @@ interface TranslationResult {
 // ---------------------------------------------------------------------------
 const FAVORITES_KEY = "giria-ai-favorites";
 const SEARCH_HISTORY_KEY = "giria-ai-history";
+const PIX_KEY = "007aibr@gmail.com";
+const PIX_RECEIVER_NAME = "Lorenza Volponi";
+const SUPPORT_AMOUNTS = [5, 10, 25];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -189,6 +193,39 @@ const POPULAR_TERMS = [
   "miga",
 ];
 
+const POPULAR_GROUPS = [
+  {
+    label: "Bombando agora",
+    description: "Termos que aparecem em redes, memes e conversas rápidas.",
+    emoji: "🔥",
+    gradient: "from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20",
+    terms: ["calabreso", "casca de bala", "aura", "rizz", "slay", "delulu"],
+  },
+  {
+    label: "TikTok e Reels",
+    description: "Gírias de trend, comentários, creators e cultura pop.",
+    emoji: "📱",
+    gradient: "from-fuchsia-50 to-purple-50 dark:from-fuchsia-950/30 dark:to-purple-950/20",
+    terms: ["cringe", "viralizou", "main character", "glow up", "mewing", "pookie"],
+  },
+  {
+    label: "Escola e resenha",
+    description: "Jeito de falar entre amigos, grupos e sala de aula.",
+    emoji: "🎒",
+    gradient: "from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20",
+    terms: ["pprt", "tmj", "parça", "brabo", "miga", "tá osso"],
+  },
+  {
+    label: "Games e internet",
+    description: "Expressões de gameplay, chat, Discord e memes.",
+    emoji: "🎮",
+    gradient: "from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/20",
+    terms: ["tankar", "rage quit", "tiltar", "nerfar", "gg", "goat"],
+  },
+];
+
+const HERO_CHIPS = ["pprt", "cria", "slay", "tankei", "rizz", "brabo", "miga"];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -279,7 +316,10 @@ export default function GiriaApp() {
   }, []);
 
   useEffect(() => {
-    void loadCommunity();
+    const timeoutId = window.setTimeout(() => {
+      void loadCommunity();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadCommunity]);
 
   useEffect(() => {
@@ -549,9 +589,8 @@ export default function GiriaApp() {
   );
 
   const handleCopyPix = useCallback(async () => {
-    const pixKey = "007aibr@gmail.com";
     try {
-      await navigator.clipboard.writeText(pixKey);
+      await navigator.clipboard.writeText(PIX_KEY);
       setPixCopied(true);
       setPixFeedback("Chave PIX copiada com sucesso.");
       void fetch("/api/v1/visits", {
@@ -641,6 +680,12 @@ export default function GiriaApp() {
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",
     },
+    {
+      id: "apoie",
+      label: "Apoiar",
+      icon: <HeartHandshake className="h-4 w-4" />,
+      href: "/apoie",
+    },
     { id: "sobre", label: "Sobre", icon: <Shield className="h-4 w-4" /> },
   ];
 
@@ -676,163 +721,371 @@ export default function GiriaApp() {
   // =========================================================================
   // TAB 4 — COMUNIDADE
   // =========================================================================
-  const renderComunidade = () => (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-4">
-        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Enviadas por usuários (validadas)</h3>
-        <p className="text-sm text-emerald-700 dark:text-emerald-300">Aqui entram as gírias aprovadas no pipeline automático/moderação.</p>
-        <button className="mt-3 rounded border px-3 py-1 text-xs" onClick={() => void loadCommunity()} type="button">
-          {communityLoading ? "Atualizando..." : "Atualizar comunidade"}
-        </button>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {communityItems.map((item) => (
-          <div key={item.id} className="rounded-lg border p-4">
-            <p className="font-semibold">{item.term}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{item.meaning}</p>
-            {item.context ? <p className="mt-2 text-xs text-muted-foreground">Contexto: {item.context}</p> : null}
-            <p className="mt-2 text-xs text-muted-foreground">Enviado por: {item.submitterName} · score {item.score.toFixed(2)}</p>
+  const renderComunidade = () => {
+    const topCommunity = [...communityItems]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+    const averageScore = communityItems.length
+      ? communityItems.reduce((sum, item) => sum + item.score, 0) / communityItems.length
+      : 0;
+
+    return (
+      <div className="space-y-5">
+        <section className="relative overflow-hidden rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-5 shadow-sm dark:border-emerald-900 dark:from-emerald-950/30 dark:via-gray-950 dark:to-cyan-950/20 sm:p-6">
+          <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-emerald-300/20 blur-3xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Badge className="w-fit border-0 bg-emerald-600 text-white hover:bg-emerald-700">
+                <Users className="mr-1 h-3 w-3" /> Comunidade viva
+              </Badge>
+              <div>
+                <h2 className="text-2xl font-black text-gray-950 dark:text-gray-50">
+                  Gírias enviadas por quem usa de verdade.
+                </h2>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                  Sugestões aprovadas entram no radar do Gíria AI com score de confiança,
+                  contexto e autoria da comunidade.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:min-w-[170px]">
+              <Button
+                asChild
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+              >
+                <Link href="/girias/enviadas-por-usuarios">
+                  <MessageCircle className="h-4 w-4" /> Enviar gíria
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void loadCommunity()}
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              >
+                <RotateCcw className={`h-4 w-4 ${communityLoading ? "animate-spin" : ""}`} />
+                {communityLoading ? "Atualizando" : "Atualizar feed"}
+              </Button>
+            </div>
           </div>
-        ))}
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="border-emerald-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{communityItems.length}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">aprovadas no feed</p>
+            </CardContent>
+          </Card>
+          <Card className="border-yellow-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-yellow-700 dark:text-yellow-300">{averageScore.toFixed(2)}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">score médio</p>
+            </CardContent>
+          </Card>
+          <Card className="border-cyan-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-cyan-700 dark:text-cyan-300">Top 3</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">mais confiáveis</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {topCommunity.length > 0 && (
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">Ranking da comunidade</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">As sugestões com melhor score de validação.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {topCommunity.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => searchAndGo(item.term)}
+                  className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-yellow-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-yellow-300 hover:shadow-md dark:border-yellow-900/60 dark:from-yellow-950/20 dark:to-gray-900"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge className="border-0 bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-950/60 dark:text-yellow-200">
+                      #{index + 1}
+                    </Badge>
+                    <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">{item.score.toFixed(2)}</span>
+                  </div>
+                  <p className="font-black text-gray-950 dark:text-gray-50">{item.term}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{item.meaning}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">Feed de gírias aprovadas</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Clique em qualquer card para traduzir com contexto completo.</p>
+            </div>
+            <Link href="/girias/enviadas-por-usuarios" className="text-xs font-bold text-emerald-700 hover:text-emerald-600 dark:text-emerald-300">
+              Ver página completa →
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {communityItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => searchAndGo(item.term)}
+                className="group rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-900"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-gray-950 group-hover:text-emerald-700 dark:text-gray-50 dark:group-hover:text-emerald-300">{item.term}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">{item.meaning}</p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {item.score.toFixed(2)}
+                  </Badge>
+                </div>
+                {item.context ? <p className="mt-3 line-clamp-2 rounded-xl bg-gray-50 p-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">Contexto: {item.context}</p> : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+                  <span>Enviado por {item.submitterName}</span>
+                  <span>•</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Traduzir agora</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {communityItems.length === 0 ? (
+            <Card className="border-dashed border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <CardContent className="p-5 text-center">
+                <Sparkles className="mx-auto mb-2 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+                <p className="font-bold text-gray-900 dark:text-gray-100">Ainda sem sugestões aprovadas.</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Envie a primeira gíria da comunidade e ajude o glossário crescer.</p>
+              </CardContent>
+            </Card>
+          ) : null}
+        </section>
       </div>
-      {communityItems.length === 0 ? <p className="text-sm text-muted-foreground">Ainda sem sugestões aprovadas.</p> : null}
-    </div>
-  );
+    );
+  };
 
   // =========================================================================
   // TAB 1 — BUSCA
   // =========================================================================
+  const renderSupportCard = (compact = false) => (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="max-w-2xl mx-auto"
+    >
+      <Card className="relative overflow-hidden border-emerald-200/80 bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-700 text-white shadow-xl dark:border-emerald-700/60">
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-yellow-300/20 blur-2xl" />
+        <div className="absolute -left-12 bottom-0 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
+        <CardContent className={`relative ${compact ? "p-4" : "p-5 sm:p-6"}`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Badge className="w-fit border-0 bg-white/15 text-white hover:bg-white/20">
+                <HeartHandshake className="mr-1 h-3 w-3" /> Projeto gratuito
+              </Badge>
+              <div>
+                <h3 className="text-lg font-bold sm:text-xl">
+                  Essa tradução te ajudou? Fortaleça o Gíria AI.
+                </h3>
+                <p className="mt-1 max-w-xl text-sm text-emerald-50/90">
+                  Sua contribuição mantém o tradutor online, atualiza o glossário vivo e ajuda pais,
+                  professores e jovens a entenderem a linguagem da internet brasileira.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SUPPORT_AMOUNTS.map((amount) => (
+                  <span
+                    key={amount}
+                    className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold"
+                  >
+                    R$ {amount}
+                  </span>
+                ))}
+                <span className="rounded-full border border-yellow-200/40 bg-yellow-300/20 px-3 py-1 text-xs font-semibold text-yellow-50">
+                  PIX rápido
+                </span>
+              </div>
+            </div>
+            <div className="flex min-w-[170px] flex-col gap-2">
+              <Button
+                asChild
+                onClick={handleSponsorClick}
+                className="bg-white text-emerald-800 shadow-lg hover:bg-emerald-50"
+              >
+                <Link href="/apoie">
+                  <HeartHandshake className="h-4 w-4" /> Apoiar via PIX
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  handleSponsorClick();
+                  void handleCopyPix();
+                }}
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
+                {pixCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {pixCopied ? "Chave copiada" : "Copiar chave PIX"}
+              </Button>
+              <p className="text-center text-[11px] text-emerald-50/80">
+                {PIX_KEY} · {PIX_RECEIVER_NAME}
+              </p>
+            </div>
+          </div>
+          {pixFeedback ? <p className="mt-3 text-xs font-medium text-yellow-100">{pixFeedback}</p> : null}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+
   const renderBusca = () => (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-yellow-50 px-4 py-6 shadow-sm dark:border-emerald-900/70 dark:from-emerald-950/40 dark:via-gray-950 dark:to-teal-950/30 sm:px-6 sm:py-8">
+        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-300/25 blur-3xl" />
+        <div className="absolute -bottom-20 left-8 h-36 w-36 rounded-full bg-yellow-300/20 blur-3xl" />
+        <div className="relative mx-auto max-w-2xl text-center">
+          <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+            <Badge className="border-0 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Sparkles className="mr-1 h-3 w-3" /> Brasil digital
+            </Badge>
+            <Badge variant="outline" className="border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/40 dark:text-yellow-200">
+              Gírias, memes e contexto
+            </Badge>
+          </div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 sm:text-4xl">
+            Traduza o idioma da internet brasileira.
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-300 sm:text-base">
+            Entenda gírias do TikTok, escola, WhatsApp, games e cultura jovem com explicações rápidas,
+            seguras e em linguagem adulta.
+          </p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+            {HERO_CHIPS.map((term) => (
+              <button
+                key={term}
+                type="button"
+                onClick={() => searchAndGo(term)}
+                className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-gray-900/80 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+              >
+                #{term}
+              </button>
+            ))}
+          </div>
+
+          {/* Search bar */}
+          <div className="mx-auto mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
+                placeholder='Digite uma gíria ou frase... (pressione "/")'
+                className="h-12 rounded-2xl border-emerald-200 bg-white/90 pl-9 pr-10 shadow-sm focus-visible:ring-emerald-500 dark:border-emerald-900 dark:bg-gray-900/90"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleResetSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              onClick={() => handleTranslate()}
+              disabled={isLoading || !searchQuery.trim()}
+              className="h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 font-bold text-white shadow-lg shadow-emerald-900/10 hover:from-emerald-700 hover:to-teal-700"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Traduzindo...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Send className="h-4 w-4" /> Traduzir
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Gíria do Dia */}
       {termOfDay && !translationResult && !isLoading && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="max-w-xl mx-auto"
+          className="mx-auto max-w-2xl"
         >
-          <div
-            className="relative overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-900 cursor-pointer hover:shadow-md transition-shadow"
+          <button
+            type="button"
+            className="group relative w-full overflow-hidden rounded-2xl border border-emerald-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-emerald-900 dark:bg-gray-900"
             onClick={() => searchAndGo(termOfDay.term)}
           >
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-600" />
-            <div className="flex items-center gap-3 p-3 sm:p-4 pl-5">
-              <div className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                    Gíria do Dia
-                  </span>
+            <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-yellow-400 via-emerald-500 to-teal-600" />
+            <div className="flex flex-col gap-3 p-4 pl-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+                  <Calendar className="h-5 w-5" />
                 </div>
-                <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">
-                  {termOfDay.term}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                  {termOfDay.meaning}
-                </p>
+                <div className="min-w-0">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge className="border-0 bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-950/50 dark:text-yellow-200">
+                      Hoje
+                    </Badge>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      Gíria do dia
+                    </span>
+                  </div>
+                  <p className="text-lg font-black text-gray-950 dark:text-gray-50">{termOfDay.term}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{termOfDay.meaning}</p>
+                </div>
               </div>
-              <button className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center gap-1">
-                Ver detalhes
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-emerald-700 transition group-hover:translate-x-1 dark:text-emerald-300">
+                Ver explicação <ChevronRight className="h-4 w-4" />
+              </span>
             </div>
-          </div>
+          </button>
         </motion.div>
       )}
 
-      {/* Hero */}
-      <div className="text-center space-y-2 pt-4 pb-2">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0" />
-          <h2 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
-            Entenda o que os adolescentes estão falando
-          </h2>
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0 hidden sm:block" />
-        </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto">
-          Digite uma gíria ou frase e receba a tradução objetiva
-        </p>
-      </div>
-
-      {/* Search bar */}
-      <div className="flex gap-2 max-w-xl mx-auto">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
-            placeholder='Digite uma gíria... (pressione "/")'
-            className="pl-9 h-11"
-          />
-          {searchQuery && (
-            <button
-              onClick={handleResetSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <Button
-          onClick={() => handleTranslate()}
-          disabled={isLoading || !searchQuery.trim()}
-          className="h-11 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium"
-        >
-          {isLoading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              Traduzindo...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <Send className="h-4 w-4" />
-              <span className="hidden sm:inline-flex">Traduzir</span>
-            </span>
-          )}
-        </Button>
-      </div>
-
       {/* Search history */}
       {searchHistory.length > 0 && !translationResult && !isLoading && (
-        <div className="max-w-xl mx-auto space-y-2">
+        <div className="mx-auto max-w-2xl space-y-2 rounded-2xl border border-gray-100 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/70">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500">
-              Buscas recentes
-            </p>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Buscas recentes</p>
             <button
+              type="button"
               onClick={clearSearchHistory}
-              className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
+              className="flex items-center gap-1 text-xs text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <X className="h-3 w-3" />
-              Limpar
+              <X className="h-3 w-3" /> Limpar
             </button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {searchHistory.map((term) => (
               <button
                 key={term}
+                type="button"
                 onClick={() => searchAndGo(term)}
-                className="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
               >
                 {term}
               </button>
@@ -841,47 +1094,69 @@ export default function GiriaApp() {
         </div>
       )}
 
-      {/* Popular slang chips + discover button */}
+      {/* Popular slang clusters */}
       {!translationResult && !isLoading && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-center gap-3">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              <Zap className="inline h-4 w-4 mr-1 text-amber-500" />
-              Gírias populares
-            </p>
-            <span className="text-gray-300 dark:text-gray-600">|</span>
+        <section className="mx-auto max-w-2xl space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-gray-900 dark:text-gray-100">
+                <Zap className="mr-1 inline h-4 w-4 text-amber-500" /> Gírias por contexto
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Escolha uma bolha e descubra o significado em segundos.
+              </p>
+            </div>
             <button
+              type="button"
               onClick={handleRandomTerm}
-              className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 transition-colors"
+              className="flex items-center gap-1 text-sm font-bold text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
             >
-              <Shuffle className="h-3.5 w-3.5" />
-              Descobrir gíria
+              <Shuffle className="h-3.5 w-3.5" /> Descobrir gíria
             </button>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {POPULAR_TERMS.map((term, i) => (
-              <motion.button
-                key={term}
-                onClick={() => searchAndGo(term)}
-                className="rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2, delay: i * 0.01 }}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {POPULAR_GROUPS.map((group, i) => (
+              <motion.div
+                key={group.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: i * 0.04 }}
+                className={`rounded-2xl border border-gray-100 bg-gradient-to-br ${group.gradient} p-4 shadow-sm dark:border-gray-800`}
               >
-                {term}
-              </motion.button>
+                <div className="mb-3 flex items-start gap-2">
+                  <span className="text-2xl" aria-hidden="true">{group.emoji}</span>
+                  <div>
+                    <h3 className="font-bold text-gray-950 dark:text-gray-50">{group.label}</h3>
+                    <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">{group.description}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.terms.map((term) => (
+                    <button
+                      key={`${group.label}-${term}`}
+                      type="button"
+                      onClick={() => searchAndGo(term)}
+                      className="rounded-full border border-white/70 bg-white/85 px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-700 dark:border-gray-700/70 dark:bg-gray-900/80 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:text-emerald-300"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </section>
       )}
+
+      {!translationResult && !isLoading && renderSupportCard(true)}
 
       {/* Loading skeleton */}
       {isLoading && (
-        <Card className="max-w-2xl mx-auto overflow-hidden bg-white dark:bg-gray-900">
-          <div className="h-24 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 animate-pulse" />
-          <CardContent className="p-4 space-y-4">
+        <Card className="mx-auto max-w-2xl overflow-hidden bg-white dark:bg-gray-900">
+          <div className="h-24 animate-pulse bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40" />
+          <CardContent className="space-y-4 p-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-4 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${70 + i * 10}%` }} />
+              <div key={i} className="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-800" style={{ width: `${70 + i * 10}%` }} />
             ))}
           </CardContent>
         </Card>
@@ -889,270 +1164,220 @@ export default function GiriaApp() {
 
       {/* Translation result */}
       <AnimatePresence>
-      {translationResult && (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.25 }}
-        >
-        <Card className="max-w-2xl mx-auto overflow-hidden shadow-lg border-0 bg-white dark:bg-gray-900">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 text-white">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <h3 className="text-xl sm:text-2xl font-bold">
-                  &ldquo;{translationResult.term}&rdquo;
-                </h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  {renderRiskBadge(translationResult.riskLevel)}
-                  {renderCategoryBadge(translationResult.category)}
+        {translationResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-4"
+          >
+            <Card className="mx-auto max-w-2xl overflow-hidden border-0 bg-white shadow-xl dark:bg-gray-900">
+              <div className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-teal-700 to-cyan-700 px-4 py-5 text-white sm:px-6">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-yellow-300/20 blur-2xl" />
+                <div className="relative flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <Badge className="w-fit border-0 bg-white/15 text-white hover:bg-white/20">Ficha da gíria</Badge>
+                    <h3 className="text-2xl font-black sm:text-3xl">&ldquo;{translationResult.term}&rdquo;</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {renderRiskBadge(translationResult.riskLevel)}
+                      {renderCategoryBadge(translationResult.category)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(`${translationResult.term}: ${translationResult.meaning}`)}
+                    className="shrink-0 rounded-full bg-white/20 p-2 transition-colors hover:bg-white/30"
+                    title="Copiar tradução"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-emerald-200" /> : <Copy className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() =>
-                  handleCopy(
-                    `${translationResult.term}: ${translationResult.meaning}`
-                  )
-                }
-                className="shrink-0 rounded-full bg-white/20 p-2 hover:bg-white/30 transition-colors"
-                title="Copiar tradução"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-emerald-200" />
-                ) : (
-                  <Copy className="h-4 w-4" />
+
+              <CardContent className="space-y-4 p-4 sm:p-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                      <BookOpen className="h-4 w-4" /> Significado rápido
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{translationResult.meaning}</p>
+                  </div>
+                  <div className="rounded-2xl border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-900 dark:bg-teal-950/30">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-teal-800 dark:text-teal-200">
+                      <MessageCircle className="h-4 w-4" /> Tradução adulta
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{translationResult.adultTranslation}</p>
+                  </div>
+                </div>
+
+                {translationResult.phraseTranslation && (
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 dark:border-cyan-900 dark:bg-cyan-950/30">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-cyan-800 dark:text-cyan-200">
+                      <Sparkles className="h-4 w-4" /> Tradução da frase
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{translationResult.phraseTranslation}</p>
+                  </div>
                 )}
-              </button>
-            </div>
-          </div>
 
-          {/* Body */}
-          <CardContent className="p-4 sm:p-6 space-y-4">
-            {/* Significado */}
-            <div className="flex gap-3">
-              <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                  Significado
-                </p>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  {translationResult.meaning}
-                </p>
-              </div>
-            </div>
+                <div className="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                    <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Onde e quando aparece
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{translationResult.context}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {translationResult.region ? (
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                        Região: {translationResult.region}
+                      </span>
+                    ) : null}
+                    {translationResult.popularityStatus ? (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                        Status: {translationResult.popularityStatus}
+                      </span>
+                    ) : null}
+                    {translationResult.isPhrase ? (
+                      <span className="rounded-full bg-purple-50 px-2.5 py-1 font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                        Frase detectada
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
 
-            <Separator />
+                {translationResult.safeExample && (
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-200">
+                      <GraduationCap className="h-4 w-4" /> Exemplo seguro
+                    </div>
+                    <p className="text-sm italic leading-relaxed text-gray-700 dark:text-gray-300">&ldquo;{translationResult.safeExample}&rdquo;</p>
+                  </div>
+                )}
 
-            {/* Tradução para Adultos */}
-            <div className="flex gap-3">
-              <MessageCircle className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                  Tradução para Adultos
-                </p>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  {translationResult.adultTranslation}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Contexto */}
-            <div className="flex gap-3">
-              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                  Contexto
-                </p>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  {translationResult.context}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Exemplo */}
-            {translationResult.safeExample && (
-              <>
-                <div className="flex gap-3">
-                  <GraduationCap className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                      Exemplo
-                    </p>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 border border-gray-100 dark:border-gray-700">
-                      <p className="text-gray-700 dark:text-gray-300 text-sm italic">
-                        {translationResult.safeExample}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                      <Shield className="h-4 w-4 text-gray-500" /> Leitura de risco
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {renderRiskBadge(translationResult.riskLevel)}
+                      <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                        {RISK_CONFIG[translationResult.riskLevel].description}
                       </p>
                     </div>
                   </div>
+                  {translationResult.contextNotes && (
+                    <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 dark:border-purple-900 dark:bg-purple-950/20">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-bold text-purple-800 dark:text-purple-200">
+                        <Eye className="h-4 w-4" /> Orientação
+                      </div>
+                      <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{translationResult.contextNotes}</p>
+                    </div>
+                  )}
                 </div>
-                <Separator />
-              </>
-            )}
 
-            {/* Nível de Risco */}
-            <div className="flex gap-3">
-              <Shield className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Nível de Risco
-                </p>
-                <div className="flex items-center gap-2">
-                  {renderRiskBadge(translationResult.riskLevel)}
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {RISK_CONFIG[translationResult.riskLevel].description}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Orientação */}
-            {translationResult.contextNotes && (
-              <>
-                <div className="flex gap-3">
-                  <Eye className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                      Orientação
-                    </p>
-                    <div className="bg-blue-50 dark:bg-blue-950/50 rounded-lg px-3 py-2 border border-blue-100 dark:border-blue-900">
-                      <p className="text-blue-800 dark:text-blue-300 text-sm leading-relaxed">
-                        {translationResult.contextNotes}
-                      </p>
+                {translationResult.origin && (
+                  <div className="flex gap-3 rounded-2xl border border-orange-100 p-4 dark:border-orange-900/60">
+                    <ArrowRight className="mt-0.5 h-5 w-5 shrink-0 text-orange-500 dark:text-orange-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Origem</p>
+                      <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{translationResult.origin}</p>
                     </div>
                   </div>
-                </div>
-                <Separator />
-              </>
-            )}
+                )}
 
-            {/* Origem */}
-            {translationResult.origin && (
-              <>
-                <div className="flex gap-3">
-                  <ArrowRight className="h-5 w-5 text-orange-500 dark:text-orange-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-0.5">
-                      Origem
-                    </p>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                      {translationResult.origin}
-                    </p>
+                {translationResult.variations.length > 0 && (
+                  <div className="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                      <Zap className="h-4 w-4 text-yellow-500 dark:text-yellow-400" /> Variações e termos parecidos
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {translationResult.variations.map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => searchAndGo(v)}
+                          className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <Separator />
-              </>
-            )}
+                )}
 
-            {/* Variações */}
-            {translationResult.variations.length > 0 && (
-              <div className="flex gap-3">
-                <Zap className="h-5 w-5 text-yellow-500 dark:text-yellow-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Variações
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {translationResult.variations.map((v) => (
-                      <button
-                        key={v}
-                        onClick={() => searchAndGo(v)}
-                        className="rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <Button
-                onClick={() => toggleFavorite(translationResult.term)}
-                variant={isFavorited(translationResult.term) ? "outline" : "default"}
-                className={
-                  isFavorited(translationResult.term)
-                    ? "border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50"
-                    : "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
-                }
-              >
-                <Heart
-                  className={`h-4 w-4 mr-2 ${isFavorited(translationResult.term) ? "fill-red-500" : ""}`}
-                />
-                {isFavorited(translationResult.term)
-                  ? "Salvo nos Favoritos"
-                  : "Salvar nos Favoritos"}
-              </Button>
-              <Button
-                onClick={async () => {
-                  const shareText = [
-                    `🔍 ${translationResult.term}: ${translationResult.meaning}`,
-                    `📋 ${translationResult.adultTranslation}`,
-                    `⚠️ Risco: ${translationResult.riskLabel}`,
-                    "— Gíria AI",
-                  ].join("\n");
-
-                  if (typeof navigator !== "undefined" && navigator.share) {
-                    try {
-                      await navigator.share({
-                        title: `Gíria AI — ${translationResult.term}`,
-                        text: shareText,
-                      });
-                      return;
-                    } catch {
-                      // User cancelled or not supported, fall through to copy
+                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap">
+                  <Button
+                    onClick={() => toggleFavorite(translationResult.term)}
+                    variant={isFavorited(translationResult.term) ? "outline" : "default"}
+                    className={
+                      isFavorited(translationResult.term)
+                        ? "border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/50"
+                        : "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600"
                     }
-                  }
-                  // Fallback: copy to clipboard
-                  handleCopy(shareText);
-                }}
-                variant="outline"
-                className="border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 mr-2 text-emerald-500" />
-                ) : (
-                  <Share2 className="h-4 w-4 mr-2" />
-                )}
-                Compartilhar
-              </Button>
-              <Button
-                onClick={() => {
-                  const shareText = [
-                    `🔍 ${translationResult.term}: ${translationResult.meaning}`,
-                    `📋 ${translationResult.adultTranslation}`,
-                    `⚠️ Risco: ${translationResult.riskLabel}`,
-                    "— Gíria AI",
-                  ].join("\n");
-                  const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                  window.open(url, "_blank");
-                }}
-                variant="outline"
-                className="border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                💬 WhatsApp
-              </Button>
-              <Button
-                onClick={handleResetSearch}
-                variant="outline"
-                className="border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <Search className="h-4 w-4 mr-2" />
-                Traduzir outra gíria
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-        </motion.div>
-      )}
+                  >
+                    <Heart className={`h-4 w-4 ${isFavorited(translationResult.term) ? "fill-red-500" : ""}`} />
+                    {isFavorited(translationResult.term) ? "Salvo" : "Salvar"}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      const shareText = [
+                        `🔍 ${translationResult.term}: ${translationResult.meaning}`,
+                        `📋 ${translationResult.adultTranslation}`,
+                        `⚠️ Risco: ${translationResult.riskLabel}`,
+                        "— Gíria AI",
+                      ].join("\n");
+
+                      if (typeof navigator !== "undefined" && navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: `Gíria AI — ${translationResult.term}`,
+                            text: shareText,
+                          });
+                          return;
+                        } catch {
+                          // User cancelled or not supported, fall through to copy
+                        }
+                      }
+                      handleCopy(shareText);
+                    }}
+                    variant="outline"
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
+                    Compartilhar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const shareText = [
+                        `🔍 ${translationResult.term}: ${translationResult.meaning}`,
+                        `📋 ${translationResult.adultTranslation}`,
+                        `⚠️ Risco: ${translationResult.riskLabel}`,
+                        "— Gíria AI",
+                      ].join("\n");
+                      const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                      window.open(url, "_blank");
+                    }}
+                    variant="outline"
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    💬 WhatsApp
+                  </Button>
+                  <Button asChild variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
+                    <Link href="/girias/enviadas-por-usuarios">Enviar correção</Link>
+                  </Button>
+                  <Button
+                    onClick={handleResetSearch}
+                    variant="outline"
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    <Search className="h-4 w-4" /> Traduzir outra
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            {renderSupportCard(true)}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -1820,7 +2045,7 @@ export default function GiriaApp() {
           >
             <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
+              <span><strong>PIX:</strong> 🔑 <strong>{PIX_KEY}</strong> · {PIX_RECEIVER_NAME}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1834,8 +2059,14 @@ export default function GiriaApp() {
               </button>
             </div>
             {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
-            <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
-              QR PIX
+            <div className="mx-auto mt-2 rounded-lg border border-emerald-200 bg-white p-1.5 shadow-sm dark:border-emerald-900">
+              <Image
+                src="/pix-qr.svg"
+                alt="QR Code PIX para apoiar o Gíria AI"
+                width={92}
+                height={92}
+                className="h-20 w-20 sm:h-24 sm:w-24"
+              />
             </div>
           </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
