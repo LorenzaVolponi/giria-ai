@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { analyzeSuggestionQuality, type SuggestionRecommendation } from "@/lib/suggestion-quality";
 
 type SuggestionItem = {
   id: string;
@@ -13,6 +14,7 @@ type SuggestionItem = {
   createdAt?: string;
   score: number;
   status: "pending" | "approved" | "rejected";
+  evidence?: string[];
 };
 
 export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
@@ -106,6 +108,38 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (status === "rejected") return "bg-rose-100 text-rose-700";
     return "bg-amber-100 text-amber-700";
   }
+
+  function decisionFor(item: SuggestionItem) {
+    return analyzeSuggestionQuality(item, item.score);
+  }
+
+  function decisionBadgeClass(recommendation: SuggestionRecommendation) {
+    if (recommendation === "approve") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    if (recommendation === "reject") return "border-rose-200 bg-rose-50 text-rose-700";
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  function getFilteredItems() {
+    const termFrequency = new Map<string, number>();
+    for (const item of items) {
+      const key = item.term.toLowerCase();
+      termFrequency.set(key, (termFrequency.get(key) || 0) + 1);
+    }
+
+    return items
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        const q = termQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
+      })
+      .sort((a, b) => {
+        const aTermFreq = termFrequency.get(a.term.toLowerCase()) || 0;
+        const bTermFreq = termFrequency.get(b.term.toLowerCase()) || 0;
+        const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
+        return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+  }
   async function loadHistory(id: string) {
     const res = await fetch(`/api/v1/suggestions/${id}/history`, { cache: "no-store" }).catch(() => null);
     if (!res?.ok) return;
@@ -113,12 +147,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     setHistoryById((prev) => ({ ...prev, [id]: Array.isArray(data.history) ? data.history : [] }));
   }
 
-  async function moderate(id: string, status: "approved" | "rejected"): Promise<boolean> {
+  async function moderate(id: string, status: "approved" | "rejected", reasonOverride?: string): Promise<boolean> {
     if (!isAuthenticated) { setMessage("Faça login admin para moderar."); return false; }
     setBusyId(id);
     setMessage(null);
 
-    const reason = (rejectReasonById[id] || "").trim();
+    const reason = (reasonOverride || rejectReasonById[id] || "").trim();
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
@@ -197,7 +231,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {
@@ -231,13 +264,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }
 
   function exportFilteredCsv() {
-    const filtered = items
-      .filter((item) => item.score >= minScore)
-      .filter((item) => {
-        const q = termQuery.trim().toLowerCase();
-        if (!q) return true;
-        return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-      });
+    const filtered = getFilteredItems();
     const headers = ["id", "term", "meaning", "context", "submitterName", "submitterWhatsapp", "submitterEmail", "score", "status", "createdAt"];
     const rows = filtered.map((item) =>
       [item.id, item.term, item.meaning, item.context || "", item.submitterName, item.submitterWhatsapp || "", item.submitterEmail || "", String(item.score), item.status, item.createdAt || ""]
@@ -252,6 +279,46 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     a.download = `moderacao-girias-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function selectRecommended(recommendation: SuggestionRecommendation) {
+    const ids = getFilteredItems()
+      .filter((item) => item.status === "pending" && decisionFor(item).recommendation === recommendation)
+      .map((item) => item.id);
+    setSelectedIds(ids);
+    setMessage(`${ids.length} sugestão(ões) marcadas para ${recommendation === "approve" ? "aprovação" : recommendation === "reject" ? "rejeição" : "revisão"}.`);
+  }
+
+  async function autoModerateFiltered() {
+    if (!isAuthenticated) { setMessage("Faça login admin para validar automaticamente."); return; }
+    const filteredPending = getFilteredItems().filter((item) => item.status === "pending");
+    const approveIds = filteredPending.filter((item) => decisionFor(item).recommendation === "approve").map((item) => item.id);
+    const rejectIds = filteredPending.filter((item) => decisionFor(item).recommendation === "reject").map((item) => item.id);
+    if (!approveIds.length && !rejectIds.length) {
+      setMessage("Nenhuma sugestão filtrada atingiu regra segura de aprovação/rejeição automática.");
+      return;
+    }
+
+    setBatchProgress({ total: approveIds.length + rejectIds.length, done: 0, failed: 0, running: true });
+    let failed = 0;
+    let done = 0;
+    for (const id of approveIds) {
+      const ok = await moderate(id, "approved");
+      failed += ok ? 0 : 1;
+      done += 1;
+      setBatchProgress((prev) => ({ ...prev, done, failed }));
+    }
+    for (const id of rejectIds) {
+      const autoReason = "Rejeição automática: baixa confiança/validação local.";
+      setRejectReasonById((prev) => ({ ...prev, [id]: prev[id] || autoReason }));
+      const ok = await moderate(id, "rejected", autoReason);
+      failed += ok ? 0 : 1;
+      done += 1;
+      setBatchProgress((prev) => ({ ...prev, done, failed }));
+    }
+    await reloadPending();
+    setBatchProgress((prev) => ({ ...prev, running: false }));
+    setMessage(`Auto-validação concluída: ${approveIds.length} aprovar, ${rejectIds.length} rejeitar, ${failed} falha(s).`);
   }
 
   return (
@@ -317,6 +384,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => void moderateBatch("rejected")}>
           Rejeitar selecionadas
         </button>
+        <button className="rounded border border-emerald-300 px-3 py-1 text-sm text-emerald-700 disabled:opacity-50" type="button" disabled={batchProgress.running} onClick={() => selectRecommended("approve")}>
+          Selecionar seguras
+        </button>
+        <button className="rounded border border-rose-300 px-3 py-1 text-sm text-rose-700 disabled:opacity-50" type="button" disabled={batchProgress.running} onClick={() => selectRecommended("reject")}>
+          Selecionar fracas
+        </button>
+        <button className="rounded bg-emerald-700 px-3 py-1 text-sm text-white disabled:opacity-50" type="button" disabled={batchProgress.running} onClick={() => void autoModerateFiltered()}>
+          Auto-validar filtradas
+        </button>
         <button className="rounded border px-3 py-1 text-sm disabled:opacity-50" type="button" disabled={!selectedIds.length || batchProgress.running} onClick={() => setSelectedIds([])}>
           Limpar seleção
         </button>
@@ -337,25 +413,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
       {(() => {
-        const termFrequency = new Map<string, number>();
-        for (const item of items) {
-          const key = item.term.toLowerCase();
-          termFrequency.set(key, (termFrequency.get(key) || 0) + 1);
-        }
-
-        const filtered = items
-          .filter((item) => item.score >= minScore)
-          .filter((item) => {
-            const q = termQuery.trim().toLowerCase();
-            if (!q) return true;
-            return `${item.term} ${item.meaning} ${item.context || ""} ${item.submitterName}`.toLowerCase().includes(q);
-          })
-          .sort((a, b) => {
-            const aTermFreq = termFrequency.get(a.term.toLowerCase()) || 0;
-            const bTermFreq = termFrequency.get(b.term.toLowerCase()) || 0;
-            const pendingBoost = (i: SuggestionItem) => (i.status === "pending" ? 1 : 0);
-            return pendingBoost(b) - pendingBoost(a) || b.score - a.score || bTermFreq - aTermFreq || new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          });
+        const filtered = getFilteredItems();
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const safePage = Math.min(page, totalPages);
         const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -392,6 +450,21 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
             <p className="text-xs text-muted-foreground">{item.submitterWhatsapp || "WhatsApp não informado"}</p>
             <p className="text-xs text-muted-foreground">{item.submitterEmail || "Email não informado"}</p>
             {item.createdAt ? <p className="text-xs text-muted-foreground">Enviado em: {new Date(item.createdAt).toLocaleString("pt-BR")}</p> : null}
+            {(() => {
+              const decision = decisionFor(item);
+              return (
+                <div className={`mt-3 rounded border p-2 text-[11px] ${decisionBadgeClass(decision.recommendation)}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <strong>{decision.label}</strong>
+                    <span>confiança {Math.round(decision.confidence * 100)}%</span>
+                  </div>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    {[...decision.blockers, ...decision.reasons].slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}
+                  </ul>
+                  {item.evidence?.length ? <p className="mt-1 opacity-80">Evidências: {item.evidence.slice(0, 4).join(" · ")}</p> : null}
+                </div>
+              );
+            })()}
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="rounded bg-emerald-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "approved")}>Aprovar</button>
               <button className="rounded bg-rose-600 px-3 py-1 text-white disabled:opacity-60" disabled={busyId === item.id || item.status !== "pending"} onClick={() => moderate(item.id, "rejected")}>Rejeitar</button>

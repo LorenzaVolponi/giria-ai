@@ -2,6 +2,7 @@ import { getTerm } from "@/lib/slang-data";
 import { db } from "@/lib/db";
 import { sanitizeUserInput } from "@/lib/security";
 import nodemailer from "nodemailer";
+import { analyzeSuggestionQuality } from "@/lib/suggestion-quality";
 
 export type SuggestionInput = {
   term: string;
@@ -371,9 +372,20 @@ export async function processSuggestion(input: SuggestionInput) {
   const llmEval = await localLlmEvaluate(input);
   const adjustedMeaning = llmEval.adjustedMeaning || input.meaning;
   const totalScore = Math.min(1, webScore + 0.45 + llmEval.confidenceBoost);
-  const status: ValidationStatus = totalScore >= 0.72 ? "approved" : totalScore < 0.25 ? "rejected" : "pending";
+  const quality = analyzeSuggestionQuality({ ...input, meaning: adjustedMeaning }, totalScore);
+  const status: ValidationStatus = quality.recommendation === "approve" ? "approved" : quality.recommendation === "reject" ? "rejected" : "pending";
 
-  return { adjustedMeaning, totalScore, status, evidence: [`web:${webScore.toFixed(2)}`, `llm:${llmEval.confidenceBoost.toFixed(2)}`] };
+  return {
+    adjustedMeaning,
+    totalScore,
+    status,
+    evidence: [
+      `web:${webScore.toFixed(2)}`,
+      `llm:${llmEval.confidenceBoost.toFixed(2)}`,
+      `quality:${quality.recommendation}:${quality.confidence.toFixed(2)}`,
+      ...quality.blockers.map((item) => `blocker:${item}`),
+    ].slice(0, 12),
+  };
 }
 
 export async function revalidatePendingSuggestions(limit = 40) {
