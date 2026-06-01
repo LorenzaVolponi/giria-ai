@@ -1404,6 +1404,9 @@ export default function GiriaApp() {
               <Link href="/ranking" className="rounded-full border border-yellow-200 px-3 py-1 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-950/40">
                 Ranking público
               </Link>
+              <Link href="/mapa" className="rounded-full border border-cyan-200 px-3 py-1 text-cyan-700 hover:bg-cyan-50 dark:border-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-950/40">
+                Mapa regional
+              </Link>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

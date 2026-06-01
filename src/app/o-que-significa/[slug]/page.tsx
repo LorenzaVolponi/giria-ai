@@ -121,7 +121,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">O que significa {term.term}?</h1>
           <p className="mt-4 text-lg leading-relaxed text-gray-700 dark:text-gray-300">{term.meaning}</p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold">
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{getCategoryLabel(term.category)}</span>
+            <Link href={`/categorias/${encodeURIComponent(term.category)}`} className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950">{getCategoryLabel(term.category)}</Link>
             <span className="rounded-full bg-yellow-50 px-3 py-1 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300">{getRiskLabel(term.riskLevel)}</span>
             <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">{term.region || "Brasil"}</span>
           </div>
