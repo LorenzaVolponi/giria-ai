@@ -27,7 +27,11 @@ describe("suggestion moderation API - error paths", () => {
     const req = new NextRequest("http://localhost/api/v1/suggestions/abc", {
       method: "PATCH",
       body: JSON.stringify({ status: "invalid" }),
-      headers: { "content-type": "application/json", cookie: "giria_admin_session=admin-panel-session" },
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-token": "test-csrf",
+        cookie: "giria_admin_session=admin-panel-session; giria_admin_role=owner; giria_admin_csrf=test-csrf",
+      },
     });
 
     const res = await PATCH(req, { params: Promise.resolve({ id: "abc" }) });
