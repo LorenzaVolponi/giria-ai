@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Check, Copy, HeartHandshake, Server, Shield, Sparkles, Trophy, Users, Zap } from "lucide-react";
+import { Check, Copy, HeartHandshake, KeyRound, Server, Shield, Sparkles, Trophy, Users, Zap } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -152,16 +151,26 @@ export function ApoieClient() {
           <Card className="h-fit overflow-hidden border-emerald-200 bg-white shadow-xl dark:border-emerald-900 dark:bg-gray-900">
             <div className="bg-gradient-to-r from-emerald-700 to-teal-700 px-5 py-4 text-white">
               <h2 className="text-xl font-black">PIX do projeto</h2>
-              <p className="text-sm text-emerald-50">Escaneie ou copie a chave.</p>
+              <p className="text-sm text-emerald-50">Sem QR Code: copie a chave e cole no app do banco.</p>
             </div>
             <CardContent className="space-y-4 p-5 text-center">
-              <div className="mx-auto w-fit rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
-                <Image src="/pix-qr.svg" alt="QR Code PIX para apoiar o Gíria AI" width={220} height={220} priority />
+              <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-yellow-50 p-5 text-left shadow-sm dark:border-emerald-900 dark:from-emerald-950/40 dark:to-yellow-950/10">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm dark:bg-gray-900 dark:text-emerald-300">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Chave PIX</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Copie, cole no banco e escolha o valor.</p>
+                  </div>
+                </div>
+                <p className="break-all rounded-2xl bg-white p-3 text-sm font-black text-gray-950 ring-1 ring-emerald-100 dark:bg-gray-950 dark:text-gray-50 dark:ring-emerald-900">{PIX_KEY}</p>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Recebedora: {PIX_RECEIVER_NAME}</p>
               </div>
-              <div className="rounded-2xl bg-emerald-50 p-3 text-sm dark:bg-emerald-950/30">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Chave PIX</p>
-                <p className="mt-1 break-all font-black text-gray-950 dark:text-gray-50">{PIX_KEY}</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{PIX_RECEIVER_NAME}</p>
+              <div className="grid gap-2 text-left text-xs text-gray-600 dark:text-gray-400">
+                <p className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800"><strong>1.</strong> Clique em copiar chave PIX.</p>
+                <p className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800"><strong>2.</strong> Abra seu app do banco e cole em PIX copia e cola.</p>
+                <p className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800"><strong>3.</strong> Qualquer valor fortalece servidor, glossário e radar.</p>
               </div>
               <Button onClick={copyPix} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700">
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

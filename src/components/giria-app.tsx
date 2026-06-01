@@ -44,7 +44,6 @@ import { Separator } from "@/components/ui/separator";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import Image from "next/image";
 import {
   getTerm,
   searchTerms,
@@ -2445,15 +2444,6 @@ export default function GiriaApp() {
               </button>
             </div>
             {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
-            <div className="mx-auto mt-2 rounded-lg border border-emerald-200 bg-white p-1.5 shadow-sm dark:border-emerald-900">
-              <Image
-                src="/pix-qr.svg"
-                alt="QR Code PIX para apoiar o Gíria AI"
-                width={92}
-                height={92}
-                className="h-20 w-20 sm:h-24 sm:w-24"
-              />
-            </div>
           </motion.div>
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
