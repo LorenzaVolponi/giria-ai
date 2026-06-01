@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { analyzeSuggestionQuality, type SuggestionRecommendation } from "@/lib/suggestion-quality";
 
+
+function readCookie(name: string) {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.split("; ").find((item) => item.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : "";
+}
+
 type SuggestionItem = {
   id: string;
   term: string;
@@ -79,7 +86,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": readCookie("giria_admin_csrf") } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -156,7 +163,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-csrf-token": readCookie("giria_admin_csrf") },
       body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
 
@@ -367,6 +374,28 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <p className="rounded border p-2">Falhas (sessão): <strong>{sessionStats.failed}</strong></p>
         <p className="rounded border p-2">Tempo médio lote: <strong>{sessionStats.batches ? `${sessionStats.batchAvgMs}ms` : "-"}</strong></p>
       </div>
+
+      {(() => {
+        const filteredPending = getFilteredItems().filter((item) => item.status === "pending");
+        const counts = filteredPending.reduce<Record<SuggestionRecommendation, number>>((acc, item) => {
+          acc[decisionFor(item).recommendation] += 1;
+          return acc;
+        }, { approve: 0, review: 0, reject: 0 });
+        const total = filteredPending.length || 1;
+        return (
+          <div className="mt-3 rounded border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <strong>Fila inteligente filtrada</strong>
+              <span>{filteredPending.length} pendente(s) no filtro atual</span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <p className="rounded bg-white/80 p-2 dark:bg-gray-900/60">Seguras: <strong>{counts.approve}</strong> · {Math.round((counts.approve / total) * 100)}%</p>
+              <p className="rounded bg-white/80 p-2 dark:bg-gray-900/60">Revisar: <strong>{counts.review}</strong> · {Math.round((counts.review / total) * 100)}%</p>
+              <p className="rounded bg-white/80 p-2 dark:bg-gray-900/60">Fracas: <strong>{counts.reject}</strong> · {Math.round((counts.reject / total) * 100)}%</p>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="rounded border px-3 py-1 text-sm" type="button" onClick={() => void reloadPending()} disabled={loading}>
