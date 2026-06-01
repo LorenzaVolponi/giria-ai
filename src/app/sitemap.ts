@@ -11,6 +11,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${site}/girias/regionais`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${site}/girias/enviadas-por-usuarios`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
     { url: `${site}/o-que-significa`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${site}/radar`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
+    { url: `${site}/ranking`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
+    { url: `${site}/apoie`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${site}/sobre`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 

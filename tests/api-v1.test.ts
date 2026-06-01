@@ -41,7 +41,7 @@ describe("API v1 integration", () => {
     const postRes = await visitsPost(postReq);
     expect(postRes.status).toBe(200);
 
-    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, { cookie: "giria_admin_session=admin-panel-session" });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();
 
