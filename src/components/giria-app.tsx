@@ -54,6 +54,7 @@ import {
   type SlangTerm,
   type RiskLevel,
 } from "@/lib/slang-data";
+import { PIX_KEY, PIX_RECEIVER_NAME, SUPPORT_AMOUNTS, getSupportProgress } from "@/lib/support";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,9 +87,6 @@ interface TranslationResult {
 // ---------------------------------------------------------------------------
 const FAVORITES_KEY = "giria-ai-favorites";
 const SEARCH_HISTORY_KEY = "giria-ai-history";
-const PIX_KEY = "007aibr@gmail.com";
-const PIX_RECEIVER_NAME = "Lorenza Volponi";
-const SUPPORT_AMOUNTS = [5, 10, 25];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -394,6 +392,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function GiriaApp() {
+  const supportProgress = getSupportProgress();
   // Theme
   const { theme, setTheme } = useTheme();
 
@@ -1178,8 +1177,17 @@ export default function GiriaApp() {
                   professores e jovens a entenderem a linguagem da internet brasileira.
                 </p>
               </div>
+              <div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-emerald-50">
+                  <span>Meta {supportProgress.period}</span>
+                  <span>{supportProgress.percent}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/20">
+                  <div className="h-full rounded-full bg-yellow-300" style={{ width: `${supportProgress.percent}%` }} />
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
-                {SUPPORT_AMOUNTS.map((amount) => (
+                {SUPPORT_AMOUNTS.slice(0, 3).map((amount) => (
                   <span
                     key={amount}
                     className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold"

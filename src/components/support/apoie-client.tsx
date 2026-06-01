@@ -2,15 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Copy, HeartHandshake, Server, Shield, Sparkles } from "lucide-react";
+import { Check, Copy, HeartHandshake, Server, Shield, Sparkles, Trophy, Users, Zap } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const PIX_KEY = "007aibr@gmail.com";
-const PIX_RECEIVER_NAME = "Lorenza Volponi";
-const SUPPORT_AMOUNTS = [5, 10, 25, 50];
+import { IMPACT_METRICS, PIX_KEY, PIX_RECEIVER_NAME, SUPPORT_AMOUNTS, SUPPORT_MURAL, SUPPORT_TIERS, getSupportProgress } from "@/lib/support";
 const IMPACT_ITEMS = [
   {
     title: "Servidor e banco de dados",
@@ -30,6 +27,7 @@ const IMPACT_ITEMS = [
 ];
 
 export function ApoieClient() {
+  const progress = getSupportProgress();
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -84,6 +82,55 @@ export function ApoieClient() {
           </div>
         </section>
 
+        <section className="overflow-hidden rounded-[2rem] border border-yellow-200 bg-white shadow-xl dark:border-yellow-900 dark:bg-gray-900">
+          <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="p-6 sm:p-8">
+              <Badge className="mb-4 border-0 bg-yellow-400 text-yellow-950 hover:bg-yellow-300">
+                <Trophy className="mr-1 h-3 w-3" /> Campanha do mês
+              </Badge>
+              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{progress.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{progress.description}</p>
+              <div className="mt-5 space-y-2">
+                <div className="flex items-center justify-between text-sm font-bold">
+                  <span>R$ {progress.current} arrecadados</span>
+                  <span>{progress.percent}% da meta</span>
+                </div>
+                <div className="h-4 overflow-hidden rounded-full bg-yellow-100 dark:bg-yellow-950/50">
+                  <div className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-emerald-400 to-teal-500" style={{ width: `${progress.percent}%` }} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Faltam R$ {progress.remaining} para bater a meta de R$ {progress.goal} em {progress.period}.</p>
+              </div>
+            </div>
+            <div className="grid gap-3 bg-gradient-to-br from-emerald-900 to-teal-800 p-6 text-white sm:grid-cols-3 lg:grid-cols-1">
+              {IMPACT_METRICS.map((metric) => (
+                <div key={metric.label} className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10">
+                  <p className="text-2xl font-black text-yellow-200">{metric.value}</p>
+                  <p className="text-sm font-bold">{metric.label}</p>
+                  <p className="text-xs text-emerald-50/80">{metric.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {SUPPORT_TIERS.map((tier) => (
+            <button
+              key={tier.name}
+              type="button"
+              onClick={copyPix}
+              className="rounded-2xl border border-emerald-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">R$ {tier.amount}</span>
+                <Zap className="h-4 w-4 text-yellow-500" />
+              </div>
+              <h2 className="font-black">{tier.name}</h2>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{tier.description}</p>
+            </button>
+          ))}
+        </section>
+
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
             {IMPACT_ITEMS.map((item) => {
@@ -124,6 +171,27 @@ export function ApoieClient() {
             </CardContent>
           </Card>
         </div>
+
+        <section className="rounded-[2rem] border border-emerald-100 bg-white/90 p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black">Mural de quem fortalece</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Espaço simbólico para mostrar que o projeto cresce com a comunidade.</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {SUPPORT_MURAL.map((supporter) => (
+              <article key={supporter.name} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800">
+                <p className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{supporter.badge}</p>
+                <h3 className="mt-2 font-black">{supporter.name}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">“{supporter.message}”</p>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </main>
   );

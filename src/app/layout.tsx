@@ -65,6 +65,10 @@ export const metadata: Metadata = {
     languages: {
       "pt-BR": "/",
     },
+    types: {
+      "application/rss+xml": "/feed.xml",
+      "text/plain": "/llms.txt",
+    },
   },
 };
 

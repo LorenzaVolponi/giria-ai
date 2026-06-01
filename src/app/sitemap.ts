@@ -14,6 +14,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${site}/radar`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
     { url: `${site}/ranking`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
     { url: `${site}/apoie`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${site}/guias/pais`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
+    { url: `${site}/guias/professores`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
+    { url: `${site}/guias/criadores`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
     { url: `${site}/sobre`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 
