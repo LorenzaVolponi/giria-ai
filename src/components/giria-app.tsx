@@ -721,28 +721,153 @@ export default function GiriaApp() {
   // =========================================================================
   // TAB 4 — COMUNIDADE
   // =========================================================================
-  const renderComunidade = () => (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-4">
-        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Enviadas por usuários (validadas)</h3>
-        <p className="text-sm text-emerald-700 dark:text-emerald-300">Aqui entram as gírias aprovadas no pipeline automático/moderação.</p>
-        <button className="mt-3 rounded border px-3 py-1 text-xs" onClick={() => void loadCommunity()} type="button">
-          {communityLoading ? "Atualizando..." : "Atualizar comunidade"}
-        </button>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {communityItems.map((item) => (
-          <div key={item.id} className="rounded-lg border p-4">
-            <p className="font-semibold">{item.term}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{item.meaning}</p>
-            {item.context ? <p className="mt-2 text-xs text-muted-foreground">Contexto: {item.context}</p> : null}
-            <p className="mt-2 text-xs text-muted-foreground">Enviado por: {item.submitterName} · score {item.score.toFixed(2)}</p>
+  const renderComunidade = () => {
+    const topCommunity = [...communityItems]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+    const averageScore = communityItems.length
+      ? communityItems.reduce((sum, item) => sum + item.score, 0) / communityItems.length
+      : 0;
+
+    return (
+      <div className="space-y-5">
+        <section className="relative overflow-hidden rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-5 shadow-sm dark:border-emerald-900 dark:from-emerald-950/30 dark:via-gray-950 dark:to-cyan-950/20 sm:p-6">
+          <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-emerald-300/20 blur-3xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Badge className="w-fit border-0 bg-emerald-600 text-white hover:bg-emerald-700">
+                <Users className="mr-1 h-3 w-3" /> Comunidade viva
+              </Badge>
+              <div>
+                <h2 className="text-2xl font-black text-gray-950 dark:text-gray-50">
+                  Gírias enviadas por quem usa de verdade.
+                </h2>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                  Sugestões aprovadas entram no radar do Gíria AI com score de confiança,
+                  contexto e autoria da comunidade.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:min-w-[170px]">
+              <Button
+                asChild
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+              >
+                <Link href="/girias/enviadas-por-usuarios">
+                  <MessageCircle className="h-4 w-4" /> Enviar gíria
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void loadCommunity()}
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              >
+                <RotateCcw className={`h-4 w-4 ${communityLoading ? "animate-spin" : ""}`} />
+                {communityLoading ? "Atualizando" : "Atualizar feed"}
+              </Button>
+            </div>
           </div>
-        ))}
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="border-emerald-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{communityItems.length}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">aprovadas no feed</p>
+            </CardContent>
+          </Card>
+          <Card className="border-yellow-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-yellow-700 dark:text-yellow-300">{averageScore.toFixed(2)}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">score médio</p>
+            </CardContent>
+          </Card>
+          <Card className="border-cyan-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <CardContent className="p-4">
+              <p className="text-2xl font-black text-cyan-700 dark:text-cyan-300">Top 3</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">mais confiáveis</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {topCommunity.length > 0 && (
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">Ranking da comunidade</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">As sugestões com melhor score de validação.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {topCommunity.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => searchAndGo(item.term)}
+                  className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-yellow-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-yellow-300 hover:shadow-md dark:border-yellow-900/60 dark:from-yellow-950/20 dark:to-gray-900"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge className="border-0 bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-950/60 dark:text-yellow-200">
+                      #{index + 1}
+                    </Badge>
+                    <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">{item.score.toFixed(2)}</span>
+                  </div>
+                  <p className="font-black text-gray-950 dark:text-gray-50">{item.term}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{item.meaning}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">Feed de gírias aprovadas</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Clique em qualquer card para traduzir com contexto completo.</p>
+            </div>
+            <Link href="/girias/enviadas-por-usuarios" className="text-xs font-bold text-emerald-700 hover:text-emerald-600 dark:text-emerald-300">
+              Ver página completa →
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {communityItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => searchAndGo(item.term)}
+                className="group rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-900"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-gray-950 group-hover:text-emerald-700 dark:text-gray-50 dark:group-hover:text-emerald-300">{item.term}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">{item.meaning}</p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {item.score.toFixed(2)}
+                  </Badge>
+                </div>
+                {item.context ? <p className="mt-3 line-clamp-2 rounded-xl bg-gray-50 p-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">Contexto: {item.context}</p> : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+                  <span>Enviado por {item.submitterName}</span>
+                  <span>•</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Traduzir agora</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {communityItems.length === 0 ? (
+            <Card className="border-dashed border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <CardContent className="p-5 text-center">
+                <Sparkles className="mx-auto mb-2 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+                <p className="font-bold text-gray-900 dark:text-gray-100">Ainda sem sugestões aprovadas.</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Envie a primeira gíria da comunidade e ajude o glossário crescer.</p>
+              </CardContent>
+            </Card>
+          ) : null}
+        </section>
       </div>
-      {communityItems.length === 0 ? <p className="text-sm text-muted-foreground">Ainda sem sugestões aprovadas.</p> : null}
-    </div>
-  );
+    );
+  };
 
   // =========================================================================
   // TAB 1 — BUSCA
