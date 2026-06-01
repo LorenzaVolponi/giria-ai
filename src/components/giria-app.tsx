@@ -56,7 +56,7 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes";
+type TabId = "busca" | "glossario" | "favoritos" | "comunidade" | "sobre" | "sugestoes" | "apoie";
 
 interface TranslationResult {
   term: string;
@@ -640,6 +640,12 @@ export default function GiriaApp() {
       label: "Sugestões",
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",
+    },
+    {
+      id: "apoie",
+      label: "Apoie",
+      icon: <HeartHandshake className="h-4 w-4" />,
+      href: "/apoie",
     },
     { id: "sobre", label: "Sobre", icon: <Shield className="h-4 w-4" /> },
   ];
@@ -1818,8 +1824,27 @@ export default function GiriaApp() {
             transition={{ duration: 0.4 }}
             className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
           >
-            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              Ajude a manter o Gíria AI gratuito.
+            </p>
+            <p className="mt-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400">
+              Sua contribuição mantém o glossário atualizado com novas gírias brasileiras.
+            </p>
+            <p className="mt-1 text-[11px] sm:text-xs text-gray-600 dark:text-gray-400">
+              Apoie uma ferramenta educativa feita no Brasil. Com R$ 5 você ajuda a manter o projeto online.
+            </p>
+            <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2 text-left dark:border-emerald-900 dark:bg-emerald-950/20">
+              <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
+                O que sua ajuda financia
+              </p>
+              <ul className="mt-1 grid gap-1 text-[10px] text-gray-600 dark:text-gray-400 sm:grid-cols-2">
+                <li>• Servidor e banco de dados.</li>
+                <li>• Revisão de novas gírias.</li>
+                <li>• Melhorias de segurança e privacidade.</li>
+                <li>• Novos recursos para pais e educadores.</li>
+              </ul>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
               <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
               <button
                 type="button"
