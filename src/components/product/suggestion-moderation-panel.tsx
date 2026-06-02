@@ -39,6 +39,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
   const [windowSummary, setWindowSummary] = useState<{ dApproved: number; dRejected: number; wApproved: number; wRejected: number } | null>(null);
+  const [qualitySummary, setQualitySummary] = useState<Record<SuggestionRecommendation, number> | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [historyById, setHistoryById] = useState<Record<string, Array<{ status: string; actor: string; at: string; reason?: string }>>>({});
@@ -71,11 +72,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     if (!mountedRef.current) return;
     setLoading(false);
     if (!res?.ok) return;
-    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number }; windowSummary?: { dApproved: number; dRejected: number; wApproved: number; wRejected: number } };
+    const data = (await res.json().catch(() => ({}))) as { items?: SuggestionItem[]; summary?: { pending: number; approved: number; rejected: number; all: number }; windowSummary?: { dApproved: number; dRejected: number; wApproved: number; wRejected: number }; qualitySummary?: Record<SuggestionRecommendation, number> };
     if (!mountedRef.current) return;
     setItems(Array.isArray(data.items) ? data.items : []);
     setSummary(data.summary || null);
     setWindowSummary(data.windowSummary || null);
+    setQualitySummary(data.qualitySummary || null);
   }
 
   useEffect(() => {
@@ -377,6 +379,13 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
           <p className="rounded border p-2">24h rejeitadas: <strong>{windowSummary.dRejected}</strong></p>
           <p className="rounded border p-2">7d aprovadas: <strong>{windowSummary.wApproved}</strong></p>
           <p className="rounded border p-2">7d rejeitadas: <strong>{windowSummary.wRejected}</strong></p>
+        </div>
+      ) : null}
+      {qualitySummary ? (
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+          <p className="rounded border border-emerald-200 bg-emerald-50 p-2 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">Servidor seguras: <strong>{qualitySummary.approve || 0}</strong></p>
+          <p className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Servidor revisar: <strong>{qualitySummary.review || 0}</strong></p>
+          <p className="rounded border border-rose-200 bg-rose-50 p-2 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">Servidor fracas: <strong>{qualitySummary.reject || 0}</strong></p>
         </div>
       ) : null}
       <div className="mt-2 grid gap-2 text-xs sm:grid-cols-4">
