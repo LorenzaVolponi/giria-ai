@@ -34,6 +34,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [minScore, setMinScore] = useState(0);
   const [termQuery, setTermQuery] = useState("");
+  const [qualityFilter, setQualityFilter] = useState<SuggestionRecommendation | "all">("all");
   const [page, setPage] = useState(1);
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ pending: number; approved: number; rejected: number; all: number } | null>(null);
@@ -63,6 +64,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       limit: "120",
       includeSummary: "true",
     });
+    if (qualityFilter !== "all") qs.set("quality", qualityFilter);
     if (fromDate) qs.set("from", `${fromDate}T00:00:00.000Z`);
     if (toDate) qs.set("to", `${toDate}T23:59:59.999Z`);
     const res = await fetch(`/api/v1/suggestions?${qs.toString()}`, { cache: "no-store" }).catch(() => null);
@@ -78,12 +80,12 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
   useEffect(() => {
     void reloadPending();
-  }, [statusFilter, fromDate, toDate]);
+  }, [statusFilter, qualityFilter, fromDate, toDate]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setPage(1), 0);
     return () => window.clearTimeout(timeoutId);
-  }, [statusFilter, minScore, termQuery, fromDate, toDate]);
+  }, [statusFilter, qualityFilter, minScore, termQuery, fromDate, toDate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -95,7 +97,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       void reloadPending();
     }, 15000);
     return () => clearInterval(id);
-  }, [statusFilter, fromDate, toDate]);
+  }, [statusFilter, qualityFilter, fromDate, toDate]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -136,6 +138,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
 
     return items
       .filter((item) => item.score >= minScore)
+      .filter((item) => qualityFilter === "all" || decisionFor(item).recommendation === qualityFilter)
       .filter((item) => {
         const q = termQuery.trim().toLowerCase();
         if (!q) return true;
@@ -334,12 +337,18 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
       <h3 className="text-lg font-semibold">Moderação manual (admin)</h3>
       <p className="text-sm text-muted-foreground mt-1">Sessão admin ativa via /admin com cookie HttpOnly.</p>
       {!isAuthenticated ? <p className="mt-3 rounded border p-2 text-sm">Faça login em <strong>/admin</strong> para liberar a moderação.</p> : null}
-      <div className="mt-3 grid gap-2 md:grid-cols-4">
+      <div className="mt-3 grid gap-2 md:grid-cols-5">
         <select className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}>
           <option value="pending">Pendentes</option>
           <option value="approved">Aprovadas</option>
           <option value="rejected">Rejeitadas</option>
           <option value="all">Todas</option>
+        </select>
+        <select className="rounded border p-2 text-sm" value={qualityFilter} onChange={(e) => setQualityFilter(e.target.value as SuggestionRecommendation | "all")}>
+          <option value="all">Todas as qualidades</option>
+          <option value="approve">Seguras</option>
+          <option value="review">Revisar</option>
+          <option value="reject">Fracas</option>
         </select>
         <input className="rounded border p-2 text-sm" type="number" min={0} max={1} step={0.05} value={minScore} onChange={(e) => setMinScore(Number(e.target.value) || 0)} placeholder="Score mínimo" />
         <input className="rounded border p-2 text-sm md:col-span-2" value={termQuery} onChange={(e) => setTermQuery(e.target.value)} placeholder="Buscar por gíria, contexto ou submitter" />
@@ -348,10 +357,11 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
         <input className="rounded border p-2 text-sm" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         <input className="rounded border p-2 text-sm" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
       </div>
-      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4">
         <p className="rounded border p-2">Carregadas: <strong>{items.length}</strong></p>
         <p className="rounded border p-2">Com score ≥ filtro: <strong>{items.filter((item) => item.score >= minScore).length}</strong></p>
         <p className="rounded border p-2">Busca ativa: <strong>{termQuery.trim() ? "sim" : "não"}</strong></p>
+        <p className="rounded border p-2">Qualidade: <strong>{qualityFilter === "all" ? "todas" : qualityFilter}</strong></p>
       </div>
       {summary ? (
         <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4">

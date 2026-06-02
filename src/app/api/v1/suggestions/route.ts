@@ -128,6 +128,8 @@ export async function GET(request?: NextRequest) {
   const rawLimit = Number(request?.nextUrl.searchParams.get("limit") || 200);
   const limit = Number.isFinite(rawLimit) ? Math.min(300, Math.max(1, Math.floor(rawLimit))) : 200;
   const includeSummary = request?.nextUrl.searchParams.get("includeSummary") === "true";
+  const rawQuality = request?.nextUrl.searchParams.get("quality") || "all";
+  const qualityFilter = rawQuality === "approve" || rawQuality === "review" || rawQuality === "reject" ? rawQuality : "all";
   const from = request?.nextUrl.searchParams.get("from");
   const to = request?.nextUrl.searchParams.get("to");
 
@@ -145,8 +147,9 @@ export async function GET(request?: NextRequest) {
         return true;
       })
     : base;
-  const decorated = data.map((item) => decorateSuggestionQuality(item));
-  const qualitySummary = summarizeQuality(decorated);
+  const decoratedAll = data.map((item) => decorateSuggestionQuality(item));
+  const qualitySummary = summarizeQuality(decoratedAll);
+  const decorated = qualityFilter === "all" ? decoratedAll : decoratedAll.filter((item) => item.quality.recommendation === qualityFilter);
   const [summary, windowSummary] = includeSummary ? await Promise.all([getSuggestionStatusCounts(), getSuggestionWindowCounts()]) : [undefined, undefined];
   return withSecurityHeaders(NextResponse.json({ items: decorated, qualitySummary, ...(summary ? { summary } : {}), ...(windowSummary ? { windowSummary } : {}) }));
 }
