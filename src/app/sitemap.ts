@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SLANG_DATA } from "@/lib/slang-data";
+import { CATEGORIES, SLANG_DATA } from "@/lib/slang-data";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
@@ -11,6 +11,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${site}/girias/regionais`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${site}/girias/enviadas-por-usuarios`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
     { url: `${site}/o-que-significa`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${site}/radar`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
+    { url: `${site}/ranking`, lastModified: now, changeFrequency: "daily", priority: 0.92 },
+    { url: `${site}/mapa`, lastModified: now, changeFrequency: "weekly", priority: 0.88 },
+    { url: `${site}/apoie`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${site}/guias/pais`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
+    { url: `${site}/guias/professores`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
+    { url: `${site}/guias/criadores`, lastModified: now, changeFrequency: "weekly", priority: 0.82 },
     { url: `${site}/sobre`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 
@@ -27,5 +34,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
-  return [...staticRoutes, ...slangRoutes, ...intentRoutes];
+  const categoryRoutes: MetadataRoute.Sitemap = CATEGORIES.filter((category) => SLANG_DATA.some((term) => term.category === category.name)).map((category) => ({
+    url: `${site}/categorias/${encodeURIComponent(category.name)}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.78,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...slangRoutes, ...intentRoutes];
 }

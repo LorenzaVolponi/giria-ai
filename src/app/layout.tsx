@@ -49,11 +49,25 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Gíria AI",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
   },
   alternates: {
     canonical: "/",
     languages: {
       "pt-BR": "/",
+    },
+    types: {
+      "application/rss+xml": "/feed.xml",
+      "text/plain": "/llms.txt",
     },
   },
 };

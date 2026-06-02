@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { analyzeSuggestionQuality } from "@/lib/suggestion-quality";
 
 export function UserSuggestionForm() {
   const [submitterName, setSubmitterName] = useState("");
@@ -13,6 +14,8 @@ export function UserSuggestionForm() {
   const [loading, setLoading] = useState(false);
 
   const legacyContact = useMemo(() => submitterEmail || submitterWhatsapp, [submitterEmail, submitterWhatsapp]);
+  const quality = useMemo(() => analyzeSuggestionQuality({ term, meaning, context, submitterName, submitterWhatsapp, submitterEmail }, 0.45), [term, meaning, context, submitterName, submitterWhatsapp, submitterEmail]);
+  const qualityTone = quality.recommendation === "approve" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : quality.recommendation === "reject" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-800";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +70,16 @@ export function UserSuggestionForm() {
       <input className="w-full rounded border p-2" placeholder="Gíria" value={term} onChange={(e) => setTerm(e.target.value)} required />
       <input className="w-full rounded border p-2" placeholder="Significado" value={meaning} onChange={(e) => setMeaning(e.target.value)} required />
       <textarea className="w-full rounded border p-2" placeholder="Contexto de uso (opcional)" value={context} onChange={(e) => setContext(e.target.value)} rows={3} />
+      <div className={`rounded border p-3 text-xs ${qualityTone}`}>
+        <div className="flex items-center justify-between gap-2">
+          <strong>Pré-validação: {quality.label}</strong>
+          <span>{Math.round(quality.confidence * 100)}%</span>
+        </div>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          {[...quality.blockers, ...quality.reasons].slice(0, 4).map((reason) => <li key={reason}>{reason}</li>)}
+          {!quality.blockers.length && !quality.reasons.length ? <li>Preencha os campos para ver a qualidade do envio.</li> : null}
+        </ul>
+      </div>
       <button className="rounded bg-black px-4 py-2 text-white disabled:opacity-60" disabled={loading} type="submit">
         {loading ? "Enviando..." : "Enviar"}
       </button>

@@ -16,8 +16,39 @@ import {
   trackSuggestionIngress,
   validateSuggestionPayload,
 } from "@/lib/suggestion-pipeline";
+import { analyzeSuggestionQuality, type SuggestionRecommendation } from "@/lib/suggestion-quality";
 
 const idempotencyCache = new Map<string, { expiresAt: number; fingerprint: string; payload: { id: string; score: number; status: string; promoted: boolean; createdAt: string } }>();
+
+type SuggestionListItem = {
+  term?: string;
+  meaning?: string;
+  context?: string | null;
+  submitterName?: string;
+  submitterWhatsapp?: string | null;
+  submitterEmail?: string | null;
+  score?: number;
+};
+
+function decorateSuggestionQuality<T extends SuggestionListItem>(item: T) {
+  const quality = analyzeSuggestionQuality({
+    term: item.term || "",
+    meaning: item.meaning || "",
+    context: item.context || "",
+    submitterName: item.submitterName || "",
+    submitterWhatsapp: item.submitterWhatsapp || "",
+    submitterEmail: item.submitterEmail || "",
+  }, Number(item.score) || 0);
+  return { ...item, quality };
+}
+
+function summarizeQuality(items: Array<SuggestionListItem & { quality?: { recommendation: SuggestionRecommendation } }>) {
+  return items.reduce<Record<SuggestionRecommendation, number>>((acc, item) => {
+    const recommendation = item.quality?.recommendation || "review";
+    acc[recommendation] += 1;
+    return acc;
+  }, { approve: 0, review: 0, reject: 0 });
+}
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -97,6 +128,8 @@ export async function GET(request?: NextRequest) {
   const rawLimit = Number(request?.nextUrl.searchParams.get("limit") || 200);
   const limit = Number.isFinite(rawLimit) ? Math.min(300, Math.max(1, Math.floor(rawLimit))) : 200;
   const includeSummary = request?.nextUrl.searchParams.get("includeSummary") === "true";
+  const rawQuality = request?.nextUrl.searchParams.get("quality") || "all";
+  const qualityFilter = rawQuality === "approve" || rawQuality === "review" || rawQuality === "reject" ? rawQuality : "all";
   const from = request?.nextUrl.searchParams.get("from");
   const to = request?.nextUrl.searchParams.get("to");
 
@@ -114,6 +147,9 @@ export async function GET(request?: NextRequest) {
         return true;
       })
     : base;
+  const decoratedAll = data.map((item) => decorateSuggestionQuality(item));
+  const qualitySummary = summarizeQuality(decoratedAll);
+  const decorated = qualityFilter === "all" ? decoratedAll : decoratedAll.filter((item) => item.quality.recommendation === qualityFilter);
   const [summary, windowSummary] = includeSummary ? await Promise.all([getSuggestionStatusCounts(), getSuggestionWindowCounts()]) : [undefined, undefined];
-  return withSecurityHeaders(NextResponse.json({ items: data, ...(summary ? { summary } : {}), ...(windowSummary ? { windowSummary } : {}) }));
+  return withSecurityHeaders(NextResponse.json({ items: decorated, qualitySummary, ...(summary ? { summary } : {}), ...(windowSummary ? { windowSummary } : {}) }));
 }
