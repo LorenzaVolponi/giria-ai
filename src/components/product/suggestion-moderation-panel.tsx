@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { analyzeSuggestionQuality, type SuggestionRecommendation } from "@/lib/suggestion-quality";
+import { analyzeSuggestionQuality, type SuggestionQuality, type SuggestionRecommendation } from "@/lib/suggestion-quality";
 
 
 function readCookie(name: string) {
@@ -22,6 +22,7 @@ type SuggestionItem = {
   score: number;
   status: "pending" | "approved" | "rejected";
   evidence?: string[];
+  quality?: SuggestionQuality;
 };
 
 export function SuggestionModerationPanel({ initialPending, initialAuthenticated = false }: { initialPending: SuggestionItem[]; initialAuthenticated?: boolean }) {
@@ -117,7 +118,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }
 
   function decisionFor(item: SuggestionItem) {
-    return analyzeSuggestionQuality(item, item.score);
+    return item.quality || analyzeSuggestionQuality(item, item.score);
   }
 
   function decisionBadgeClass(recommendation: SuggestionRecommendation) {
