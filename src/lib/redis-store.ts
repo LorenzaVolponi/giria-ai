@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 
 let client: ReturnType<typeof createClient> | null = null;
-let booting: Promise<void> | null = null;
+let booting: Promise<unknown> | null = null;
 
 async function getClient() {
   const url = process.env.REDIS_URL;
