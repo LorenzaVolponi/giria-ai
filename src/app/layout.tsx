@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"),
   title: "Gíria AI — Tradutor de Gírias Brasileiras",
   description:
-    "Entenda o que adolescentes estão falando. Traduza gírias de forma rápida e objetiva com explicações contextuais para pais e educadores.",
+    "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná com explicações contextuais.",
   keywords: [
     "gírias brasileiras",
     "tradutor de gírias",
@@ -26,12 +27,13 @@ export const metadata: Metadata = {
     "entender adolescentes",
     "gírias funk",
     "gírias TikTok",
+    ...ORGANIC_SEO_KEYWORDS,
   ],
   authors: [{ name: "AIX8C", url: "https://twitter.com/lorenzavolponi" }],
   openGraph: {
     title: "Gíria AI — Tradutor de Gírias Brasileiras",
     description:
-      "Entenda o que adolescentes estão falando. Traduza gírias de forma rápida e objetiva.",
+      "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
     url: "/",
     type: "website",
     locale: "pt_BR",
@@ -41,7 +43,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Gíria AI — Tradutor de Gírias Brasileiras",
     description:
-      "Entenda o que adolescentes estão falando. Traduza gírias de forma rápida e objetiva.",
+      "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
   },
   robots: {
     index: true,
