@@ -86,6 +86,7 @@ const POPULARITY_MAP: Record<PopularityStatus, { label: string; icon: React.Reac
   em_queda: { label: "Em Queda", icon: <TrendingDown className="h-3 w-3" /> },
   regional: { label: "Regional", icon: <Crosshair className="h-3 w-3" /> },
   internacional: { label: "Internacional", icon: <Languages className="h-3 w-3" /> },
+  trending: { label: "Em alta", icon: <TrendingUp className="h-3 w-3" /> },
 };
 
 const POPULARITY_FILTERS: { value: PopularityStatus | "all"; label: string }[] = [
@@ -94,6 +95,7 @@ const POPULARITY_FILTERS: { value: PopularityStatus | "all"; label: string }[] =
   { value: "em_queda", label: "📉 Em Queda" },
   { value: "regional", label: "📍 Regional" },
   { value: "internacional", label: "🌍 Internacional" },
+  { value: "trending", label: "🚀 Em alta" },
 ];
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");

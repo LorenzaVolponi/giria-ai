@@ -38,6 +38,15 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   const pageSize = 12;
   const mountedRef = useRef(true);
 
+  function getCsrfToken() {
+    if (typeof document === "undefined") return "";
+    return document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("giria_admin_csrf="))
+      ?.split("=")[1] ?? "";
+  }
+
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -67,16 +76,20 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }
 
   useEffect(() => {
-    void reloadPending();
+    const id = setTimeout(() => {
+      void reloadPending();
+    }, 0);
+    return () => clearTimeout(id);
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setPage(1);
+    const id = setTimeout(() => setPage(1), 0);
+    return () => clearTimeout(id);
   }, [statusFilter, minScore, termQuery, fromDate, toDate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": csrfToken } }).catch(() => null);
+    void fetch("/api/v1/suggestions/revalidate", { method: "POST", headers: { "x-csrf-token": getCsrfToken() } }).catch(() => null);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -87,7 +100,10 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
   }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => items.some((item) => item.id === id && item.status === "pending")));
+    const id = setTimeout(() => {
+      setSelectedIds((prev) => prev.filter((selectedId) => items.some((item) => item.id === selectedId && item.status === "pending")));
+    }, 0);
+    return () => clearTimeout(id);
   }, [items]);
 
 
@@ -118,7 +134,7 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const snapshot = items.find((item) => item.id === id);
     const res = await fetch(`/api/v1/suggestions/${id}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-csrf-token": getCsrfToken() },
       body: JSON.stringify({ status, reason: reason || undefined }),
     }).catch(() => null);
 
@@ -193,7 +209,6 @@ export function SuggestionModerationPanel({ initialPending, initialAuthenticated
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     for (let i = 0; i < pendingIds.length; i += concurrency) {
       const chunk = pendingIds.slice(i, i + concurrency);
-      // eslint-disable-next-line no-await-in-loop
       const chunkResults = await Promise.all(chunk.map(async (id) => {
         let ok = await moderate(id, status);
         if (!ok) {

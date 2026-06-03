@@ -16,6 +16,7 @@ export default function AdminPage() {
     alerts?: Array<{ level: "info" | "warning" | "critical"; code: string; message: string }>;
     recent?: Array<{ id: string; term: string; status: string; score: number; submitterName: string; createdAt?: string }>;
   }>({});
+  const [auditPreview, setAuditPreview] = useState<Array<{ at: string; action: string; ip?: string }>>([]);
   const [metrics, setMetrics] = useState<{
     chatGrounding?: {
       total: number;
@@ -65,12 +66,29 @@ export default function AdminPage() {
       const metricsData = (await metricsRes.json().catch(() => ({}))) as typeof metrics;
       setMetrics(metricsData);
     }
+
+    const auditRes = await fetch("/api/v1/admin/audit?limit=8", {
+      cache: "no-store",
+      headers: { "x-csrf-token": getCsrfToken() },
+    }).catch(() => null);
+    if (auditRes?.ok) {
+      const auditData = (await auditRes.json().catch(() => ({}))) as { items?: Array<{ at: string; action: string; ip?: string }> };
+      setAuditPreview(Array.isArray(auditData.items) ? auditData.items : []);
+    }
+  }
+
+  function getCsrfToken() {
+    if (typeof document === "undefined") return "";
+    return document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("giria_admin_csrf="))
+      ?.split("=")[1] ?? "";
   }
 
   useEffect(() => {
     if (!ok) return;
     void reloadDashboard(metricsWindow);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsWindow, ok]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -80,7 +98,6 @@ export default function AdminPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ login, password, code, totp }),
-      body: JSON.stringify({ login, password, code }),
     }).catch(() => null);
     if (!res?.ok) {
       setMessage("Login inválido.");
