@@ -3,6 +3,8 @@ import { SEO_KEYWORD_CLUSTERS } from "../src/lib/seo-keyword-layer";
 import sitemap from "../src/app/sitemap";
 import { GET as seoIndexGet } from "../src/app/seo-index.json/route";
 import { GET as guideSitemapGet } from "../src/app/guias/sitemap.xml/route";
+import { GET as guideFeedGet } from "../src/app/guias/feed.xml/route";
+import { GET as openSearchGet } from "../src/app/opensearch.xml/route";
 
 describe("SEO guide index", () => {
   it("keeps guide clusters complete and people-first", () => {
@@ -47,5 +49,25 @@ describe("SEO guide index", () => {
     expect(json.sitemap).toBe("https://giria-ai.vercel.app/guias/sitemap.xml");
     expect(json.clusters).toHaveLength(SEO_KEYWORD_CLUSTERS.length);
     expect(json.clusters[0]).toHaveProperty("semanticEntities");
+  });
+
+  it("publishes an RSS feed for guide updates", async () => {
+    const res = await guideFeedGet();
+    const xml = await res.text();
+    expect(res.headers.get("content-type")).toContain("application/rss+xml");
+    expect(xml).toContain("<rss");
+    for (const cluster of SEO_KEYWORD_CLUSTERS) {
+      expect(xml).toContain(`/guias/${cluster.slug}`);
+      expect(xml).toContain(cluster.primaryKeyword);
+    }
+  });
+
+  it("publishes OpenSearch discovery for site search", async () => {
+    const res = await openSearchGet();
+    const xml = await res.text();
+    expect(res.headers.get("content-type")).toContain("application/opensearchdescription+xml");
+    expect(xml).toContain("<OpenSearchDescription");
+    expect(xml).toContain("/o-que-significa/{searchTerms}");
+    expect(xml).toContain("/seo-index.json?q={searchTerms}");
   });
 });
