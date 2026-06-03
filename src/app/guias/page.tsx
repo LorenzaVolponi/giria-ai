@@ -70,6 +70,13 @@ export default function GuiasSeoPage() {
                 </span>
               ))}
             </div>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {cluster.semanticEntities.slice(0, 3).map((entity) => (
+                <span key={entity} className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {entity}
+                </span>
+              ))}
+            </div>
             <Link href={`/guias/${cluster.slug}`} className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
               Abrir guia
             </Link>

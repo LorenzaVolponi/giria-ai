@@ -75,6 +75,44 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
     mainEntityOfPage: url,
     author: { "@type": "Organization", name: "Gíria AI" },
     publisher: { "@type": "Organization", name: "Gíria AI" },
+    about: cluster.semanticEntities.map((entity) => ({ "@type": "Thing", name: entity })),
+    audience: cluster.audience.map((audience) => ({ "@type": "Audience", audienceType: audience })),
+  };
+  const webPageJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: cluster.title,
+    description: cluster.description,
+    url,
+    inLanguage: "pt-BR",
+    primaryImageOfPage: `${site}/favicon.svg`,
+    about: cluster.semanticEntities.map((entity) => ({ "@type": "Thing", name: entity })),
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: ["h1", "#resposta-rapida"],
+    },
+  };
+  const definedTermSetJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    name: `Mini glossário: ${cluster.shortTitle}`,
+    url,
+    hasDefinedTerm: cluster.glossary.map((item) => ({
+      "@type": "DefinedTerm",
+      name: item.term,
+      description: item.meaning,
+      inDefinedTermSet: url,
+    })),
+  };
+  const searchIntentJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Buscas relacionadas: ${cluster.primaryKeyword}`,
+    itemListElement: cluster.queryVariants.map((query, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: query,
+    })),
   };
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -89,6 +127,9 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(definedTermSetJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(searchIntentJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script
         type="application/ld+json"
@@ -113,12 +154,24 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
       <p className="mt-3 text-xs text-muted-foreground">Atualizado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
       <p className="mt-4 text-lg text-muted-foreground">{cluster.intro}</p>
 
-      <section className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
+      <nav className="mt-6 rounded-xl border p-4 text-sm" aria-label="Sumário do guia">
+        <p className="font-semibold">Nesta página</p>
+        <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+          <li><a href="#resposta-rapida" className="underline underline-offset-4">Resposta rápida</a></li>
+          <li><a href="#intencao" className="underline underline-offset-4">Intenção de busca</a></li>
+          <li><a href="#glossario" className="underline underline-offset-4">Mini glossário</a></li>
+          <li><a href="#exemplos" className="underline underline-offset-4">Exemplos</a></li>
+          <li><a href="#sinais" className="underline underline-offset-4">Sinais de qualidade</a></li>
+          <li><a href="#faq" className="underline underline-offset-4">FAQ</a></li>
+        </ul>
+      </nav>
+
+      <section id="resposta-rapida" className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
         <h2 className="text-xl font-semibold">Resposta rápida sobre {cluster.primaryKeyword}</h2>
         <p className="mt-2 text-muted-foreground">{cluster.quickAnswer}</p>
       </section>
 
-      <section className="mt-8 rounded-xl border p-5">
+      <section id="intencao" className="mt-8 rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Intenção de busca</h2>
         <p className="mt-2 text-muted-foreground">{cluster.intent}</p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -130,7 +183,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         </div>
       </section>
 
-      <section className="mt-8 rounded-xl border p-5">
+      <section id="glossario" className="mt-8 rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Mini glossário do tema</h2>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
           {cluster.glossary.map((item) => (
@@ -142,7 +195,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         </dl>
       </section>
 
-      <section className="mt-8 rounded-xl border p-5">
+      <section id="exemplos" className="mt-8 rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Exemplos de uso e interpretação</h2>
         <div className="mt-4 space-y-3">
           {cluster.examples.map((example) => (
@@ -154,6 +207,29 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         </div>
       </section>
 
+      <section id="entidades" className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">Entidades e contexto semântico</h2>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {cluster.semanticEntities.map((entity) => (
+            <span key={entity} className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
+              {entity}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Público principal: {cluster.audience.join(", ")}.
+        </p>
+      </section>
+
+      <section id="sinais" className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">Por que este guia responde melhor à busca?</h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          {cluster.contentSignals.map((signal) => (
+            <li key={signal}>{signal}</li>
+          ))}
+        </ul>
+      </section>
+
       <div className="mt-8 space-y-6">
         {cluster.sections.map((section) => (
           <section key={section.title} className="rounded-xl border p-5">
@@ -163,7 +239,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         ))}
       </div>
 
-      <section className="mt-8 rounded-xl border p-5">
+      <section id="faq" className="mt-8 rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Perguntas frequentes</h2>
         <div className="mt-4 space-y-4">
           {cluster.faqs.map((faq) => (
