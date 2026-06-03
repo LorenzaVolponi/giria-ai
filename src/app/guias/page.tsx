@@ -31,11 +31,21 @@ export default function GuiasSeoPage() {
             name: "Guias de gírias e cultura digital",
             description: metadata.description,
             url: `${site}/guias`,
+            mainEntity: {
+              "@type": "ItemList",
+              itemListElement: SEO_KEYWORD_CLUSTERS.map((cluster, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                url: `${site}/guias/${cluster.slug}`,
+                name: cluster.title,
+              })),
+            },
             hasPart: SEO_KEYWORD_CLUSTERS.map((cluster) => ({
               "@type": "Article",
               name: cluster.title,
               url: `${site}/guias/${cluster.slug}`,
-              keywords: cluster.keywords.join(", "),
+              keywords: Array.from(new Set([cluster.primaryKeyword, ...cluster.keywords])).join(", "),
+              dateModified: cluster.updatedAt,
             })),
           }),
         }}
@@ -52,6 +62,14 @@ export default function GuiasSeoPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Guia SEO</p>
             <h2 className="mt-2 text-xl font-semibold">{cluster.shortTitle}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{cluster.description}</p>
+            <p className="mt-3 text-xs text-muted-foreground">Foco: {cluster.primaryKeyword}</p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {cluster.queryVariants.slice(0, 2).map((query) => (
+                <span key={query} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {query}
+                </span>
+              ))}
+            </div>
             <Link href={`/guias/${cluster.slug}`} className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
               Abrir guia
             </Link>

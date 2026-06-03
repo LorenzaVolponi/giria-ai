@@ -22,11 +22,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cluster = getSeoKeywordCluster(slug);
   if (!cluster) return { title: "Guia não encontrado | Gíria AI" };
   const url = `${site}/guias/${cluster.slug}`;
+  const uniqueKeywords = Array.from(new Set([cluster.primaryKeyword, ...cluster.keywords]));
 
   return {
     title: `${cluster.title} | Gíria AI`,
     description: cluster.description,
-    keywords: cluster.keywords,
+    keywords: uniqueKeywords,
     alternates: { canonical: url },
     openGraph: {
       title: cluster.title,
@@ -40,7 +41,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: cluster.title,
       description: cluster.description,
     },
-    robots: { index: true, follow: true },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-snippet": -1,
+        "max-image-preview": "large",
+        "max-video-preview": -1,
+      },
+    },
   };
 }
 
@@ -50,6 +61,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
   if (!cluster) notFound();
 
   const url = `${site}/guias/${cluster.slug}`;
+  const uniqueKeywords = Array.from(new Set([cluster.primaryKeyword, ...cluster.keywords]));
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -57,7 +69,10 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
     description: cluster.description,
     url,
     inLanguage: "pt-BR",
-    keywords: cluster.keywords.join(", "),
+    keywords: uniqueKeywords.join(", "),
+    dateModified: cluster.updatedAt,
+    datePublished: cluster.updatedAt,
+    mainEntityOfPage: url,
     author: { "@type": "Organization", name: "Gíria AI" },
     publisher: { "@type": "Organization", name: "Gíria AI" },
   };
@@ -95,11 +110,48 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
       </Link>
       <p className="mt-6 text-xs font-medium uppercase tracking-wide text-emerald-700">Camada SEO temática</p>
       <h1 className="mt-2 text-3xl font-bold">{cluster.title}</h1>
+      <p className="mt-3 text-xs text-muted-foreground">Atualizado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
       <p className="mt-4 text-lg text-muted-foreground">{cluster.intro}</p>
+
+      <section className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
+        <h2 className="text-xl font-semibold">Resposta rápida sobre {cluster.primaryKeyword}</h2>
+        <p className="mt-2 text-muted-foreground">{cluster.quickAnswer}</p>
+      </section>
 
       <section className="mt-8 rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Intenção de busca</h2>
         <p className="mt-2 text-muted-foreground">{cluster.intent}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {cluster.queryVariants.map((query) => (
+            <span key={query} className="rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+              {query}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">Mini glossário do tema</h2>
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+          {cluster.glossary.map((item) => (
+            <div key={item.term} className="rounded-lg border p-3">
+              <dt className="font-semibold">{item.term}</dt>
+              <dd className="mt-1 text-sm text-muted-foreground">{item.meaning}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">Exemplos de uso e interpretação</h2>
+        <div className="mt-4 space-y-3">
+          {cluster.examples.map((example) => (
+            <article key={example.phrase} className="rounded-lg border p-3">
+              <p className="font-medium">“{example.phrase}”</p>
+              <p className="mt-1 text-sm text-muted-foreground">{example.interpretation}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <div className="mt-8 space-y-6">
@@ -121,6 +173,15 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">Próximos passos no Gíria AI</h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          <li><Link href="/o-que-significa" className="underline underline-offset-4">Buscar significado direto de uma gíria</Link></li>
+          <li><Link href="/girias" className="underline underline-offset-4">Explorar o glossário completo</Link></li>
+          <li><Link href="/girias/regionais" className="underline underline-offset-4">Ver gírias regionais do Brasil</Link></li>
+        </ul>
       </section>
 
       <section className="mt-8 rounded-xl border p-5">

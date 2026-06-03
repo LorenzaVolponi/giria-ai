@@ -3,9 +3,21 @@ export type SeoKeywordCluster = {
   title: string;
   shortTitle: string;
   description: string;
+  primaryKeyword: string;
   keywords: string[];
   intent: string;
   intro: string;
+  quickAnswer: string;
+  updatedAt: string;
+  queryVariants: string[];
+  glossary: Array<{
+    term: string;
+    meaning: string;
+  }>;
+  examples: Array<{
+    phrase: string;
+    interpretation: string;
+  }>;
   sections: Array<{
     title: string;
     body: string;
@@ -43,6 +55,7 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     shortTitle: "Gírias de influencer",
     description:
       "Guia de gírias de influencer para entender expressões usadas em reels, lives, publis, stories e conteúdos virais.",
+    primaryKeyword: "gírias de influencer",
     keywords: [
       "gírias de influencer",
       "influencer",
@@ -57,6 +70,27 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     intent: "Entender termos usados por influencers, criadores de conteúdo e comunidades de redes sociais.",
     intro:
       "Influencer virou uma das palavras centrais da cultura digital. Nesta camada de SEO, o Gíria AI organiza expressões usadas em vídeos, lives, publis, comentários e tendências para ajudar pais, educadores, marcas e curiosos a entenderem o que está sendo dito nas redes.",
+    quickAnswer:
+      "Gírias de influencer são expressões de redes sociais usadas para engajar, vender, brincar, criar pertencimento ou comentar tendências. O sentido depende do formato: publi, live, react, trend, comentário ou bastidor.",
+    updatedAt: "2026-06-03",
+    queryVariants: [
+      "o que significa gíria de influencer",
+      "linguagem de influencer no TikTok",
+      "expressões usadas por influencer",
+      "gírias de publi e trend",
+      "dicionário de gírias de influencer",
+    ],
+    glossary: [
+      { term: "publi", meaning: "Conteúdo patrocinado ou publicidade sinalizada por criador de conteúdo." },
+      { term: "trend", meaning: "Formato, áudio, desafio ou estética que se espalha rapidamente nas redes." },
+      { term: "engajamento", meaning: "Curtidas, comentários, compartilhamentos, salvamentos e respostas gerados por um conteúdo." },
+      { term: "collab", meaning: "Conteúdo feito em parceria entre influenciadores, marcas ou perfis." },
+    ],
+    examples: [
+      { phrase: "Esse look de publi ficou muito clean.", interpretation: "Comentário sobre estética e divulgação de produto." },
+      { phrase: "A trend flopou, mas o react salvou.", interpretation: "A tendência não performou bem, mas o vídeo de reação teve melhor resultado." },
+      { phrase: "Ela tem muito clout nesse nicho.", interpretation: "A pessoa tem influência e reconhecimento naquele segmento." },
+    ],
     sections: [
       {
         title: "Por que gírias de influencer ranqueiam bem?",
@@ -88,6 +122,7 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     shortTitle: "Nave espacial, ET e alienígena",
     description:
       "Entenda como nave espacial, ET e alienígena aparecem em memes, apelidos, ironias e gírias da cultura digital brasileira.",
+    primaryKeyword: "gíria nave espacial",
     keywords: [
       "nave espacial",
       "gíria nave espacial",
@@ -103,6 +138,27 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     intent: "Capturar buscas curiosas sobre termos espaciais usados como metáfora, meme ou apelido na internet.",
     intro:
       "Termos como nave espacial, ET e alienígena aparecem em memes, brincadeiras e comparações para falar de algo muito diferente, futurista, estranho, genial ou fora da realidade. Essa camada ajuda o buscador a entender que o Gíria AI também cobre expressões de cultura geek, memes e metáforas digitais.",
+    quickAnswer:
+      "Na internet, nave espacial, ET e alienígena costumam funcionar como metáforas: algo futurista, fora do comum, muito habilidoso, estranho, exagerado ou com estética de outro planeta. O tom pode ser elogio, meme ou crítica.",
+    updatedAt: "2026-06-03",
+    queryVariants: [
+      "nave espacial significado gíria",
+      "ET significado meme",
+      "alienígena gíria internet",
+      "o que significa chamar alguém de ET",
+      "meme nave espacial significado",
+    ],
+    glossary: [
+      { term: "nave espacial", meaning: "Metáfora para algo tecnológico, veloz, futurista ou chamativo demais." },
+      { term: "ET", meaning: "Apelido informal para alguém ou algo percebido como muito diferente ou fora do padrão." },
+      { term: "alienígena", meaning: "Comparação com algo de outro planeta: estranho, raro, genial ou visualmente incomum." },
+      { term: "de outro planeta", meaning: "Expressão usada para elogiar habilidade, beleza, performance ou exagero." },
+    ],
+    examples: [
+      { phrase: "Esse setup parece uma nave espacial.", interpretation: "O ambiente tem estética futurista ou muitos equipamentos." },
+      { phrase: "O menino joga igual um ET.", interpretation: "A pessoa joga de forma excepcional, fora do comum." },
+      { phrase: "Esse filtro deixou todo mundo alienígena.", interpretation: "O efeito visual criou aparência estranha ou divertida." },
+    ],
     sections: [
       {
         title: "Quando ‘alienígena’ vira gíria?",
@@ -134,6 +190,7 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     shortTitle: "Gírias do Paraná",
     description:
       "Guia de gírias do Paraná, expressões paranaenses e diferenças de uso em Curitiba, interior e internet brasileira.",
+    primaryKeyword: "gírias do Paraná",
     keywords: [
       "gírias do Paraná",
       "Paraná",
@@ -147,6 +204,27 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
     intent: "Fortalecer buscas regionais sobre Paraná e conectar regionalismos ao glossário brasileiro de gírias.",
     intro:
       "O Paraná tem uma mistura forte de linguagem do Sul, cultura urbana de Curitiba, interior, internet e expressões de fronteira cultural. Esta página cria uma camada regional para ajudar o Gíria AI a ranquear melhor quando a busca envolve Paraná, gírias paranaenses e jeito local de falar.",
+    quickAnswer:
+      "Gírias do Paraná combinam expressões regionais, fala de Curitiba, vocabulário do interior e gírias nacionais adaptadas ao contexto local. A busca geralmente quer significado, exemplo e diferença de uso em relação a outras regiões.",
+    updatedAt: "2026-06-03",
+    queryVariants: [
+      "gírias do Paraná",
+      "gírias paranaenses significado",
+      "expressões do Paraná",
+      "gírias de Curitiba",
+      "como fala no Paraná",
+    ],
+    glossary: [
+      { term: "piá", meaning: "Menino, garoto ou jovem; comum no Sul e muito reconhecido no Paraná." },
+      { term: "vina", meaning: "Forma regional de se referir à salsicha, especialmente associada a Curitiba." },
+      { term: "capaz", meaning: "Pode expressar surpresa, dúvida, negação ou reação informal, dependendo do tom." },
+      { term: "daí", meaning: "Marcador de continuidade na fala, usado para ligar ideias em conversa informal." },
+    ],
+    examples: [
+      { phrase: "O piá chegou falando uma trend nova.", interpretation: "Um jovem trouxe uma gíria ou tendência recente." },
+      { phrase: "Capaz que isso é gíria nova de Curitiba?", interpretation: "Reação de surpresa ou dúvida sobre uma expressão local." },
+      { phrase: "Daí a galera começou a usar no grupo.", interpretation: "Uso informal para continuar uma narrativa." },
+    ],
     sections: [
       {
         title: "Por que criar uma camada de SEO para Paraná?",
