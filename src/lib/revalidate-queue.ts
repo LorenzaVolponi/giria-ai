@@ -51,6 +51,4 @@ export async function getRevalidateJob(id: string) {
   } catch {
     return null;
   }
-export function getRevalidateJob(id: string) {
-  return jobs.get(id) || null;
 }

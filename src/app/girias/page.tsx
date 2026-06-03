@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SLANG_DATA } from "@/lib/slang-data";
+import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 export const metadata: Metadata = {
   title: "Gírias Populares | Gíria AI",
-  description: "Navegue por gírias populares e entenda os significados de forma clara e contextualizada.",
-  keywords: ["gírias", "o que significa", "dicionário de gírias", "gíria brasileira", "tradutor de gírias"],
+  description: "Navegue por gírias populares, linguagem de influencer, memes com ET, alienígena, nave espacial e expressões do Paraná.",
+  keywords: ["gírias", "o que significa", "dicionário de gírias", "gíria brasileira", "tradutor de gírias", ...ORGANIC_SEO_KEYWORDS],
   alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
 };
 
@@ -21,6 +22,11 @@ export default function GiriasPage() {
         <Link href="/girias/regionais" className="underline font-medium">
           Ver página de gírias regionais
         </Link>
+        {" "}ou explore os{" "}
+        <Link href="/guias" className="underline font-medium">
+          guias de influencer, ET, alienígena, nave espacial e Paraná
+        </Link>
+        .
       </p>
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
         {topTerms.map((term) => (

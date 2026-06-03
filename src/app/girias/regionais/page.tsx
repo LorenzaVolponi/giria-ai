@@ -4,7 +4,8 @@ import { SLANG_DATA } from "@/lib/slang-data";
 
 export const metadata: Metadata = {
   title: "Gírias Regionais do Brasil | Gíria AI",
-  description: "Explore gírias regionais separadas por região do Brasil (Norte, Nordeste, Centro-Oeste, Sudeste e Sul).",
+  description: "Explore gírias regionais do Brasil, com camada dedicada a Paraná, Curitiba e expressões paranaenses.",
+  keywords: ["gírias regionais", "gírias do Paraná", "Paraná", "Curitiba", "gírias paranaenses", "regionalismo brasileiro"],
   alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/regionais` },
 };
 
@@ -23,7 +24,7 @@ function normalizeRegionLabel(region: string): RegionKey {
 }
 
 interface Props {
-  searchParams?: Promise<{ uf?: string; q?: string }>;
+  searchParams?: Promise<{ uf?: string; q?: string; risk?: string }>;
 }
 
 export default async function GiriasRegionaisPage({ searchParams }: Props) {
@@ -31,6 +32,7 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
   const ufFilter = (sp?.uf || "").toUpperCase().trim();
   const query = (sp?.q || "").trim().toLowerCase();
   const queryReadable = (sp?.q || "").trim();
+  const riskFilter = (sp?.risk || "").trim();
   const regionalTerms = SLANG_DATA.filter((t) => t.category === "regional");
   const grouped = new Map<RegionKey, typeof regionalTerms>();
 
@@ -64,7 +66,8 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-3xl font-bold">Gírias regionais do Brasil</h1>
       <p className="mt-3 text-muted-foreground">
-        Página dedicada às expressões regionais. Clique em uma gíria para ver significado, contexto e orientação.
+        Página dedicada às expressões regionais, incluindo uma camada estratégica para Paraná, Curitiba e gírias
+        paranaenses. Clique em uma gíria para ver significado, contexto e orientação.
       </p>
       <nav className="mt-4 flex flex-wrap gap-2">
         {regionOrder.map((region) => (
@@ -93,6 +96,12 @@ export default async function GiriasRegionaisPage({ searchParams }: Props) {
               </Link>
             ))
           )}
+          <Link
+            href="/guias/girias-do-parana"
+            className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800"
+          >
+            Guia Paraná
+          </Link>
           {ufFilter ? (
             <Link href="/girias/regionais" className="rounded-full border px-2 py-0.5 text-xs">
               Limpar filtro

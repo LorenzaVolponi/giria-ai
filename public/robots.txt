@@ -1,14 +1,27 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /api/
+Disallow: /admin
 
 User-agent: Bingbot
 Allow: /
+Disallow: /api/
+Disallow: /admin
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /api/
+Disallow: /admin
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /api/
+Disallow: /admin
 
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+
+Sitemap: https://giria-ai.vercel.app/sitemap.xml
+Sitemap: https://giria-ai.vercel.app/guias/sitemap.xml
