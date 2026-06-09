@@ -758,6 +758,9 @@ export default function GiriaApp() {
 
       {/* Hero */}
       <section className="giria-hero mx-auto max-w-3xl px-4 py-7 text-center shadow-sm sm:px-8 sm:py-9">
+        <div className="giria-brazil-ribbon" aria-hidden="true" />
+        <div className="giria-hero-glow -left-16 top-10" aria-hidden="true" />
+        <div className="giria-hero-glow -right-16 bottom-0" aria-hidden="true" />
         <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white/75 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-gray-950/45 dark:text-emerald-200">
             <Heart className="h-3 w-3 fill-emerald-500 text-emerald-500" />
@@ -778,7 +781,11 @@ export default function GiriaApp() {
         <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
           Traduções rápidas, contexto cultural e sinais de atenção para famílias e educadores — sem perder o sotaque brasileiro.
         </p>
-        <div className="mt-5 grid gap-2 text-xs font-bold sm:grid-cols-3">
+        <div className="giria-context-strip mx-auto mt-5 max-w-xl text-xs font-semibold sm:text-sm">
+          <Sparkles className="h-4 w-4 text-yellow-500 dark:text-yellow-300" />
+          <span>Do zap ao recreio, a gente traduz sem julgamento.</span>
+        </div>
+        <div className="mt-3 grid gap-2 text-xs font-bold sm:grid-cols-3">
           <div className="giria-hero-stat">
             <BookMarked className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
             <span>{SLANG_DATA.length}+ termos vivos</span>
@@ -810,6 +817,7 @@ export default function GiriaApp() {
             <button
               onClick={handleResetSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-200"
+              aria-label="Limpar busca"
             >
               <X className="h-4 w-4" />
             </button>

@@ -183,6 +183,43 @@
     z-index: 1;
   }
 
+  .giria-brazil-ribbon {
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    z-index: 0;
+    height: 0.25rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgb(var(--giria-emerald-rgb)), rgb(var(--giria-yellow-rgb)), rgb(var(--giria-blue-rgb)), rgb(var(--giria-teal-rgb)));
+    opacity: 0.78;
+    filter: saturate(1.08);
+  }
+
+  .giria-hero-glow {
+    position: absolute;
+    z-index: 0;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 999px;
+    background: conic-gradient(from 160deg, rgb(var(--giria-emerald-rgb) / 0.2), rgb(var(--giria-yellow-rgb) / 0.18), rgb(var(--giria-blue-rgb) / 0.16), transparent 68%);
+    filter: blur(18px);
+    opacity: 0.82;
+  }
+
+  .giria-context-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--giria-teal-rgb) / 0.18);
+    background: rgb(255 255 255 / 0.52);
+    padding: 0.625rem 0.875rem;
+    color: rgb(31 41 55);
+    box-shadow: 0 10px 26px rgb(15 118 110 / 0.07);
+  }
 
   .giria-hero-stat {
     display: flex;
@@ -271,6 +308,20 @@
     opacity: 0.5;
   }
 
+  .dark .giria-brazil-ribbon {
+    opacity: 0.68;
+  }
+
+  .dark .giria-hero-glow {
+    opacity: 0.58;
+  }
+
+  .dark .giria-context-strip {
+    border-color: rgb(var(--giria-teal-rgb) / 0.2);
+    background: rgb(2 6 23 / 0.38);
+    color: rgb(226 232 240);
+    box-shadow: 0 12px 28px rgb(0 0 0 / 0.2);
+  }
 
   .dark .giria-hero-stat {
     border-color: rgb(var(--giria-emerald-rgb) / 0.18);
