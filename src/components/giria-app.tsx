@@ -1734,9 +1734,9 @@ export default function GiriaApp() {
   // Main render
   // =========================================================================
   return (
-    <div className="min-h-screen flex flex-col bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#ecfdf5_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_28%),linear-gradient(180deg,#020617_0%,#042f2e_48%,#020617_100%)]">
+    <div className="giria-app-shell min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-emerald-100/80 bg-white/85 shadow-sm backdrop-blur-xl dark:border-emerald-900/60 dark:bg-gray-950/85">
+      <header className="giria-app-header sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 flex items-center justify-center shadow-sm shadow-emerald-900/20">
@@ -1828,7 +1828,7 @@ export default function GiriaApp() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-emerald-100 dark:border-emerald-900/60 bg-gradient-to-r from-emerald-50/90 via-white/80 to-blue-50/80 dark:from-gray-950 dark:via-emerald-950/40 dark:to-gray-950 pb-20 sm:pb-0">
+      <footer className="giria-footer mt-auto pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
           <motion.div
             initial={{ opacity: 0, y: 8 }}

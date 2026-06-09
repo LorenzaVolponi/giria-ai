@@ -57,6 +57,10 @@
   --giria-teal: oklch(0.62 0.13 190);
   --giria-yellow: oklch(0.86 0.18 92);
   --giria-blue: oklch(0.55 0.19 252);
+  --giria-emerald-rgb: 5 150 105;
+  --giria-teal-rgb: 13 148 136;
+  --giria-yellow-rgb: 250 204 21;
+  --giria-blue-rgb: 37 99 235;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -95,6 +99,10 @@
   --giria-teal: oklch(0.75 0.11 190);
   --giria-yellow: oklch(0.86 0.16 92);
   --giria-blue: oklch(0.7 0.15 252);
+  --giria-emerald-rgb: 52 211 153;
+  --giria-teal-rgb: 45 212 191;
+  --giria-yellow-rgb: 253 224 71;
+  --giria-blue-rgb: 96 165 250;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -131,15 +139,34 @@
 }
 
 @layer components {
+  .giria-app-shell {
+    background:
+      radial-gradient(circle at top left, rgb(var(--giria-emerald-rgb) / 0.12), transparent 34%),
+      radial-gradient(circle at top right, rgb(var(--giria-blue-rgb) / 0.08), transparent 30%),
+      linear-gradient(180deg, #f8fafc 0%, #ecfdf5 45%, #f8fafc 100%);
+  }
+
+  .giria-app-header {
+    border-bottom: 1px solid rgb(var(--giria-emerald-rgb) / 0.18);
+    background: rgb(255 255 255 / 0.86);
+    box-shadow: 0 1px 12px rgb(15 23 42 / 0.06);
+    backdrop-filter: blur(18px);
+  }
+
+  .giria-footer {
+    border-top: 1px solid rgb(var(--giria-emerald-rgb) / 0.16);
+    background: linear-gradient(90deg, rgb(236 253 245 / 0.9), rgb(255 255 255 / 0.84), rgb(239 246 255 / 0.82));
+  }
+
   .giria-hero {
     position: relative;
     overflow: hidden;
     border-radius: 1.75rem;
-    border: 1px solid color-mix(in oklch, var(--giria-emerald) 22%, white);
+    border: 1px solid rgb(var(--giria-emerald-rgb) / 0.22);
     background:
-      radial-gradient(circle at 12% 18%, color-mix(in oklch, var(--giria-yellow) 34%, transparent) 0, transparent 28%),
-      radial-gradient(circle at 88% 12%, color-mix(in oklch, var(--giria-blue) 22%, transparent) 0, transparent 30%),
-      linear-gradient(135deg, color-mix(in oklch, var(--giria-emerald) 10%, white), color-mix(in oklch, var(--giria-teal) 12%, white) 52%, color-mix(in oklch, var(--giria-yellow) 10%, white));
+      radial-gradient(circle at 12% 18%, rgb(var(--giria-yellow-rgb) / 0.34) 0, transparent 28%),
+      radial-gradient(circle at 88% 12%, rgb(var(--giria-blue-rgb) / 0.20) 0, transparent 30%),
+      linear-gradient(135deg, rgb(var(--giria-emerald-rgb) / 0.09), rgb(var(--giria-teal-rgb) / 0.12) 52%, rgb(var(--giria-yellow-rgb) / 0.10));
   }
 
   .giria-hero::after {
@@ -147,7 +174,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.48), transparent);
+    background: linear-gradient(120deg, transparent, rgb(255 255 255 / 0.48), transparent);
     opacity: 0.42;
   }
 
@@ -157,9 +184,9 @@
   }
 
   .giria-soft-card {
-    border: 1px solid color-mix(in oklch, var(--giria-emerald) 18%, white);
-    background: color-mix(in oklch, var(--card) 92%, white 8%);
-    box-shadow: 0 18px 45px rgba(15, 118, 110, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04);
+    border: 1px solid rgb(var(--giria-emerald-rgb) / 0.18);
+    background: rgb(255 255 255 / 0.94);
+    box-shadow: 0 18px 45px rgb(var(--giria-teal-rgb) / 0.10), 0 2px 8px rgb(15 23 42 / 0.04);
     transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
@@ -167,17 +194,17 @@
     position: relative;
     overflow: hidden;
     border-radius: 1.5rem;
-    border: 1px solid color-mix(in oklch, var(--giria-teal) 24%, white);
+    border: 1px solid rgb(var(--giria-teal-rgb) / 0.24);
     background:
-      linear-gradient(90deg, color-mix(in oklch, var(--giria-emerald) 6%, white), color-mix(in oklch, var(--giria-blue) 6%, white)),
+      linear-gradient(90deg, rgb(var(--giria-emerald-rgb) / 0.06), rgb(var(--giria-blue-rgb) / 0.06)),
       var(--card);
-    box-shadow: 0 22px 50px rgba(15, 118, 110, 0.12), 0 3px 10px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 22px 50px rgb(var(--giria-teal-rgb) / 0.12), 0 3px 10px rgb(15 23 42 / 0.05);
     transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
   .giria-editorial-card:hover {
-    border-color: color-mix(in oklch, var(--giria-emerald) 42%, white);
-    box-shadow: 0 26px 60px rgba(15, 118, 110, 0.16), 0 6px 16px rgba(15, 23, 42, 0.07);
+    border-color: rgb(var(--giria-emerald-rgb) / 0.42);
+    box-shadow: 0 26px 60px rgb(var(--giria-teal-rgb) / 0.16), 0 6px 16px rgb(15 23 42 / 0.07);
     transform: translateY(-1px);
   }
 
@@ -192,30 +219,47 @@
     box-shadow: inset 0 0 0 1px currentColor;
   }
 
-  .dark .giria-hero {
-    border-color: color-mix(in oklch, var(--giria-emerald) 28%, black);
+  .dark .giria-app-shell {
     background:
-      radial-gradient(circle at 14% 16%, color-mix(in oklch, var(--giria-yellow) 22%, transparent) 0, transparent 27%),
-      radial-gradient(circle at 86% 14%, color-mix(in oklch, var(--giria-blue) 22%, transparent) 0, transparent 28%),
-      linear-gradient(135deg, color-mix(in oklch, var(--giria-emerald) 22%, #020617), color-mix(in oklch, var(--giria-teal) 18%, #020617) 58%, #020617);
+      radial-gradient(circle at top left, rgb(var(--giria-emerald-rgb) / 0.16), transparent 30%),
+      radial-gradient(circle at top right, rgb(var(--giria-blue-rgb) / 0.12), transparent 28%),
+      linear-gradient(180deg, #020617 0%, #042f2e 48%, #020617 100%);
+  }
+
+  .dark .giria-app-header {
+    border-bottom-color: rgb(var(--giria-emerald-rgb) / 0.18);
+    background: rgb(2 6 23 / 0.86);
+  }
+
+  .dark .giria-footer {
+    border-top-color: rgb(var(--giria-emerald-rgb) / 0.18);
+    background: linear-gradient(90deg, #020617, rgb(6 78 59 / 0.4), #020617);
+  }
+
+  .dark .giria-hero {
+    border-color: rgb(var(--giria-emerald-rgb) / 0.28);
+    background:
+      radial-gradient(circle at 14% 16%, rgb(var(--giria-yellow-rgb) / 0.18) 0, transparent 27%),
+      radial-gradient(circle at 86% 14%, rgb(var(--giria-blue-rgb) / 0.20) 0, transparent 28%),
+      linear-gradient(135deg, rgb(var(--giria-emerald-rgb) / 0.18), rgb(var(--giria-teal-rgb) / 0.14) 58%, #020617);
   }
 
   .dark .giria-hero::after {
-    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+    background: linear-gradient(120deg, transparent, rgb(255 255 255 / 0.09), transparent);
     opacity: 0.5;
   }
 
   .dark .giria-soft-card {
-    border-color: color-mix(in oklch, var(--giria-emerald) 24%, #020617);
-    background: color-mix(in oklch, var(--card) 92%, #020617 8%);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(45, 212, 191, 0.04);
+    border-color: rgb(var(--giria-emerald-rgb) / 0.24);
+    background: rgb(17 24 39 / 0.92);
+    box-shadow: 0 20px 48px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(var(--giria-teal-rgb) / 0.04);
   }
 
   .dark .giria-editorial-card {
-    border-color: color-mix(in oklch, var(--giria-teal) 32%, #020617);
+    border-color: rgb(var(--giria-teal-rgb) / 0.32);
     background:
-      linear-gradient(90deg, color-mix(in oklch, var(--giria-emerald) 16%, #020617), color-mix(in oklch, var(--giria-blue) 12%, #020617)),
+      linear-gradient(90deg, rgb(var(--giria-emerald-rgb) / 0.14), rgb(var(--giria-blue-rgb) / 0.10)),
       var(--card);
-    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(45, 212, 191, 0.05);
+    box-shadow: 0 22px 52px rgb(0 0 0 / 0.32), 0 0 0 1px rgb(var(--giria-teal-rgb) / 0.05);
   }
 }
