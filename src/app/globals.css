@@ -183,6 +183,28 @@
     z-index: 1;
   }
 
+
+  .giria-hero-stat {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--giria-emerald-rgb) / 0.16);
+    background: rgb(255 255 255 / 0.58);
+    padding: 0.625rem 0.75rem;
+    color: rgb(6 78 59);
+    box-shadow: 0 8px 22px rgb(15 118 110 / 0.06);
+  }
+
+  .giria-search-panel {
+    border: 1px solid rgb(var(--giria-emerald-rgb) / 0.22);
+    border-radius: 1.25rem;
+    background: rgb(255 255 255 / 0.78);
+    box-shadow: 0 18px 42px rgb(15 118 110 / 0.12), 0 1px 0 rgb(255 255 255 / 0.75) inset;
+    backdrop-filter: blur(16px);
+  }
+
   .giria-soft-card {
     border: 1px solid rgb(var(--giria-emerald-rgb) / 0.18);
     background: rgb(255 255 255 / 0.94);
@@ -247,6 +269,20 @@
   .dark .giria-hero::after {
     background: linear-gradient(120deg, transparent, rgb(255 255 255 / 0.09), transparent);
     opacity: 0.5;
+  }
+
+
+  .dark .giria-hero-stat {
+    border-color: rgb(var(--giria-emerald-rgb) / 0.18);
+    background: rgb(2 6 23 / 0.42);
+    color: rgb(209 250 229);
+    box-shadow: 0 10px 26px rgb(0 0 0 / 0.18);
+  }
+
+  .dark .giria-search-panel {
+    border-color: rgb(var(--giria-emerald-rgb) / 0.24);
+    background: rgb(2 6 23 / 0.62);
+    box-shadow: 0 22px 50px rgb(0 0 0 / 0.26), 0 1px 0 rgb(255 255 255 / 0.06) inset;
   }
 
   .dark .giria-soft-card {

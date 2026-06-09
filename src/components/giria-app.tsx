@@ -741,6 +741,10 @@ export default function GiriaApp() {
                   <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                     {termOfDay.meaning}
                   </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {renderRiskBadge(termOfDay.riskLevel)}
+                    {renderCategoryBadge(termOfDay.category)}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 transition-colors group-hover:text-teal-700 dark:text-emerald-300 dark:group-hover:text-teal-200">
                   Ler contexto completo
@@ -774,24 +778,38 @@ export default function GiriaApp() {
         <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
           Traduções rápidas, contexto cultural e sinais de atenção para famílias e educadores — sem perder o sotaque brasileiro.
         </p>
+        <div className="mt-5 grid gap-2 text-xs font-bold sm:grid-cols-3">
+          <div className="giria-hero-stat">
+            <BookMarked className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+            <span>{SLANG_DATA.length}+ termos vivos</span>
+          </div>
+          <div className="giria-hero-stat">
+            <Shield className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+            <span>risco sem pânico</span>
+          </div>
+          <div className="giria-hero-stat">
+            <MessageCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-300" />
+            <span>contexto na lata</span>
+          </div>
+        </div>
       </section>
 
       {/* Search bar */}
-      <div className="flex gap-2 max-w-xl mx-auto">
+      <div className="giria-search-panel mx-auto flex max-w-2xl flex-col gap-2 p-2 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600/70 dark:text-emerald-300/70" />
           <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
             placeholder='Digite uma gíria... (pressione "/")'
-            className="pl-9 h-11"
+            className="h-12 border-emerald-100 bg-white/90 pl-10 shadow-none dark:border-emerald-900 dark:bg-gray-950/70"
           />
           {searchQuery && (
             <button
               onClick={handleResetSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-200"
             >
               <X className="h-4 w-4" />
             </button>
@@ -800,7 +818,7 @@ export default function GiriaApp() {
         <Button
           onClick={() => handleTranslate()}
           disabled={isLoading || !searchQuery.trim()}
-          className="h-11 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium"
+          className="h-12 px-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:via-teal-700 hover:to-blue-700 text-white font-bold shadow-lg shadow-emerald-900/15"
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
