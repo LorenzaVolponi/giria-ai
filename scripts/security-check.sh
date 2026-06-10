@@ -19,14 +19,8 @@ echo "[sec] Checando package.json..."
 [[ -f package.json ]] || { echo "package.json ausente"; exit 1; }
 node -e 'const p=require("./package.json"); if(!p.scripts?.build) process.exit(1)' || { echo "[sec][CRITICO] script build ausente"; exit 1; }
 
-echo "[sec] npm audit (sem quebrar por moderadas)..."
-set +e
-npm audit --audit-level=high
-AUDIT_EXIT=$?
-set -e
-if [[ $AUDIT_EXIT -ne 0 ]]; then
-  echo "[sec][WARN] Foram encontrados achados high/critical. Revise npm audit.";
-fi
+echo "[sec] npm audit (moderate+ bloqueia o gate)..."
+npm audit --audit-level=moderate
 
 echo "[sec] Recomendações: habilitar Dependabot, revisão periódica de secrets e rotação de chaves."
 

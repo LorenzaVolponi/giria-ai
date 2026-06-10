@@ -13,7 +13,7 @@
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "slang:scrape": "node scripts/slang-scraper.mjs --output data/slang-candidates.json --limit 12000",
-    "ci:check": "npm run test -- tests/admin-login-api.test.ts tests/suggestion-pipeline.test.ts tests/suggestions-api.test.ts && npm run build"
+    "ci:check": "npm run lint && npm run test && npm run build && bash scripts/security-check.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -64,10 +64,9 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.525.0",
     "next": "^16.1.1",
-    "next-auth": "^4.24.11",
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^8.0.11",
     "otplib": "^12.0.1",
     "prisma": "^6.11.1",
     "react": "^19.0.0",
@@ -103,9 +102,6 @@
   },
   "overrides": {
     "postcss": "^8.5.12",
-    "prismjs": "^1.30.0",
-    "next-auth": {
-      "uuid": "^11.1.1"
-    }
+    "prismjs": "^1.30.0"
   }
 }
