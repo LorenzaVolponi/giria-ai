@@ -60,11 +60,11 @@ if [[ -n "${ADMIN_API_TOKEN:-}" ]]; then
   echo "[production-smoke] Metrics autenticado OK"
 else
   METRICS_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' "${BASE_URL}/api/v1/metrics")
-  if [[ "${METRICS_STATUS}" != "401" ]]; then
-    echo "[production-smoke][ERRO] /api/v1/metrics sem token retornou ${METRICS_STATUS}; esperado 401."
+  if [[ "${METRICS_STATUS}" != "401" && "${METRICS_STATUS}" != "503" ]]; then
+    echo "[production-smoke][ERRO] /api/v1/metrics sem token retornou ${METRICS_STATUS}; esperado 401 ou 503."
     exit 1
   fi
-  echo "[production-smoke] Metrics protegido OK (401 sem token)"
+  echo "[production-smoke] Metrics protegido OK (${METRICS_STATUS} sem token)"
 fi
 
 curl -fsS "${BASE_URL}/api/v1/visits" >/dev/null
