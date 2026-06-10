@@ -58,5 +58,5 @@ export async function POST(request: NextRequest) {
 
   loginAttempts.delete(ipKey);
   await appendAdminAudit({ at: new Date().toISOString(), action: "login_success", ip: ipKey });
-  return createAdminSessionResponse(true);
+  return createAdminSessionResponse(true, credentials.login);
 }

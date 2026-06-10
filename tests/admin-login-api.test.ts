@@ -41,7 +41,9 @@ describe("admin login api", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie") || "").toContain("giria_admin_session");
+    const setCookie = res.headers.get("set-cookie") || "";
+    expect(setCookie).toContain("giria_admin_session");
+    expect(setCookie).toContain("giria_admin_actor");
   });
 
   it("accepts alternative validation code", async () => {

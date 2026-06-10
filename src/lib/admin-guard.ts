@@ -4,8 +4,10 @@ import { withSecurityHeaders } from "@/lib/security";
 const ADMIN_COOKIE = "giria_admin_session";
 const ADMIN_CSRF_COOKIE = "giria_admin_csrf";
 const ADMIN_ROLE_COOKIE = "giria_admin_role";
+const ADMIN_ACTOR_COOKIE = "giria_admin_actor";
 
 const DEV_ADMIN_TOKEN = "admin-panel-session";
+const DEV_ADMIN_ACTOR = "admin007";
 
 function isProduction() {
   return process.env.NODE_ENV === "production";
@@ -35,12 +37,17 @@ export function requireAdminToken(request: NextRequest): NextResponse | null {
   return null;
 }
 
-export function createAdminSessionResponse(ok = true) {
+export function getAdminActor(request: NextRequest) {
+  return request.cookies.get(ADMIN_ACTOR_COOKIE)?.value || process.env.ADMIN_LOGIN?.trim() || (isProduction() ? "api-admin" : DEV_ADMIN_ACTOR);
+}
+
+export function createAdminSessionResponse(ok = true, actor = DEV_ADMIN_ACTOR) {
   const expected = getExpectedToken();
   if (!expected) return adminTokenNotConfiguredResponse();
 
   const csrf = crypto.randomUUID();
   const role = process.env.ADMIN_ROLE || "owner";
+  const safeActor = actor.trim() || DEV_ADMIN_ACTOR;
 
   const res = withSecurityHeaders(NextResponse.json({ ok }, { status: 200 }));
   res.cookies.set(ADMIN_COOKIE, expected, {
@@ -64,6 +71,13 @@ export function createAdminSessionResponse(ok = true) {
     path: "/",
     maxAge: 60 * 60 * 8,
   });
+  res.cookies.set(ADMIN_ACTOR_COOKIE, safeActor, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
   return res;
 }
 
@@ -72,6 +86,7 @@ export function clearAdminSessionResponse() {
   res.cookies.set(ADMIN_COOKIE, "", { path: "/", maxAge: 0 });
   res.cookies.set(ADMIN_CSRF_COOKIE, "", { path: "/", maxAge: 0 });
   res.cookies.set(ADMIN_ROLE_COOKIE, "", { path: "/", maxAge: 0 });
+  res.cookies.set(ADMIN_ACTOR_COOKIE, "", { path: "/", maxAge: 0 });
   return res;
 }
 
