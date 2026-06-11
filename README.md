@@ -233,3 +233,9 @@ Os relatórios ficam em `.agent/reports/*.json` e podem ser anexados em PRs/roti
   - `npx vercel inspect <deployment_id> --logs`
 - Se pedir login, rode primeiro `npx vercel login` no ambiente local autenticado.
 - Em CI/automação, configure `VERCEL_TOKEN` + `VERCEL_ORG_ID` + `VERCEL_PROJECT_ID`.
+
+## Auditoria automática UX/Admin/Telemetria
+- Script local: `npm run audit:ux` gera relatório Markdown/JSON em `reports/` com varredura de UX, UI, acessibilidade, admin, telemetria, privacidade, SEO, segurança operacional e higiene do repositório.
+- Modo estrito: `npm run audit:ux:strict` falha quando encontra achados `critical` ou `high`.
+- Workflow: `ux-admin-telemetry-audit.yml` roda em PRs que alteram `src/**`, diariamente e manualmente via GitHub Actions, publicando os relatórios como artifacts.
+- Smoke runtime opcional: acione o workflow manualmente com `runtime_smoke=true` para subir a aplicação e testar endpoints/páginas básicos.
