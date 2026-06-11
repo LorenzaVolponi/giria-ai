@@ -32,4 +32,23 @@ describe("suggestion moderation API", () => {
     expect(data.status).toBe("rejected");
     expect(moderateSuggestionStatusMock).toHaveBeenCalledWith("abc", "rejected", { actor: "admin007", reason: undefined });
   });
+
+  it("uses the authenticated actor cookie in moderation history", async () => {
+    moderateSuggestionStatusMock.mockResolvedValueOnce(undefined);
+
+    const req = new NextRequest("http://localhost/api/v1/suggestions/def", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "approved", reason: "ok" }),
+      headers: {
+        "content-type": "application/json",
+        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf; giria_admin_role=owner; giria_admin_actor=lorenza",
+        "x-csrf-token": "test-csrf",
+      },
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: "def" }) });
+    expect(res.status).toBe(200);
+    expect(moderateSuggestionStatusMock).toHaveBeenCalledWith("def", "approved", { actor: "lorenza", reason: "ok" });
+  });
+
 });
