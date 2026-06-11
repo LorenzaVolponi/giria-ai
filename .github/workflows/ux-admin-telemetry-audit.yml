@@ -1,0 +1,78 @@
+name: UX Admin Telemetry Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: "Falhar o job quando houver critical/high"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      runtime_smoke:
+        description: "Subir app e executar smoke runtime básico"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  schedule:
+    - cron: "23 8 * * *"
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/ux-admin-telemetry-audit.sh"
+      - ".github/workflows/ux-admin-telemetry-audit.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "bun.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: UX/admin/telemetry static audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STRICT: ${{ github.event_name == 'workflow_dispatch' && inputs.strict || 'false' }}
+      RUN_RUNTIME_SMOKE: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime_smoke || 'false' }}
+      RUN_OPTIONAL_CHECKS: "true"
+      REPORT: reports/ux-admin-telemetry-audit.md
+      SUMMARY_JSON: reports/ux-admin-telemetry-audit.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run UX/admin/telemetry audit
+        run: bash scripts/ux-admin-telemetry-audit.sh
+
+      - name: Print executive summary
+        if: always()
+        run: |
+          if [ -f reports/ux-admin-telemetry-audit.md ]; then
+            sed -n '/## Resumo executivo/,$p' reports/ux-admin-telemetry-audit.md | sed -n '1,80p'
+          fi
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-admin-telemetry-audit
+          path: |
+            reports/ux-admin-telemetry-audit.md
+            reports/ux-admin-telemetry-audit.json
+          if-no-files-found: warn
