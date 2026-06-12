@@ -15,6 +15,8 @@ import { recordGroundingMetric } from "@/lib/metrics";
 const rateLimitMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_CLEANUP_SAMPLE_EVERY = 100;
+let rateLimitChecks = 0;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -22,19 +24,17 @@ function isRateLimited(ip: string): boolean {
   const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   recent.push(now);
   rateLimitMap.set(ip, recent);
-  return recent.length > RATE_LIMIT_MAX_REQUESTS;
-}
 
-// Periodic cleanup
-if (typeof globalThis !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, timestamps] of rateLimitMap.entries()) {
-      const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-      if (recent.length === 0) rateLimitMap.delete(ip);
-      else rateLimitMap.set(ip, recent);
+  rateLimitChecks += 1;
+  if (rateLimitChecks % RATE_LIMIT_CLEANUP_SAMPLE_EVERY === 0) {
+    for (const [entryIp, entryTimestamps] of rateLimitMap.entries()) {
+      const valid = entryTimestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+      if (valid.length === 0) rateLimitMap.delete(entryIp);
+      else rateLimitMap.set(entryIp, valid);
     }
-  }, 30_000);
+  }
+
+  return recent.length > RATE_LIMIT_MAX_REQUESTS;
 }
 
 // ---------------------------------------------------------------------------

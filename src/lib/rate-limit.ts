@@ -1,4 +1,6 @@
 const memoryStore = new Map<string, number[]>();
+const MEMORY_CLEANUP_SAMPLE_EVERY = 100;
+let memoryRateLimitCalls = 0;
 
 export async function isRateLimited(
   key: string,
@@ -49,6 +51,16 @@ export async function isRateLimited(
   const recent = timestamps.filter((t) => now - t < windowMs);
   recent.push(now);
   memoryStore.set(key, recent);
+
+  memoryRateLimitCalls += 1;
+  if (memoryRateLimitCalls % MEMORY_CLEANUP_SAMPLE_EVERY === 0) {
+    for (const [entryKey, entryTimestamps] of memoryStore.entries()) {
+      const valid = entryTimestamps.filter((t) => now - t < windowMs);
+      if (valid.length === 0) memoryStore.delete(entryKey);
+      else memoryStore.set(entryKey, valid);
+    }
+  }
+
   const remaining = Math.max(0, maxRequests - recent.length);
 
   return { limited: recent.length > maxRequests, remaining };
