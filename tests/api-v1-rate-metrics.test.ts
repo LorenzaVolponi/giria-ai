@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
-import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
+import { GET as metricsGet, parseMetricsWindow } from "../src/app/api/v1/metrics/route";
 import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
 import { parseMetricsWindow } from "../src/lib/metrics";
 

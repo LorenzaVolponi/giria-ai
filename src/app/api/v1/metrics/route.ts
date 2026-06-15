@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   return withSecurityHeaders(NextResponse.json({
     ...api,
     api,
+    windowMinutes: windowMinutes ?? null,
     chatGrounding: grounding,
     chatFeedback: feedback,
     slo: {
