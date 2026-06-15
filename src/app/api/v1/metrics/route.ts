@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withSecurityHeaders } from "@/lib/security";
 import { requireAdminToken } from "@/lib/admin-guard";
-import { getApiMetrics, getFeedbackMetrics, getGroundingMetrics } from "@/lib/metrics";
+import { getApiMetrics, getFeedbackMetrics, getGroundingMetrics, parseMetricsWindow } from "@/lib/metrics";
 
 const MAX_METRICS_WINDOW_MINUTES = 60 * 24 * 7;
 

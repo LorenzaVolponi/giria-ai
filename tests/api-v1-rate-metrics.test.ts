@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { GET as metricsGet, parseMetricsWindow } from "../src/app/api/v1/metrics/route";
 import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
+import { parseMetricsWindow } from "../src/lib/metrics";
 
 function makeRequest(url: string, method: string, body?: unknown, headers?: Record<string, string>) {
   return new NextRequest(url, {
