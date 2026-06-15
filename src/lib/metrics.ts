@@ -8,6 +8,17 @@ const groundingBuckets = new Map<string, GroundingBucket>();
 const feedbackBuckets = new Map<string, FeedbackBucket>();
 const feedbackReasonBuckets = new Map<string, FeedbackReasonBucket>();
 
+export const MAX_METRICS_WINDOW_MINUTES = 60 * 24 * 7;
+
+export function parseMetricsWindow(value: string | null): number | undefined {
+  if (!value) return undefined;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+
+  return Math.min(Math.floor(parsed), MAX_METRICS_WINDOW_MINUTES);
+}
+
 function minuteKey(date = new Date()) {
   return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
 }

@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
   const password = (body.password || "").trim();
   const code = (body.code || "").trim();
   const totp = (body.totp || "").trim();
-  const validTotp = ADMIN_TOTP_SECRET ? authenticator.check(totp, ADMIN_TOTP_SECRET) : true;
+  const validTotp = credentials.totpSecret ? authenticator.check(totp, credentials.totpSecret) : true;
 
-  if (login !== ADMIN_LOGIN || password !== ADMIN_PASSWORD || !ADMIN_CODES.has(code) || !validTotp) {
+  if (login !== credentials.login || password !== credentials.password || !credentials.codes.has(code) || !validTotp) {
     const nextCount = (current?.count || 0) + 1;
     loginAttempts.set(ipKey, { count: nextCount, blockedUntil: nextCount >= 5 ? now + 5 * 60_000 : undefined });
     await appendAdminAudit({ at: new Date().toISOString(), action: "login_failed", ip: ipKey, meta: { nextCount } });
