@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"),
-  title: "Gíria AI — Tradutor de Gírias Brasileiras",
+  title: "Gíria.AI — Radar de Gírias Brasileiras",
   description:
     "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná com explicações contextuais.",
   keywords: [
@@ -31,17 +31,17 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "AIX8C", url: "https://twitter.com/lorenzavolponi" }],
   openGraph: {
-    title: "Gíria AI — Tradutor de Gírias Brasileiras",
+    title: "Gíria.AI — Radar de Gírias Brasileiras",
     description:
       "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
     url: "/",
     type: "website",
     locale: "pt_BR",
-    siteName: "Gíria AI",
+    siteName: "Gíria.AI",
   },
   twitter: {
     card: "summary",
-    title: "Gíria AI — Tradutor de Gírias Brasileiras",
+    title: "Gíria.AI — Radar de Gírias Brasileiras",
     description:
       "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
   },
@@ -68,7 +68,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="scroll-smooth" suppressHydrationWarning>
       <head>
-        <link rel="search" type="application/opensearchdescription+xml" title="Gíria AI" href="/opensearch.xml" />
+        <link rel="search" type="application/opensearchdescription+xml" title="Gíria.AI" href="/opensearch.xml" />
         <link rel="alternate" type="application/rss+xml" title="Guias de gírias e cultura digital | Gíria AI" href="/guias/feed.xml" />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
@@ -78,7 +78,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "Gíria AI",
+              name: "Gíria.AI",
               url: process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app",
               potentialAction: {
                 "@type": "SearchAction",
