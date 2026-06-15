@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
@@ -23,6 +23,10 @@ describe("API v1 rate-limit and metrics", () => {
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns rate-limit headers and 429 after burst", async () => {
     let lastStatus = 200;
     let lastHeaders: Headers | null = null;
@@ -37,6 +41,16 @@ describe("API v1 rate-limit and metrics", () => {
     expect(lastStatus).toBe(429);
     expect(lastHeaders?.get("Retry-After")).toBe("60");
     expect(lastHeaders?.get("X-RateLimit-Remaining")).not.toBeNull();
+  });
+
+  it("fails closed in production when ADMIN_API_TOKEN is missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.ADMIN_API_TOKEN;
+
+    const req = makeRequest("http://localhost/api/v1/metrics", "GET");
+    const res = await metricsGet(req);
+
+    expect(res.status).toBe(503);
   });
 
   it("blocks metrics endpoint when ADMIN_API_TOKEN is enabled", async () => {

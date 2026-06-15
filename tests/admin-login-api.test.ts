@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "../src/app/api/v1/admin/login/route";
 import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
 
 describe("admin login api", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("rejects invalid credentials", async () => {
     const req = new NextRequest("http://localhost/api/v1/admin/login", {
       method: "POST",
@@ -14,6 +18,21 @@ describe("admin login api", () => {
     expect(res.status).toBe(401);
   });
 
+  it("fails closed in production when admin credentials are missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_LOGIN", "");
+    vi.stubEnv("ADMIN_PASSWORD", "");
+    vi.stubEnv("ADMIN_CODES", "");
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.88" },
+      body: JSON.stringify({ login: "admin007", password: "admin007", code: "6390" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+  });
+
   it("accepts valid credentials and sets session cookie", async () => {
     const req = new NextRequest("http://localhost/api/v1/admin/login", {
       method: "POST",
@@ -22,7 +41,9 @@ describe("admin login api", () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie") || "").toContain("giria_admin_session");
+    const setCookie = res.headers.get("set-cookie") || "";
+    expect(setCookie).toContain("giria_admin_session");
+    expect(setCookie).toContain("giria_admin_actor");
   });
 
   it("accepts alternative validation code", async () => {

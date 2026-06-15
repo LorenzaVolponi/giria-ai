@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminCsrf, requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
+import { getAdminActor, requireAdminCsrf, requireAdminRole, requireAdminToken } from "@/lib/admin-guard";
 import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { moderateSuggestionStatus } from "@/lib/suggestion-pipeline";
 import { appendAdminAudit } from "@/lib/admin-audit";
@@ -20,8 +20,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
   try {
-    await moderateSuggestionStatus(id, status, { actor: "admin007", reason: body.reason });
-    await appendAdminAudit({ at: new Date().toISOString(), action: `moderate_${status}`, ip: getClientIp(request), meta: { id } });
+    await moderateSuggestionStatus(id, status, { actor: getAdminActor(request), reason: body.reason });
+    await appendAdminAudit({ at: new Date().toISOString(), action: `moderate_${status}`, ip: getClientIp(request), meta: { id, actor: getAdminActor(request) } });
     return withSecurityHeaders(NextResponse.json({ ok: true, id, status }));
   } catch {
     return withSecurityHeaders(NextResponse.json({ error: "Não foi possível atualizar a sugestão." }, { status: 500 }));

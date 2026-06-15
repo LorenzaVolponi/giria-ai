@@ -67,6 +67,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="scroll-smooth" suppressHydrationWarning>
+      <head>
+        <link rel="search" type="application/opensearchdescription+xml" title="Gíria AI" href="/opensearch.xml" />
+        <link rel="alternate" type="application/rss+xml" title="Guias de gírias e cultura digital | Gíria AI" href="/guias/feed.xml" />
+      </head>
       <body className="font-sans antialiased bg-background text-foreground">
         <script
           type="application/ld+json"

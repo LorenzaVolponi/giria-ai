@@ -125,7 +125,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_30%),linear-gradient(180deg,#f8fafc_0%,#ffffff_44%,#f7f8fb_100%)] px-4 py-8 text-slate-950">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(definedTermSetJsonLd) }} />
@@ -146,132 +146,160 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         }}
       />
 
-      <Link href="/guias" className="text-sm underline underline-offset-4">
-        ← Voltar aos guias
-      </Link>
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-emerald-700">Camada SEO temática</p>
-      <h1 className="mt-2 text-3xl font-bold">{cluster.title}</h1>
-      <p className="mt-3 text-xs text-muted-foreground">Atualizado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
-      <p className="mt-4 text-lg text-muted-foreground">{cluster.intro}</p>
+      <div className="mx-auto max-w-6xl">
+        <Link href="/guias" className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm backdrop-blur transition hover:border-emerald-300 hover:text-emerald-700">
+          ← Voltar aos guias
+        </Link>
 
-      <nav className="mt-6 rounded-xl border p-4 text-sm" aria-label="Sumário do guia">
-        <p className="font-semibold">Nesta página</p>
-        <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-          <li><a href="#resposta-rapida" className="underline underline-offset-4">Resposta rápida</a></li>
-          <li><a href="#intencao" className="underline underline-offset-4">Intenção de busca</a></li>
-          <li><a href="#glossario" className="underline underline-offset-4">Mini glossário</a></li>
-          <li><a href="#exemplos" className="underline underline-offset-4">Exemplos</a></li>
-          <li><a href="#sinais" className="underline underline-offset-4">Sinais de qualidade</a></li>
-          <li><a href="#faq" className="underline underline-offset-4">FAQ</a></li>
-        </ul>
-      </nav>
-
-      <section id="resposta-rapida" className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
-        <h2 className="text-xl font-semibold">Resposta rápida sobre {cluster.primaryKeyword}</h2>
-        <p className="mt-2 text-muted-foreground">{cluster.quickAnswer}</p>
-      </section>
-
-      <section id="intencao" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Intenção de busca</h2>
-        <p className="mt-2 text-muted-foreground">{cluster.intent}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {cluster.queryVariants.map((query) => (
-            <span key={query} className="rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-              {query}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section id="glossario" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Mini glossário do tema</h2>
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-          {cluster.glossary.map((item) => (
-            <div key={item.term} className="rounded-lg border p-3">
-              <dt className="font-semibold">{item.term}</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">{item.meaning}</dd>
+        <section className="relative mt-6 overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_24px_90px_rgba(15,23,42,0.10)] backdrop-blur md:p-10">
+          <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-emerald-200/50 blur-3xl" />
+          <div className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-violet-200/40 blur-3xl" />
+          <div className="relative grid gap-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
+            <div>
+              <p className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                Camada SEO temática
+              </p>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">{cluster.title}</h1>
+              <p className="mt-4 text-sm text-slate-500">Atualizado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
+              <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 md:text-lg">{cluster.intro}</p>
             </div>
-          ))}
-        </dl>
-      </section>
+            <aside className="rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Keyword foco</p>
+              <p className="mt-2 text-2xl font-semibold">{cluster.primaryKeyword}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {cluster.semanticEntities.slice(0, 5).map((entity) => (
+                  <span key={entity} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-slate-200">
+                    {entity}
+                  </span>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </section>
 
-      <section id="exemplos" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Exemplos de uso e interpretação</h2>
-        <div className="mt-4 space-y-3">
-          {cluster.examples.map((example) => (
-            <article key={example.phrase} className="rounded-lg border p-3">
-              <p className="font-medium">“{example.phrase}”</p>
-              <p className="mt-1 text-sm text-muted-foreground">{example.interpretation}</p>
-            </article>
-          ))}
+        <nav className="sticky top-3 z-10 mt-5 rounded-full border border-white/70 bg-white/85 px-4 py-3 text-sm shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur" aria-label="Sumário do guia">
+          <ul className="flex gap-3 overflow-x-auto whitespace-nowrap text-slate-600">
+            <li><a href="#resposta-rapida" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Resposta</a></li>
+            <li><a href="#intencao" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Busca</a></li>
+            <li><a href="#glossario" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Glossário</a></li>
+            <li><a href="#exemplos" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Exemplos</a></li>
+            <li><a href="#sinais" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Qualidade</a></li>
+            <li><a href="#faq" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">FAQ</a></li>
+          </ul>
+        </nav>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
+            <section id="resposta-rapida" className="rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-[0_18px_60px_rgba(16,185,129,0.12)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Resposta rápida</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">O que saber sobre {cluster.primaryKeyword}</h2>
+              <p className="mt-3 leading-7 text-slate-700">{cluster.quickAnswer}</p>
+            </section>
+
+            <section id="intencao" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Intenção de busca</h2>
+              <p className="mt-3 leading-7 text-slate-600">{cluster.intent}</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {cluster.queryVariants.map((query) => (
+                  <span key={query} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+                    {query}
+                  </span>
+                ))}
+              </div>
+            </section>
+
+            <section id="glossario" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Mini glossário do tema</h2>
+              <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+                {cluster.glossary.map((item) => (
+                  <div key={item.term} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <dt className="font-semibold text-slate-950">{item.term}</dt>
+                    <dd className="mt-1 text-sm leading-6 text-slate-600">{item.meaning}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section id="exemplos" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Exemplos de uso e interpretação</h2>
+              <div className="mt-5 space-y-3">
+                {cluster.examples.map((example) => (
+                  <article key={example.phrase} className="rounded-2xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-950">“{example.phrase}”</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{example.interpretation}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section id="sinais" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Por que este guia responde melhor à busca?</h2>
+              <ul className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                {cluster.contentSignals.map((signal) => (
+                  <li key={signal} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">{signal}</li>
+                ))}
+              </ul>
+            </section>
+
+            <div className="space-y-6">
+              {cluster.sections.map((section) => (
+                <section key={section.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+                  <h2 className="text-2xl font-semibold tracking-tight">{section.title}</h2>
+                  <p className="mt-3 leading-7 text-slate-600">{section.body}</p>
+                </section>
+              ))}
+            </div>
+
+            <section id="faq" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Perguntas frequentes</h2>
+              <div className="mt-5 space-y-4">
+                {cluster.faqs.map((faq) => (
+                  <article key={faq.question} className="border-b border-slate-200 pb-4 last:border-0 last:pb-0">
+                    <h3 className="font-semibold text-slate-950">{faq.question}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{faq.answer}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <section id="entidades" className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-lg font-semibold">Entidades semânticas</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {cluster.semanticEntities.map((entity) => (
+                  <span key={entity} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-800">
+                    {entity}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-600">Público principal: {cluster.audience.join(", ")}.</p>
+            </section>
+
+            <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_18px_60px_rgba(15,23,42,0.16)]">
+              <h2 className="text-lg font-semibold">Próximos passos</h2>
+              <ul className="mt-4 space-y-3 text-sm text-slate-200">
+                <li><Link href="/o-que-significa" className="underline underline-offset-4">Buscar significado direto</Link></li>
+                <li><Link href="/girias" className="underline underline-offset-4">Explorar glossário completo</Link></li>
+                <li><Link href="/girias/regionais" className="underline underline-offset-4">Ver gírias regionais</Link></li>
+              </ul>
+            </section>
+
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-lg font-semibold">Outros guias</h2>
+              <ul className="mt-4 space-y-3 text-sm">
+                {SEO_KEYWORD_CLUSTERS.filter((item) => item.slug !== cluster.slug).map((item) => (
+                  <li key={item.slug}>
+                    <Link href={`/guias/${item.slug}`} className="font-medium text-slate-700 underline underline-offset-4 hover:text-emerald-700">
+                      {item.shortTitle}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </aside>
         </div>
-      </section>
-
-      <section id="entidades" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Entidades e contexto semântico</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {cluster.semanticEntities.map((entity) => (
-            <span key={entity} className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
-              {entity}
-            </span>
-          ))}
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Público principal: {cluster.audience.join(", ")}.
-        </p>
-      </section>
-
-      <section id="sinais" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Por que este guia responde melhor à busca?</h2>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          {cluster.contentSignals.map((signal) => (
-            <li key={signal}>{signal}</li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="mt-8 space-y-6">
-        {cluster.sections.map((section) => (
-          <section key={section.title} className="rounded-xl border p-5">
-            <h2 className="text-xl font-semibold">{section.title}</h2>
-            <p className="mt-2 text-muted-foreground">{section.body}</p>
-          </section>
-        ))}
       </div>
-
-      <section id="faq" className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Perguntas frequentes</h2>
-        <div className="mt-4 space-y-4">
-          {cluster.faqs.map((faq) => (
-            <article key={faq.question}>
-              <h3 className="font-semibold">{faq.question}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{faq.answer}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Próximos passos no Gíria AI</h2>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          <li><Link href="/o-que-significa" className="underline underline-offset-4">Buscar significado direto de uma gíria</Link></li>
-          <li><Link href="/girias" className="underline underline-offset-4">Explorar o glossário completo</Link></li>
-          <li><Link href="/girias/regionais" className="underline underline-offset-4">Ver gírias regionais do Brasil</Link></li>
-        </ul>
-      </section>
-
-      <section className="mt-8 rounded-xl border p-5">
-        <h2 className="text-xl font-semibold">Outros guias relacionados</h2>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
-          {SEO_KEYWORD_CLUSTERS.filter((item) => item.slug !== cluster.slug).map((item) => (
-            <li key={item.slug}>
-              <Link href={`/guias/${item.slug}`} className="underline underline-offset-4">
-                {item.shortTitle}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
     </main>
   );
 }
