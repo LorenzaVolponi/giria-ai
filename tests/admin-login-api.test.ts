@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { authenticator } from "otplib";
 import { POST } from "../src/app/api/v1/admin/login/route";
 import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
 
@@ -44,6 +45,37 @@ describe("admin login api", () => {
     const setCookie = res.headers.get("set-cookie") || "";
     expect(setCookie).toContain("giria_admin_session");
     expect(setCookie).toContain("giria_admin_actor");
+  });
+
+  it("accepts valid credentials with configured TOTP", async () => {
+    const secret = authenticator.generateSecret();
+    vi.stubEnv("ADMIN_LOGIN", "owner");
+    vi.stubEnv("ADMIN_PASSWORD", "correct-horse");
+    vi.stubEnv("ADMIN_CODES", "2468");
+    vi.stubEnv("ADMIN_TOTP_SECRET", secret);
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.89" },
+      body: JSON.stringify({ login: "owner", password: "correct-horse", code: "2468", totp: authenticator.generate(secret) }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects configured credentials when TOTP is invalid", async () => {
+    vi.stubEnv("ADMIN_LOGIN", "owner");
+    vi.stubEnv("ADMIN_PASSWORD", "correct-horse");
+    vi.stubEnv("ADMIN_CODES", "2468");
+    vi.stubEnv("ADMIN_TOTP_SECRET", authenticator.generateSecret());
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.90" },
+      body: JSON.stringify({ login: "owner", password: "correct-horse", code: "2468", totp: "000000" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
   });
 
   it("accepts alternative validation code", async () => {
