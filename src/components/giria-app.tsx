@@ -621,26 +621,30 @@ export default function GiriaApp() {
   // =========================================================================
   // Tab navigation config
   // =========================================================================
-  const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; href?: string }> = [
+  const tabs: Array<{ id: TabId; label: string; mobileLabel?: string; icon: React.ReactNode; href?: string }> = [
     { id: "busca", label: "Busca", icon: <Search className="h-4 w-4" /> },
     {
       id: "glossario",
       label: "Glossário",
+      mobileLabel: "Gírias",
       icon: <BookMarked className="h-4 w-4" />,
     },
     {
       id: "favoritos",
       label: "Favoritos",
+      mobileLabel: "Salvos",
       icon: <Heart className="h-4 w-4" />,
     },
     {
       id: "comunidade",
       label: "Comunidade",
+      mobileLabel: "Comun.",
       icon: <Users className="h-4 w-4" />,
     },
     {
       id: "sugestoes",
       label: "Sugestões",
+      mobileLabel: "Enviar",
       icon: <MessageCircle className="h-4 w-4" />,
       href: "/girias/enviadas-por-usuarios",
     },
@@ -747,21 +751,47 @@ export default function GiriaApp() {
       )}
 
       {/* Hero */}
-      <div className="text-center space-y-2 pt-4 pb-2">
+      <div className="text-center space-y-3 pt-2 pb-1 sm:pt-4 sm:pb-2">
         <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
           <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0" />
-          <h2 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight tracking-tight">
             Entenda o que os adolescentes estão falando
           </h2>
           <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0 hidden sm:block" />
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto">
-          Digite uma gíria ou frase e receba a tradução objetiva
+        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto px-2">
+          Tradução rápida, contexto e nível de atenção para pais e educadores.
         </p>
+        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 px-1 sm:hidden">
+          <button
+            type="button"
+            onClick={() => searchAndGo("slay")}
+            className="rounded-2xl border border-emerald-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-emerald-900 dark:bg-gray-900"
+          >
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Rápido</span>
+            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Traduzir</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleRandomTerm}
+            className="rounded-2xl border border-amber-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-amber-900 dark:bg-gray-900"
+          >
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Surpresa</span>
+            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Aleatória</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="rounded-2xl border border-teal-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-teal-900 dark:bg-gray-900"
+          >
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-400">Dúvida</span>
+            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Chat IA</span>
+          </button>
+        </div>
       </div>
 
       {/* Search bar */}
-      <div className="flex gap-2 max-w-xl mx-auto">
+      <div className="sticky top-[4.25rem] z-30 -mx-1 flex max-w-xl gap-2 rounded-2xl border border-emerald-100/80 bg-gray-50/95 p-2 shadow-sm backdrop-blur dark:border-emerald-950 dark:bg-gray-950/90 sm:static sm:mx-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -770,7 +800,7 @@ export default function GiriaApp() {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
             placeholder='Digite uma gíria... (pressione "/")'
-            className="pl-9 h-11"
+            className="h-12 rounded-xl pl-9 text-base shadow-sm sm:h-11 sm:text-sm"
           />
           {searchQuery && (
             <button
@@ -784,7 +814,7 @@ export default function GiriaApp() {
         <Button
           onClick={() => handleTranslate()}
           disabled={isLoading || !searchQuery.trim()}
-          className="h-11 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium"
+          className="h-12 rounded-xl px-4 bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 sm:h-11 sm:px-5"
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
@@ -847,7 +877,7 @@ export default function GiriaApp() {
       {/* Popular slang chips + discover button */}
       {!translationResult && !isLoading && (
         <div className="space-y-3">
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-between gap-3 px-1 sm:justify-center sm:px-0">
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
               <Zap className="inline h-4 w-4 mr-1 text-amber-500" />
               Gírias populares
@@ -861,12 +891,12 @@ export default function GiriaApp() {
               Descobrir gíria
             </button>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:pb-0">
             {POPULAR_TERMS.map((term, i) => (
               <motion.button
                 key={term}
                 onClick={() => searchAndGo(term)}
-                className="rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                className="shrink-0 snap-start rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 sm:px-3 sm:py-1.5 sm:shadow-none"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.2, delay: i * 0.01 }}
@@ -1720,8 +1750,8 @@ export default function GiriaApp() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
+        <div className="max-w-3xl mx-auto flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
               <MessageCircle className="h-4 w-4 text-white" />
@@ -1793,7 +1823,7 @@ export default function GiriaApp() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-5 pb-24 sm:pb-5">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-3 py-4 pb-28 sm:px-4 sm:py-5 sm:pb-5">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1852,25 +1882,25 @@ export default function GiriaApp() {
 
       {/* Bottom mobile navigation bar — mobile only */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden dark:border-gray-800 dark:bg-gray-900/95"
         aria-label="Navegação mobile"
       >
-        <div className="flex items-center justify-around px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+        <div className="grid grid-cols-6 px-1 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {tabs.map((tab) => (
             tab.href ? (
             <Link
               key={tab.label}
               href={tab.href}
-              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              className="relative flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             >
               <span>{tab.icon}</span>
-              <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+              <span className="text-[9px] font-semibold leading-none">{tab.mobileLabel ?? tab.label}</span>
             </Link>
             ) : (
             <button
               key={tab.label}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] px-1 py-1 rounded-lg transition-colors ${
+              className={`relative flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-colors ${
                 activeTab === tab.id
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
@@ -1880,8 +1910,8 @@ export default function GiriaApp() {
               <span className={`transition-transform ${activeTab === tab.id ? "scale-110" : ""}`}>
                 {tab.icon}
               </span>
-              <span className="text-[10px] font-medium leading-none">
-                {tab.label}
+              <span className="text-[9px] font-semibold leading-none">
+                {tab.mobileLabel ?? tab.label}
               </span>
               {activeTab === tab.id && (
                 <span className="absolute -top-1.5 w-1 h-1 rounded-full bg-emerald-500" />
@@ -1895,7 +1925,7 @@ export default function GiriaApp() {
       {/* Floating Chat IA Button */}
       <button
         onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-20 sm:bottom-6 right-4 z-50 h-14 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center ${
+        className={`fixed bottom-[5.75rem] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg transition-all duration-200 hover:from-emerald-600 hover:to-teal-600 hover:shadow-xl sm:bottom-6 ${
           chatMessages.length > 0 && !chatOpen ? "ring-2 ring-emerald-300 dark:ring-emerald-700" : ""
         }`}
         aria-label="Chat IA"
@@ -1933,7 +1963,7 @@ export default function GiriaApp() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="fixed z-[60] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl rounded-2xl overflow-hidden flex flex-col bottom-[6.5rem] sm:bottom-20 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-[400px] h-[70vh] sm:h-[500px]"
+              className="fixed inset-x-0 bottom-0 z-[60] flex h-[82dvh] flex-col overflow-hidden rounded-t-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900 sm:inset-x-auto sm:bottom-20 sm:right-6 sm:h-[500px] sm:w-[400px] sm:rounded-2xl"
             >
               {/* Chat header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shrink-0">
@@ -2057,7 +2087,7 @@ export default function GiriaApp() {
               </div>
 
               {/* Input area */}
-              <div className="flex gap-2 p-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
+              <div className="flex shrink-0 gap-2 border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 dark:border-gray-800">
                 <Input
                   ref={chatInputRef}
                   value={chatInput}
