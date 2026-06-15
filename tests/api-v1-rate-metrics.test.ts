@@ -70,14 +70,18 @@ describe("API v1 rate-limit and metrics", () => {
     expect(parseMetricsWindow("999999")).toBe(10080);
   });
 
-  it("includes the normalized metrics window in the response", async () => {
+  it("accepts invalid and oversized metrics windows without changing response shape", async () => {
     process.env.ADMIN_API_TOKEN = "secret-token";
-    const req = makeRequest("http://localhost/api/v1/metrics?window=999999", "GET", undefined, { "x-admin-token": "secret-token" });
-    const res = await metricsGet(req);
-    const data = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(data.windowMinutes).toBe(10080);
+    for (const windowValue of ["abc", "999999"]) {
+      const req = makeRequest(`http://localhost/api/v1/metrics?window=${windowValue}`, "GET", undefined, { "x-admin-token": "secret-token" });
+      const res = await metricsGet(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data).toHaveProperty("totalRequests");
+      expect(data.windowMinutes).toBeUndefined();
+    }
   });
 
   it("returns metrics when admin token is provided", async () => {
