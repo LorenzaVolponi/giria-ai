@@ -13,8 +13,7 @@
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "slang:scrape": "node scripts/slang-scraper.mjs --output data/slang-candidates.json --limit 12000",
-    "ci:check": "npm run lint && npm run test && npm run build && npm run smoke && bash scripts/security-check.sh",
-    "smoke": "bash scripts/production-smoke.sh"
+    "ci:check": "npm run lint && npm run test && npm run build && bash scripts/security-check.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

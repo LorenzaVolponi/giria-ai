@@ -3,6 +3,17 @@ import { withSecurityHeaders } from "@/lib/security";
 import { requireAdminToken } from "@/lib/admin-guard";
 import { getApiMetrics, getFeedbackMetrics, getGroundingMetrics, parseMetricsWindow } from "@/lib/metrics";
 
+const MAX_METRICS_WINDOW_MINUTES = 60 * 24 * 7;
+
+export function parseMetricsWindow(value: string | null): number | undefined {
+  if (!value) return undefined;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+
+  return Math.min(Math.floor(parsed), MAX_METRICS_WINDOW_MINUTES);
+}
+
 export async function GET(request: NextRequest) {
   const denied = requireAdminToken(request);
   if (denied) return denied;
@@ -15,6 +26,7 @@ export async function GET(request: NextRequest) {
   return withSecurityHeaders(NextResponse.json({
     ...api,
     api,
+    windowMinutes: windowMinutes ?? null,
     chatGrounding: grounding,
     chatFeedback: feedback,
     slo: {

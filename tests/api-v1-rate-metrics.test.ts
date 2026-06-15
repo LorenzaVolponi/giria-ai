@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
-import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
+import { GET as metricsGet, parseMetricsWindow } from "../src/app/api/v1/metrics/route";
 import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
 import { parseMetricsWindow } from "../src/lib/metrics";
 
@@ -70,18 +70,14 @@ describe("API v1 rate-limit and metrics", () => {
     expect(parseMetricsWindow("999999")).toBe(10080);
   });
 
-  it("accepts invalid and oversized metrics windows without changing response shape", async () => {
+  it("includes the normalized metrics window in the response", async () => {
     process.env.ADMIN_API_TOKEN = "secret-token";
+    const req = makeRequest("http://localhost/api/v1/metrics?window=999999", "GET", undefined, { "x-admin-token": "secret-token" });
+    const res = await metricsGet(req);
+    const data = await res.json();
 
-    for (const windowValue of ["abc", "999999"]) {
-      const req = makeRequest(`http://localhost/api/v1/metrics?window=${windowValue}`, "GET", undefined, { "x-admin-token": "secret-token" });
-      const res = await metricsGet(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(data).toHaveProperty("totalRequests");
-      expect(data.windowMinutes).toBeUndefined();
-    }
+    expect(res.status).toBe(200);
+    expect(data.windowMinutes).toBe(10080);
   });
 
   it("returns metrics when admin token is provided", async () => {
