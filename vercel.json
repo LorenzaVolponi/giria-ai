@@ -1,13 +1,25 @@
 {
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
   "rewrites": [
-    { "source": "/health", "destination": "/api/v1/health" },
-    { "source": "/api/healthz", "destination": "/api/v1/health" }
+    {
+      "source": "/health",
+      "destination": "/api/v1/health"
+    },
+    {
+      "source": "/api/healthz",
+      "destination": "/api/v1/health"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "x-release-channel", "value": "stable" }
+        {
+          "key": "x-release-channel",
+          "value": "stable"
+        }
       ]
     }
   ]

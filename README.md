@@ -134,8 +134,10 @@ Flags legadas (compatibilidade):
 ## Deploy na Vercel
 1. Conecte o repositório na Vercel
 2. Configure variáveis de ambiente
-3. Build command: `npm run build`
-4. Output: padrão Next.js
+3. Runtime Node: `20.20.2` ou qualquer `>=20.19.0` (definido em `package.json`, `.nvmrc` e `.node-version`)
+4. Install command: `npm ci` (definido em `vercel.json` para evitar conflito com outros lockfiles)
+5. Build command: `npm run build`
+6. Output: padrão Next.js
 
 
 ## Enxame de agentes (manutenção incremental)
