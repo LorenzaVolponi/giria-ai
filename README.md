@@ -13,6 +13,16 @@ npm install
 npm run dev
 ```
 
+Validação completa para garantir que tudo está pronto para rodar:
+```bash
+npm run doctor
+```
+
+Em ambiente limpo, instale dependências via `npm ci` e rode a validação completa:
+```bash
+npm run doctor:install
+```
+
 Build de produção:
 ```bash
 npm run build
@@ -31,6 +41,8 @@ Copie e ajuste as variáveis com `cp .env.example .env`.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`: envio de e-mail de lead
 - `OLLAMA_URL`, `OLLAMA_MODEL`: opcional, avaliação local de gírias por LLM
 - `PRODUCTION_BASE_URL` (GitHub Actions Variable): URL usada no smoke automático pós-push na `main`.
+- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`: Redis distribuído opcional para rate limit em produção.
+- `VERCEL_GIT_COMMIT_SHA`: preenchido pela Vercel/GitHub para exibir hash curto no healthcheck.
 
 ## Endpoints de API
 - `GET /api/v1/health` → status do serviço
@@ -83,6 +95,8 @@ Flags legadas (compatibilidade):
 - `bash scripts/dev.sh`
 - `bash scripts/build.sh`
 - `bash scripts/security-check.sh`
+- `npm run doctor` (lint + testes + build standalone + smoke + audit)
+- `npm run doctor:install` (npm ci + doctor completo)
 - `bash scripts/auto-update.sh`
 - `bash scripts/bootstrap-audit.sh`
 - `bash scripts/release-guard.sh`
@@ -97,6 +111,8 @@ Flags legadas (compatibilidade):
 - `bash scripts/auto-pr.sh "mensagem"`
 - `bash scripts/full-auto-maintenance.sh`
 - `npm run ci:check` (testes críticos + build de produção em um único comando)
+- `npm run audit:ux` (relatório UX/Admin/Telemetria em `reports/`)
+- `npm run audit:ux:strict` (falha em achados critical/high)
 
 ## Painel privado de validação (/admin)
 - URL: `/admin`
