@@ -17,14 +17,17 @@
     "smoke": "bash scripts/production-smoke.sh",
     "quality": "bash scripts/quality-local.sh",
     "quality:fast": "RUN_BUILD=0 bash scripts/quality-local.sh",
-    "quality:secure": "RUN_SECURITY=1 bash scripts/quality-local.sh"
+    "quality:secure": "RUN_SECURITY=1 bash scripts/quality-local.sh",
+    "doctor": "bash scripts/doctor.sh",
+    "doctor:install": "RUN_INSTALL=1 bash scripts/doctor.sh",
+    "audit:ux": "bash scripts/ux-admin-telemetry-audit.sh",
+    "audit:ux:strict": "STRICT=true bash scripts/ux-admin-telemetry-audit.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
-    "@mdxeditor/editor": "^3.39.1",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -107,5 +110,8 @@
   "overrides": {
     "postcss": "^8.5.12",
     "prismjs": "^1.30.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }
