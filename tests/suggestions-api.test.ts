@@ -173,6 +173,16 @@ describe("suggestions api", () => {
     expect(data2.error).toContain("Idempotency-Key");
   });
 
+  it("protects private suggestion statuses and summaries", async () => {
+    const privateReq = new NextRequest("http://localhost/api/v1/suggestions?status=pending");
+    const privateRes = await GET(privateReq);
+    expect(privateRes.status).toBe(401);
+
+    const summaryReq = new NextRequest("http://localhost/api/v1/suggestions?includeSummary=true");
+    const summaryRes = await GET(summaryReq);
+    expect(summaryRes.status).toBe(401);
+  });
+
   it("returns summary when requested and normalizes invalid query params", async () => {
     vi.spyOn(pipeline, "listApprovedSuggestions").mockResolvedValue([]);
     vi.spyOn(pipeline, "getSuggestionStatusCounts").mockResolvedValue({
@@ -182,7 +192,7 @@ describe("suggestions api", () => {
       all: 8,
     });
 
-    const req = new NextRequest("http://localhost/api/v1/suggestions?status=invalid&limit=9999&includeSummary=true");
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=invalid&limit=9999&includeSummary=true", { headers: { "x-admin-token": "admin-panel-session" } });
     const res = await GET(req);
     const data = await res.json();
 

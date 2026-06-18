@@ -3,6 +3,7 @@ import { getClientIp, withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { redisGet, redisSetEx } from "@/lib/redis-store";
+import { requireAdminToken } from "@/lib/admin-guard";
 import {
   autoPromoteApprovedSlang,
   getSuggestionStatusCounts,
@@ -97,6 +98,11 @@ export async function GET(request?: NextRequest) {
   const rawLimit = Number(request?.nextUrl.searchParams.get("limit") || 200);
   const limit = Number.isFinite(rawLimit) ? Math.min(300, Math.max(1, Math.floor(rawLimit))) : 200;
   const includeSummary = request?.nextUrl.searchParams.get("includeSummary") === "true";
+  const isPrivateRead = status !== "approved" || includeSummary;
+  if (isPrivateRead && request) {
+    const denied = requireAdminToken(request);
+    if (denied) return denied;
+  }
   const from = request?.nextUrl.searchParams.get("from");
   const to = request?.nextUrl.searchParams.get("to");
 

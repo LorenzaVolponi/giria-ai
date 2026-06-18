@@ -33,7 +33,7 @@ describe("suggestions GET API status/limit handling", () => {
   it("uses listSuggestionsByStatus for pending status and clamps limit", async () => {
     listSuggestionsByStatusMock.mockResolvedValueOnce([]);
 
-    const req = new NextRequest("http://localhost/api/v1/suggestions?status=pending&limit=9999");
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=pending&limit=9999", { headers: { "x-admin-token": "admin-panel-session" } });
     const res = await GET(req);
 
     expect(res.status).toBe(200);
@@ -44,7 +44,7 @@ describe("suggestions GET API status/limit handling", () => {
   it("applies minimum limit clamp when invalid/low limit is passed", async () => {
     listSuggestionsByStatusMock.mockResolvedValueOnce([]);
 
-    const req = new NextRequest("http://localhost/api/v1/suggestions?status=rejected&limit=0");
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=rejected&limit=0", { headers: { "x-admin-token": "admin-panel-session" } });
     const res = await GET(req);
 
     expect(res.status).toBe(200);

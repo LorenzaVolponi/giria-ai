@@ -35,7 +35,7 @@ describe("suggestions GET API summary invocation", () => {
     getSuggestionStatusCountsMock.mockResolvedValueOnce({ pending: 0, approved: 0, rejected: 0, all: 0 });
     getSuggestionWindowCountsMock.mockResolvedValueOnce({ dApproved: 0, dRejected: 0, wApproved: 0, wRejected: 0 });
 
-    const req = new NextRequest("http://localhost/api/v1/suggestions?status=approved&includeSummary=true");
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=approved&includeSummary=true", { headers: { "x-admin-token": "admin-panel-session" } });
     const res = await GET(req);
     expect(res.status).toBe(200);
     expect(getSuggestionStatusCountsMock).toHaveBeenCalledTimes(1);

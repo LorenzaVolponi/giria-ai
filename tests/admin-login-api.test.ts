@@ -45,6 +45,24 @@ describe("admin login api", () => {
     const setCookie = res.headers.get("set-cookie") || "";
     expect(setCookie).toContain("giria_admin_session");
     expect(setCookie).toContain("giria_admin_actor");
+    expect(setCookie).not.toContain("admin-panel-session");
+  });
+
+  it("requires a dedicated session secret for production cookie login", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_API_TOKEN", "prod-admin-token");
+    vi.stubEnv("ADMIN_SESSION_SECRET", "");
+    vi.stubEnv("ADMIN_LOGIN", "owner");
+    vi.stubEnv("ADMIN_PASSWORD", "correct-horse");
+    vi.stubEnv("ADMIN_CODES", "2468");
+
+    const req = new NextRequest("http://localhost/api/v1/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.91" },
+      body: JSON.stringify({ login: "owner", password: "correct-horse", code: "2468" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(503);
   });
 
   it("accepts valid credentials with configured TOTP", async () => {

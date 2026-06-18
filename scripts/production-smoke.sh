@@ -67,7 +67,16 @@ else
   echo "[production-smoke] Metrics protegido OK (${METRICS_STATUS} sem token)"
 fi
 
-curl -fsS "${BASE_URL}/api/v1/visits" >/dev/null
-echo "[production-smoke] Visits OK"
+if [[ -n "${ADMIN_API_TOKEN:-}" ]]; then
+  curl -fsS "${BASE_URL}/api/v1/visits" -H "x-admin-token: ${ADMIN_API_TOKEN}" >/dev/null
+  echo "[production-smoke] Visits autenticado OK"
+else
+  VISITS_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' "${BASE_URL}/api/v1/visits")
+  if [[ "${VISITS_STATUS}" != "401" && "${VISITS_STATUS}" != "503" ]]; then
+    echo "[production-smoke][ERRO] /api/v1/visits sem token retornou ${VISITS_STATUS}; esperado 401 ou 503."
+    exit 1
+  fi
+  echo "[production-smoke] Visits protegido OK (${VISITS_STATUS} sem token)"
+fi
 
 echo "[production-smoke] Smoke de produção concluído ✅"

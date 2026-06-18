@@ -32,7 +32,7 @@ describe("suggestions GET API windowSummary", () => {
     getSuggestionStatusCountsMock.mockResolvedValueOnce({ pending: 1, approved: 2, rejected: 3, all: 6 });
     getSuggestionWindowCountsMock.mockResolvedValueOnce({ dApproved: 2, dRejected: 1, wApproved: 5, wRejected: 3 });
 
-    const req = new NextRequest("http://localhost/api/v1/suggestions?status=approved&includeSummary=true");
+    const req = new NextRequest("http://localhost/api/v1/suggestions?status=approved&includeSummary=true", { headers: { "x-admin-token": "admin-panel-session" } });
     const res = await GET(req);
 
     expect(res.status).toBe(200);

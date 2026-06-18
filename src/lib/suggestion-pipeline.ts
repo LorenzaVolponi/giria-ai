@@ -22,6 +22,22 @@ const webScoreCache = new Map<string, { score: number; expiresAt: number }>();
 const revalidateCooldown = new Map<string, number>();
 const ingressByIp = new Map<string, { total: number; approved: number; rejected: number; pending: number; lastAt: number }>();
 
+
+function numberEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 2500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function retry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 150): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i += 1) {
@@ -95,9 +111,10 @@ export async function webSignalScore(term: string): Promise<number> {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
     "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
   };
+  const perRequestTimeoutMs = numberEnv("SUGGESTION_WEB_TIMEOUT_MS", 2500);
   const htmlBlocks = await Promise.all(
     sources.map(async (url) => {
-      const res = await retry(async () => fetch(url, { cache: "no-store", headers: requestHeaders }), 2, 120).catch(() => null);
+      const res = await retry(async () => fetchWithTimeout(url, { cache: "no-store", headers: requestHeaders }, perRequestTimeoutMs), 2, 120).catch(() => null);
       if (!res?.ok) return "";
       return (await res.text()).toLowerCase();
     }),
@@ -131,11 +148,15 @@ async function localLlmEvaluate(input: SuggestionInput): Promise<{ adjustedMeani
 
   const prompt = `Avalie a gíria brasileira e melhore o significado de forma objetiva. Responda JSON com keys adjustedMeaning e confidenceBoost (0-0.2). Gíria: ${input.term}; Significado: ${input.meaning}; Contexto: ${input.context ?? ""}`;
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false, format: "json" }),
-  }).catch(() => null);
+  const res = await fetchWithTimeout(
+    endpoint,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model, prompt, stream: false, format: "json" }),
+    },
+    numberEnv("SUGGESTION_LLM_TIMEOUT_MS", 3000),
+  ).catch(() => null);
 
   if (!res?.ok) return { adjustedMeaning: input.meaning, confidenceBoost: 0 };
   const data = (await res.json().catch(() => ({}))) as { response?: string };

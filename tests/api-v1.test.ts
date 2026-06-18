@@ -36,12 +36,12 @@ describe("API v1 integration", () => {
     expect(json).toHaveProperty("intencaoSocialEmocional");
   });
 
-  it("visits accepts POST and returns stats", async () => {
+  it("visits accepts POST and returns stats for authenticated admin", async () => {
     const postReq = makeRequest("http://localhost/api/v1/visits", "POST", { path: "/diagnostico" });
     const postRes = await visitsPost(postReq);
     expect(postRes.status).toBe(200);
 
-    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, { "x-admin-token": "admin-panel-session" });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();
 
@@ -49,8 +49,7 @@ describe("API v1 integration", () => {
     expect(data).toHaveProperty("totalVisits");
   });
 
-  it("visits GET blocks when admin token is configured and missing", async () => {
-    process.env.ADMIN_API_TOKEN = "secret-token";
+  it("visits GET always requires admin auth", async () => {
     const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
     const getRes = await visitsGet(getReq);
     expect(getRes.status).toBe(401);

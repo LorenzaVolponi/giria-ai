@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type HealthResponse = { status: string; service: string; timestamp: string };
+type HealthCheck = { status: "ok" | "warn"; message: string };
+type HealthResponse = {
+  status: string;
+  service: string;
+  timestamp: string;
+  uptimeSeconds?: number;
+  runtime?: string;
+  commit?: string | null;
+  checks?: Record<string, HealthCheck>;
+};
 type VisitStats = { totalVisits: number; uniqueVisitors: number; byCountry: Record<string, number> };
 
 export function SystemHealthCard() {
@@ -21,8 +30,10 @@ export function SystemHealthCard() {
       .catch(() => setStatus("error"));
 
     fetch("/api/v1/visits")
-      .then((r) => r.json())
-      .then((v: VisitStats) => setVisits(v))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((v: VisitStats | null) => {
+        if (v) setVisits(v);
+      })
       .catch(() => null);
   }, []);
 
@@ -37,6 +48,19 @@ export function SystemHealthCard() {
           <>
             <p><strong>Serviço:</strong> {data.service}</p>
             <p><strong>Último ping:</strong> {new Date(data.timestamp).toLocaleString("pt-BR")}</p>
+            {typeof data.uptimeSeconds === "number" && <p><strong>Uptime:</strong> {Math.floor(data.uptimeSeconds / 60)} min</p>}
+            {data.runtime && <p><strong>Runtime:</strong> {data.runtime}</p>}
+            {data.commit && <p><strong>Commit:</strong> {data.commit}</p>}
+            {data.checks && (
+              <div className="space-y-1 rounded-md border bg-muted/30 p-3">
+                <p className="font-medium">Checks operacionais</p>
+                {Object.entries(data.checks).map(([name, check]) => (
+                  <p key={name} className={check.status === "ok" ? "text-emerald-700" : "text-amber-700"}>
+                    <strong>{name}:</strong> {check.message}
+                  </p>
+                ))}
+              </div>
+            )}
             {visits && (
               <>
                 <p><strong>Visitas totais:</strong> {visits.totalVisits}</p>
