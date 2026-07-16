@@ -75,6 +75,7 @@ interface TranslationResult {
   region: string;
   isPhrase: boolean;
   phraseTranslation: string | null;
+  notFound?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +189,22 @@ const POPULAR_TERMS = [
   "brabo",
   "miga",
 ];
+
+function getPopularTerms(): string[] {
+  const manualTerms = new Set(POPULAR_TERMS);
+  const dynamicTerms = SLANG_DATA
+    .filter((item) => item.popularityStatus === "trending" || item.popularityStatus === "ativo")
+    .sort((a, b) => {
+      const aScore = a.popularityStatus === "trending" ? 2 : 1;
+      const bScore = b.popularityStatus === "trending" ? 2 : 1;
+      return bScore - aScore || a.term.localeCompare(b.term, "pt-BR");
+    })
+    .map((item) => item.term);
+
+  return Array.from(new Set([...dynamicTerms, ...manualTerms])).slice(0, 28);
+}
+
+const POPULAR_DISPLAY_TERMS = getPopularTerms();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -498,6 +515,7 @@ export default function GiriaApp() {
           region: "Brasil",
           isPhrase: q.includes(" "),
           phraseTranslation: null,
+          notFound: true,
         });
       } catch (err) {
         console.error("Translate error:", err);
@@ -680,6 +698,47 @@ export default function GiriaApp() {
     );
   };
 
+  const renderPixSupportCard = (compact = false) => (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+      className={`mx-auto max-w-xl overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-sm dark:border-emerald-900 dark:from-emerald-950/40 dark:via-gray-900 dark:to-teal-950/30 ${
+        compact ? "p-3" : "p-4 sm:p-5"
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1 text-left">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            Ajuda que mantém o projeto no ar
+          </p>
+          <h3 className={`${compact ? "text-sm" : "text-base"} font-bold text-gray-900 dark:text-gray-100`}>
+            Curtiu? Apoie via PIX 💚
+          </h3>
+          <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+            Sua contribuição ajuda a manter o Gíria AI gratuito, atualizado e cheio de gírias novas.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            <strong>PIX:</strong> <span className="font-semibold text-gray-800 dark:text-gray-200">007aibr@gmail.com</span> · Lorenza Volponi
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            handleSponsorClick();
+            void handleCopyPix();
+          }}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-bold text-white shadow-md transition hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg active:scale-[0.98]"
+          aria-label="Apoiar o projeto via PIX copiando a chave"
+        >
+          {pixCopied ? "Chave copiada!" : "Apoiar com PIX 💚"}
+        </button>
+      </div>
+      {pixFeedback ? <p className="mt-2 text-center text-[11px] font-medium text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
+    </motion.div>
+  );
+
   // =========================================================================
   // TAB 4 — COMUNIDADE
   // =========================================================================
@@ -799,7 +858,7 @@ export default function GiriaApp() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
-            placeholder='Digite uma gíria... (pressione "/")'
+            placeholder='Digite uma gíria tipo "pprt", "rizz", "cringe"...'
             className="h-12 rounded-xl pl-9 text-base shadow-sm sm:h-11 sm:text-sm"
           />
           {searchQuery && (
@@ -850,7 +909,7 @@ export default function GiriaApp() {
         <div className="max-w-xl mx-auto space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-gray-400 dark:text-gray-500">
-              Buscas recentes
+              Você já pesquisou
             </p>
             <button
               onClick={clearSearchHistory}
@@ -888,11 +947,11 @@ export default function GiriaApp() {
               className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 transition-colors"
             >
               <Shuffle className="h-3.5 w-3.5" />
-              Descobrir gíria
+              Me mostra uma gíria
             </button>
           </div>
           <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:pb-0">
-            {POPULAR_TERMS.map((term, i) => (
+            {POPULAR_DISPLAY_TERMS.map((term, i) => (
               <motion.button
                 key={term}
                 onClick={() => searchAndGo(term)}
@@ -907,6 +966,8 @@ export default function GiriaApp() {
           </div>
         </div>
       )}
+
+      {!translationResult && !isLoading && renderPixSupportCard(true)}
 
       {/* Loading skeleton */}
       {isLoading && (
@@ -1065,6 +1126,27 @@ export default function GiriaApp() {
               </>
             )}
 
+            {translationResult.notFound && (
+              <>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                    Essa ainda não tá no nosso radar.
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                    Manda essa gíria pra comunidade e ajuda o dicionário a ficar mais brabo.
+                  </p>
+                  <Link
+                    href={`/girias/enviadas-por-usuarios?term=${encodeURIComponent(translationResult.term)}`}
+                    className="mt-3 inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-700"
+                  >
+                    Mandar essa gíria pra gente
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <Separator />
+              </>
+            )}
+
             {/* Origem */}
             {translationResult.origin && (
               <>
@@ -1187,6 +1269,8 @@ export default function GiriaApp() {
         </motion.div>
       )}
       </AnimatePresence>
+
+      {translationResult && !isLoading && renderPixSupportCard(true)}
     </div>
   );
 
@@ -1844,33 +1928,7 @@ export default function GiriaApp() {
       {/* Footer */}
       <footer className="mt-auto border-t border-emerald-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-gray-900 dark:to-gray-950 pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-            className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
-          >
-            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSponsorClick();
-                  void handleCopyPix();
-                }}
-                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                aria-label="Copiar chave PIX"
-              >
-                {pixCopied ? "Copiado!" : "Copiar chave"}
-              </button>
-            </div>
-            {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
-            <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
-              QR PIX
-            </div>
-          </motion.div>
+          {renderPixSupportCard(true)}
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
           </p>
@@ -1921,6 +1979,20 @@ export default function GiriaApp() {
           ))}
         </div>
       </nav>
+
+      {/* Floating PIX Support Button — desktop only */}
+      <button
+        type="button"
+        onClick={() => {
+          handleSponsorClick();
+          void handleCopyPix();
+        }}
+        className="fixed bottom-6 left-6 z-50 hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl active:scale-[0.98] sm:inline-flex"
+        aria-label="Apoiar o projeto via PIX copiando a chave"
+      >
+        <HeartHandshake className="h-4 w-4" />
+        {pixCopied ? "PIX copiado!" : "Apoiar PIX 💚"}
+      </button>
 
       {/* Floating Chat IA Button */}
       <button
