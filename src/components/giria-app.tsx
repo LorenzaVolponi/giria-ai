@@ -75,6 +75,7 @@ interface TranslationResult {
   region: string;
   isPhrase: boolean;
   phraseTranslation: string | null;
+  notFound?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +189,22 @@ const POPULAR_TERMS = [
   "brabo",
   "miga",
 ];
+
+function getPopularTerms(): string[] {
+  const manualTerms = new Set(POPULAR_TERMS);
+  const dynamicTerms = SLANG_DATA
+    .filter((item) => item.popularityStatus === "trending" || item.popularityStatus === "ativo")
+    .sort((a, b) => {
+      const aScore = a.popularityStatus === "trending" ? 2 : 1;
+      const bScore = b.popularityStatus === "trending" ? 2 : 1;
+      return bScore - aScore || a.term.localeCompare(b.term, "pt-BR");
+    })
+    .map((item) => item.term);
+
+  return Array.from(new Set([...dynamicTerms, ...manualTerms])).slice(0, 28);
+}
+
+const POPULAR_DISPLAY_TERMS = getPopularTerms();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -498,6 +515,7 @@ export default function GiriaApp() {
           region: "Brasil",
           isPhrase: q.includes(" "),
           phraseTranslation: null,
+          notFound: true,
         });
       } catch (err) {
         console.error("Translate error:", err);
@@ -680,6 +698,47 @@ export default function GiriaApp() {
     );
   };
 
+  const renderPixSupportCard = (compact = false) => (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+      className={`mx-auto max-w-xl overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-sm dark:border-emerald-900 dark:from-emerald-950/40 dark:via-gray-900 dark:to-teal-950/30 ${
+        compact ? "p-3" : "p-4 sm:p-5"
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1 text-left">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            Ajuda que mantém o projeto no ar
+          </p>
+          <h3 className={`${compact ? "text-sm" : "text-base"} font-bold text-gray-900 dark:text-gray-100`}>
+            Curtiu? Apoie via PIX 💚
+          </h3>
+          <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+            Sua contribuição ajuda a manter o Gíria AI gratuito, atualizado e cheio de gírias novas.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            <strong>PIX:</strong> <span className="font-semibold text-gray-800 dark:text-gray-200">007aibr@gmail.com</span> · Lorenza Volponi
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            handleSponsorClick();
+            void handleCopyPix();
+          }}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-bold text-white shadow-md transition hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg active:scale-[0.98]"
+          aria-label="Apoiar o projeto via PIX copiando a chave"
+        >
+          {pixCopied ? "Chave copiada!" : "Apoiar com PIX 💚"}
+        </button>
+      </div>
+      {pixFeedback ? <p className="mt-2 text-center text-[11px] font-medium text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
+    </motion.div>
+  );
+
   // =========================================================================
   // TAB 4 — COMUNIDADE
   // =========================================================================
@@ -720,17 +779,18 @@ export default function GiriaApp() {
           className="max-w-xl mx-auto"
         >
           <div
-            className="relative overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-900 cursor-pointer hover:shadow-md transition-shadow"
+            className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-lg shadow-emerald-900/5 backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-900/10 dark:border-emerald-900/60 dark:bg-gray-900/80"
             onClick={() => searchAndGo(termOfDay.term)}
           >
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-600" />
-            <div className="flex items-center gap-3 p-3 sm:p-4 pl-5">
-              <div className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+            <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-emerald-300/20 blur-2xl" />
+            <div className="flex items-center gap-3 p-4 sm:p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 shadow-inner dark:bg-emerald-900/50">
                 <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                     Gíria do Dia
                   </span>
                 </div>
@@ -741,7 +801,7 @@ export default function GiriaApp() {
                   {termOfDay.meaning}
                 </p>
               </div>
-              <button className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center gap-1">
+              <button className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition group-hover:bg-emerald-700">
                 Ver detalhes
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -751,18 +811,38 @@ export default function GiriaApp() {
       )}
 
       {/* Hero */}
-      <div className="text-center space-y-3 pt-2 pb-1 sm:pt-4 sm:pb-2">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0" />
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight tracking-tight">
-            Entenda o que os adolescentes estão falando
-          </h2>
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0 hidden sm:block" />
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 px-4 py-6 text-center shadow-2xl shadow-emerald-900/10 backdrop-blur-xl dark:border-emerald-900/50 dark:bg-gray-900/80 sm:px-8 sm:py-8">
+        <div className="absolute -left-16 -top-20 h-40 w-40 rounded-full bg-emerald-300/30 blur-3xl" />
+        <div className="absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="relative space-y-4">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300">
+            <Sparkles className="h-3.5 w-3.5" />
+            Tradutor de gírias com contexto
+          </div>
+          <div className="space-y-3">
+            <h2 className="mx-auto max-w-2xl text-3xl font-black leading-tight tracking-tight text-gray-950 dark:text-gray-50 sm:text-5xl">
+              Entenda o papo dos jovens sem ficar boiando.
+            </h2>
+            <p className="mx-auto max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-300 sm:text-base">
+              Tradução rápida, nível de atenção e contexto cultural para pais, educadores e curiosos.
+            </p>
+          </div>
+          <div className="mx-auto grid max-w-2xl grid-cols-3 gap-2 text-left">
+            <div className="rounded-2xl border border-emerald-100 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-950/50">
+              <p className="text-lg font-black text-gray-950 dark:text-gray-50">{SLANG_DATA.length}+</p>
+              <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">gírias no radar</p>
+            </div>
+            <div className="rounded-2xl border border-teal-100 bg-white/80 p-3 shadow-sm dark:border-teal-900 dark:bg-gray-950/50">
+              <p className="text-lg font-black text-gray-950 dark:text-gray-50">{CATEGORIES.length}</p>
+              <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">categorias</p>
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-white/80 p-3 shadow-sm dark:border-amber-900 dark:bg-gray-950/50">
+              <p className="text-lg font-black text-gray-950 dark:text-gray-50">4</p>
+              <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">níveis de atenção</p>
+            </div>
+          </div>
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto px-2">
-          Tradução rápida, contexto e nível de atenção para pais e educadores.
-        </p>
-        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 px-1 sm:hidden">
+        <div className="relative mx-auto mt-4 grid max-w-xl grid-cols-3 gap-2 px-1 sm:hidden">
           <button
             type="button"
             onClick={() => searchAndGo("slay")}
@@ -791,16 +871,16 @@ export default function GiriaApp() {
       </div>
 
       {/* Search bar */}
-      <div className="sticky top-[4.25rem] z-30 -mx-1 flex max-w-xl gap-2 rounded-2xl border border-emerald-100/80 bg-gray-50/95 p-2 shadow-sm backdrop-blur dark:border-emerald-950 dark:bg-gray-950/90 sm:static sm:mx-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
+      <div className="sticky top-[4.25rem] z-30 -mx-1 flex max-w-2xl gap-2 rounded-3xl border border-white/80 bg-white/90 p-2.5 shadow-xl shadow-emerald-900/10 backdrop-blur-xl dark:border-emerald-900/50 dark:bg-gray-900/90 sm:static sm:mx-auto sm:p-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
           <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
-            placeholder='Digite uma gíria... (pressione "/")'
-            className="h-12 rounded-xl pl-9 text-base shadow-sm sm:h-11 sm:text-sm"
+            placeholder='Digite uma gíria tipo "pprt", "rizz", "cringe"...'
+            className="h-[3.25rem] rounded-2xl border-emerald-100 bg-gray-50/80 pl-11 text-base shadow-inner focus-visible:ring-emerald-500 dark:border-emerald-950 dark:bg-gray-950/70 sm:h-12"
           />
           {searchQuery && (
             <button
@@ -814,7 +894,7 @@ export default function GiriaApp() {
         <Button
           onClick={() => handleTranslate()}
           disabled={isLoading || !searchQuery.trim()}
-          className="h-12 rounded-xl px-4 bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 sm:h-11 sm:px-5"
+          className="h-[3.25rem] rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 font-bold text-white shadow-lg shadow-emerald-900/20 hover:from-emerald-700 hover:via-teal-700 hover:to-cyan-700 sm:h-12 sm:px-6"
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
@@ -850,7 +930,7 @@ export default function GiriaApp() {
         <div className="max-w-xl mx-auto space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-gray-400 dark:text-gray-500">
-              Buscas recentes
+              Você já pesquisou
             </p>
             <button
               onClick={clearSearchHistory}
@@ -888,11 +968,11 @@ export default function GiriaApp() {
               className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 transition-colors"
             >
               <Shuffle className="h-3.5 w-3.5" />
-              Descobrir gíria
+              Me mostra uma gíria
             </button>
           </div>
           <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:pb-0">
-            {POPULAR_TERMS.map((term, i) => (
+            {POPULAR_DISPLAY_TERMS.map((term, i) => (
               <motion.button
                 key={term}
                 onClick={() => searchAndGo(term)}
@@ -907,6 +987,8 @@ export default function GiriaApp() {
           </div>
         </div>
       )}
+
+      {!translationResult && !isLoading && renderPixSupportCard(true)}
 
       {/* Loading skeleton */}
       {isLoading && (
@@ -1065,6 +1147,27 @@ export default function GiriaApp() {
               </>
             )}
 
+            {translationResult.notFound && (
+              <>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                    Essa ainda não tá no nosso radar.
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                    Manda essa gíria pra comunidade e ajuda o dicionário a ficar mais brabo.
+                  </p>
+                  <Link
+                    href={`/girias/enviadas-por-usuarios?term=${encodeURIComponent(translationResult.term)}`}
+                    className="mt-3 inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-700"
+                  >
+                    Mandar essa gíria pra gente
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <Separator />
+              </>
+            )}
+
             {/* Origem */}
             {translationResult.origin && (
               <>
@@ -1187,6 +1290,8 @@ export default function GiriaApp() {
         </motion.div>
       )}
       </AnimatePresence>
+
+      {translationResult && !isLoading && renderPixSupportCard(true)}
     </div>
   );
 
@@ -1748,12 +1853,14 @@ export default function GiriaApp() {
   // Main render
   // =========================================================================
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_#d1fae5,_transparent_32%),linear-gradient(180deg,_#f8fafc,_#ecfdf5_45%,_#f8fafc)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.22),_transparent_30%),linear-gradient(180deg,_#020617,_#061a17_45%,_#020617)]">
+      <div className="pointer-events-none absolute left-1/2 top-20 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-3xl dark:bg-emerald-500/10" />
+      <div className="pointer-events-none absolute -right-24 top-80 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl dark:bg-cyan-500/10" />
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
-        <div className="max-w-3xl mx-auto flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+      <header className="sticky top-0 z-50 border-b border-white/70 bg-white/80 shadow-sm backdrop-blur-xl dark:border-gray-800/70 dark:bg-gray-950/80">
+        <div className="max-w-5xl mx-auto flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-900/20">
               <MessageCircle className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -1790,14 +1897,14 @@ export default function GiriaApp() {
         </div>
 
         {/* Tab navigation — desktop only */}
-        <div className="max-w-3xl mx-auto px-4 hidden sm:block">
-          <nav className="flex gap-1 -mb-px" aria-label="Navegação principal">
+        <div className="max-w-5xl mx-auto px-4 pb-2 hidden sm:block">
+          <nav className="flex w-fit gap-1 rounded-full border border-gray-200/70 bg-gray-50/80 p-1 shadow-inner dark:border-gray-800 dark:bg-gray-900/70" aria-label="Navegação principal">
             {tabs.map((tab) => (
               tab.href ? (
               <Link
                 key={tab.label}
                 href={tab.href}
-                className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-500 transition hover:bg-white hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
               >
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -1806,10 +1913,10 @@ export default function GiriaApp() {
               <button
                 key={tab.label}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition ${
                   activeTab === tab.id
-                    ? "border-emerald-600 text-emerald-600 dark:text-emerald-400"
-                    : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700"
+                    ? "bg-white text-emerald-700 shadow-sm dark:bg-gray-800 dark:text-emerald-300"
+                    : "text-gray-500 hover:bg-white hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                 }`}
                 aria-current={activeTab === tab.id ? "page" : undefined}
               >
@@ -1823,7 +1930,7 @@ export default function GiriaApp() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 max-w-3xl mx-auto w-full px-3 py-4 pb-28 sm:px-4 sm:py-5 sm:pb-5">
+      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-3 py-4 pb-28 sm:px-4 sm:py-6 sm:pb-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1844,33 +1951,7 @@ export default function GiriaApp() {
       {/* Footer */}
       <footer className="mt-auto border-t border-emerald-100 dark:border-gray-800 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-gray-900 dark:to-gray-950 pb-20 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 py-3 text-center space-y-0.5">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-            className="mx-auto mb-3 max-w-xl rounded-xl border border-emerald-200/80 bg-white/80 p-3 shadow-sm dark:border-emerald-900 dark:bg-gray-900/70"
-          >
-            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">Seja um patrocinador do projeto 💚</p>
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-              <span><strong>PIX:</strong> 🔑 <strong>007aibr@gmail.com</strong> · Lorenza Volponi</span>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSponsorClick();
-                  void handleCopyPix();
-                }}
-                className="rounded-md border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                aria-label="Copiar chave PIX"
-              >
-                {pixCopied ? "Copiado!" : "Copiar chave"}
-              </button>
-            </div>
-            {pixFeedback ? <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-300">{pixFeedback}</p> : null}
-            <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-700 dark:border-emerald-900 dark:text-emerald-300">
-              QR PIX
-            </div>
-          </motion.div>
+          {renderPixSupportCard(true)}
           <p className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 font-medium">
             AIX8C - @lorenzavolponi #01 em tecnologia e IA do Brasil !
           </p>
@@ -1921,6 +2002,20 @@ export default function GiriaApp() {
           ))}
         </div>
       </nav>
+
+      {/* Floating PIX Support Button — desktop only */}
+      <button
+        type="button"
+        onClick={() => {
+          handleSponsorClick();
+          void handleCopyPix();
+        }}
+        className="fixed bottom-6 left-6 z-50 hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl active:scale-[0.98] sm:inline-flex"
+        aria-label="Apoiar o projeto via PIX copiando a chave"
+      >
+        <HeartHandshake className="h-4 w-4" />
+        {pixCopied ? "PIX copiado!" : "Apoiar PIX 💚"}
+      </button>
 
       {/* Floating Chat IA Button */}
       <button
