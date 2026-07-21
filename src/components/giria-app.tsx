@@ -34,6 +34,7 @@ import {
   Sun,
   Moon,
   Calendar,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,6 +188,35 @@ const POPULAR_TERMS = [
   "toptier",
   "brabo",
   "miga",
+  "amassou",
+  "de milhões",
+  "fofoca premium",
+  "plot twist",
+  "divou",
+  "lapada seca",
+  "ficou pequeno",
+  "qual foi",
+];
+
+const TRENDING_COLLECTIONS = [
+  {
+    label: "TikTok e reels",
+    description: "Expressões que aparecem em legenda, trend e comentário curto.",
+    terms: ["amassou", "de milhões", "plot twist"],
+    accent: "from-fuchsia-500 to-pink-500",
+  },
+  {
+    label: "Conversa no grupo",
+    description: "Atalhos para entender resposta rápida sem perder o contexto.",
+    terms: ["qual foi", "fofoca premium", "ficou pequeno"],
+    accent: "from-amber-500 to-orange-500",
+  },
+  {
+    label: "Elogio e zoeira",
+    description: "Quando é brincadeira, hype ou provocação leve.",
+    terms: ["divou", "lapada seca", "brabo"],
+    accent: "from-emerald-500 to-teal-500",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -789,6 +819,35 @@ export default function GiriaApp() {
           </button>
         </div>
       </div>
+
+      {!translationResult && !isLoading && (
+        <div className="mx-auto grid max-w-5xl gap-3 px-1 md:grid-cols-3">
+          {TRENDING_COLLECTIONS.map((collection) => (
+            <div
+              key={collection.label}
+              className="group rounded-2xl border border-gray-200 bg-white/85 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900/80"
+            >
+              <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r ${collection.accent} text-white shadow-sm`}>
+                <TrendingUp className="h-4 w-4" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{collection.label}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{collection.description}</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {collection.terms.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => searchAndGo(term)}
+                    className="rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-gray-700 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="sticky top-[4.25rem] z-30 -mx-1 flex max-w-xl gap-2 rounded-2xl border border-emerald-100/80 bg-gray-50/95 p-2 shadow-sm backdrop-blur dark:border-emerald-950 dark:bg-gray-950/90 sm:static sm:mx-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
