@@ -34,6 +34,7 @@ import {
   Sun,
   Moon,
   Calendar,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,6 +188,65 @@ const POPULAR_TERMS = [
   "toptier",
   "brabo",
   "miga",
+  "amassou",
+  "de milhões",
+  "fofoca premium",
+  "plot twist",
+  "divou",
+  "lapada seca",
+  "ficou pequeno",
+  "qual foi",
+  "foi de arrasta",
+  "jantou",
+  "passou a visão",
+  "sem neurose",
+  "meter o shape",
+  "no sapatinho",
+];
+
+const TRENDING_COLLECTIONS = [
+  {
+    label: "TikTok e reels",
+    description: "Expressões que aparecem em legenda, trend e comentário curto.",
+    terms: ["amassou", "de milhões", "plot twist"],
+    accent: "from-fuchsia-500 to-pink-500",
+  },
+  {
+    label: "Conversa no grupo",
+    description: "Atalhos para entender resposta rápida sem perder o contexto.",
+    terms: ["qual foi", "fofoca premium", "ficou pequeno"],
+    accent: "from-amber-500 to-orange-500",
+  },
+  {
+    label: "Elogio e zoeira",
+    description: "Quando é brincadeira, hype ou provocação leve.",
+    terms: ["divou", "lapada seca", "brabo"],
+    accent: "from-emerald-500 to-teal-500",
+  },
+];
+
+const IMPROVEMENT_SUGGESTIONS = [
+  {
+    title: "Mais gírias por contexto",
+    description: "Separar por TikTok, escola, games, flerte, treta e região reduz dúvida sem depender só da busca.",
+    action: "Explorar TikTok",
+    term: "foi de arrasta",
+    icon: <BookOpen className="h-4 w-4" />,
+  },
+  {
+    title: "Leitura para pais",
+    description: "Mostrar risco, tom provável e exemplo seguro ajuda a conversar sem parecer interrogatório.",
+    action: "Ver cautela",
+    term: "fofoca premium",
+    icon: <Shield className="h-4 w-4" />,
+  },
+  {
+    title: "Layout mais guiado",
+    description: "Cards de entrada dão caminhos rápidos para quem não sabe qual palavra pesquisar primeiro.",
+    action: "Testar termo",
+    term: "passou a visão",
+    icon: <Sparkles className="h-4 w-4" />,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -844,6 +904,80 @@ export default function GiriaApp() {
           )}
         </Button>
       </div>
+
+      {!translationResult && !isLoading && (
+        <section className="mx-auto grid max-w-5xl items-start gap-3 px-1 lg:grid-cols-[1.1fr_1.6fr]">
+          <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 shadow-sm dark:border-emerald-900 dark:from-emerald-950/30 dark:via-gray-900 dark:to-teal-950/20">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Comece por aqui</p>
+                <h3 className="text-base font-black text-gray-950 dark:text-gray-50">Sugestões de melhoria aplicadas</h3>
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              {IMPROVEMENT_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion.title}
+                  type="button"
+                  onClick={() => searchAndGo(suggestion.term)}
+                  className="flex w-full items-start gap-3 rounded-2xl border border-emerald-100 bg-white/80 p-3 text-left transition hover:border-emerald-300 hover:bg-white hover:shadow-sm dark:border-emerald-950 dark:bg-gray-950/50 dark:hover:border-emerald-800"
+                >
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                    {suggestion.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-gray-900 dark:text-gray-100">{suggestion.title}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{suggestion.description}</span>
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                      {suggestion.action}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-gray-200 bg-white/85 p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500">Explorar rápido</p>
+                <h3 className="text-base font-black text-gray-950 dark:text-gray-50">Gírias por situação</h3>
+              </div>
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div className="grid gap-2 md:grid-cols-3">
+              {TRENDING_COLLECTIONS.map((collection) => (
+                <div
+                  key={collection.label}
+                  className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-950/35"
+                >
+                  <div className={`mb-2 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-r ${collection.accent} text-white shadow-sm`}>
+                    <TrendingUp className="h-3.5 w-3.5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100">{collection.label}</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{collection.description}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {collection.terms.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => searchAndGo(term)}
+                        className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Search history */}
       {searchHistory.length > 0 && !translationResult && !isLoading && (

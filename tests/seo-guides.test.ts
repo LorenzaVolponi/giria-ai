@@ -5,6 +5,7 @@ import { GET as seoIndexGet } from "../src/app/seo-index.json/route";
 import { GET as guideSitemapGet } from "../src/app/guias/sitemap.xml/route";
 import { GET as guideFeedGet } from "../src/app/guias/feed.xml/route";
 import { GET as openSearchGet } from "../src/app/opensearch.xml/route";
+import { metadata as homeMetadata } from "../src/app/page";
 
 describe("SEO guide index", () => {
   it("keeps guide clusters complete and people-first", () => {
@@ -23,6 +24,13 @@ describe("SEO guide index", () => {
       expect(cluster.contentSignals.length).toBeGreaterThanOrEqual(4);
       expect(new Set([cluster.primaryKeyword, ...cluster.keywords]).size).toBeGreaterThanOrEqual(cluster.keywords.length);
     }
+  });
+
+  it("keeps homepage metadata focused on primary organic positioning", () => {
+    expect(homeMetadata.title).toContain("Tradutor de gírias brasileiras");
+    expect(homeMetadata.description).toContain("gírias brasileiras");
+    expect(homeMetadata.keywords).toContain("tradutor de gírias brasileiras");
+    expect(homeMetadata.alternates).toMatchObject({ canonical: "/" });
   });
 
   it("exposes all guides in the main sitemap", () => {
