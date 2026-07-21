@@ -15,9 +15,14 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"),
-  title: "Gíria AI — Tradutor de Gírias Brasileiras",
+  title: {
+    default: "Gíria AI — Tradutor de Gírias Brasileiras",
+    template: "%s | Gíria AI",
+  },
+  applicationName: "Gíria AI",
+  category: "education",
   description:
-    "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná com explicações contextuais.",
+    "Tradutor de gírias brasileiras para entender linguagem adolescente, memes, TikTok, regionalismos e expressões da internet com contexto e exemplos seguros.",
   keywords: [
     "gírias brasileiras",
     "tradutor de gírias",
@@ -30,10 +35,13 @@ export const metadata: Metadata = {
     ...ORGANIC_SEO_KEYWORDS,
   ],
   authors: [{ name: "AIX8C", url: "https://twitter.com/lorenzavolponi" }],
+  creator: "AIX8C",
+  publisher: "Gíria AI",
   openGraph: {
     title: "Gíria AI — Tradutor de Gírias Brasileiras",
     description:
-      "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
+      "Tradutor de gírias brasileiras com contexto para pais, educadores e curiosos entenderem memes, TikTok e linguagem adolescente.",
+    images: [{ url: "/logo.svg", width: 512, height: 512, alt: "Logo do Gíria AI" }],
     url: "/",
     type: "website",
     locale: "pt_BR",
@@ -43,11 +51,19 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Gíria AI — Tradutor de Gírias Brasileiras",
     description:
-      "Entenda gírias brasileiras, linguagem de influencer, memes com nave espacial, ET, alienígena e expressões regionais do Paraná.",
+      "Tradutor de gírias brasileiras com contexto para pais, educadores e curiosos entenderem memes, TikTok e linguagem adolescente.",
+    images: [{ url: "/logo.svg", width: 512, height: 512, alt: "Logo do Gíria AI" }],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   },
   icons: {
     icon: "/favicon.svg",

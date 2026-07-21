@@ -17,13 +17,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `O que significa ${term.term}? | Gíria AI`,
-    description: `Descubra o que significa ${term.term}, como usar e em quais contextos adolescentes usam essa gíria.`,
-    alternates: { canonical: `${site}/girias/${encodeURIComponent(term.term)}` },
+    description: `Descubra o que significa ${term.term}, como usar, exemplos seguros, variações e em quais contextos adolescentes usam essa gíria.`,
+    keywords: [term.term, `o que significa ${term.term}`, `${term.term} significado`, "gíria brasileira", "linguagem adolescente"],
+    alternates: { canonical: url },
     openGraph: {
       title: `O que significa ${term.term}?`,
       description: term.meaning,
       url,
       type: "article",
+    },
+    twitter: {
+      card: "summary",
+      title: `O que significa ${term.term}?`,
+      description: term.meaning,
     },
     robots: { index: true, follow: true },
   };
@@ -35,7 +41,8 @@ export default async function SignificadoTermoPage({ params }: Props) {
   if (!term) notFound();
 
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const canonical = `${site}/girias/${encodeURIComponent(term.term)}`;
+  const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
+  const glossaryUrl = `${site}/girias/${encodeURIComponent(term.term)}`;
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -90,7 +97,8 @@ export default async function SignificadoTermoPage({ params }: Props) {
       </section>
 
       <p className="text-sm text-muted-foreground">
-        Página canônica: <Link className="underline" href={canonical}>{canonical}</Link>
+        Página canônica: <Link className="underline" href={canonical}>{canonical}</Link>. Veja também a ficha completa em{" "}
+        <Link className="underline" href={glossaryUrl}>{glossaryUrl}</Link>
       </p>
     </main>
   );
