@@ -22,6 +22,7 @@ import { EXTRA_SLANG_DATA_16 } from './slang-extra-16';
 import { EXTRA_SLANG_DATA_17 } from './slang-extra-17';
 import { EXTRA_SLANG_DATA_18 } from './slang-extra-18';
 import { EXTRA_SLANG_DATA_19 } from './slang-extra-19';
+import { EXTRA_SLANG_DATA_20 } from './slang-extra-20';
 import { REGIONAL_SLANG_DATA } from './slang-regional';
 
 export type RiskLevel = "green" | "yellow" | "orange" | "red";
@@ -8811,6 +8812,7 @@ const rawSlangData: Array<SlangTerm | undefined> = [
   ...(Array.isArray(EXTRA_SLANG_DATA_17) ? EXTRA_SLANG_DATA_17 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_18) ? EXTRA_SLANG_DATA_18 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_19) ? EXTRA_SLANG_DATA_19 : []),
+  ...(Array.isArray(EXTRA_SLANG_DATA_20) ? EXTRA_SLANG_DATA_20 : []),
   ...(Array.isArray(REGIONAL_SLANG_DATA) ? REGIONAL_SLANG_DATA : []),
 ];
 

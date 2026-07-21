@@ -196,6 +196,12 @@ const POPULAR_TERMS = [
   "lapada seca",
   "ficou pequeno",
   "qual foi",
+  "foi de arrasta",
+  "jantou",
+  "passou a visão",
+  "sem neurose",
+  "meter o shape",
+  "no sapatinho",
 ];
 
 const TRENDING_COLLECTIONS = [
@@ -216,6 +222,30 @@ const TRENDING_COLLECTIONS = [
     description: "Quando é brincadeira, hype ou provocação leve.",
     terms: ["divou", "lapada seca", "brabo"],
     accent: "from-emerald-500 to-teal-500",
+  },
+];
+
+const IMPROVEMENT_SUGGESTIONS = [
+  {
+    title: "Mais gírias por contexto",
+    description: "Separar por TikTok, escola, games, flerte, treta e região reduz dúvida sem depender só da busca.",
+    action: "Explorar TikTok",
+    term: "foi de arrasta",
+    icon: <BookOpen className="h-4 w-4" />,
+  },
+  {
+    title: "Leitura para pais",
+    description: "Mostrar risco, tom provável e exemplo seguro ajuda a conversar sem parecer interrogatório.",
+    action: "Ver cautela",
+    term: "fofoca premium",
+    icon: <Shield className="h-4 w-4" />,
+  },
+  {
+    title: "Layout mais guiado",
+    description: "Cards de entrada dão caminhos rápidos para quem não sabe qual palavra pesquisar primeiro.",
+    action: "Testar termo",
+    term: "passou a visão",
+    icon: <Sparkles className="h-4 w-4" />,
   },
 ];
 
@@ -819,6 +849,29 @@ export default function GiriaApp() {
           </button>
         </div>
       </div>
+
+      {!translationResult && !isLoading && (
+        <div className="mx-auto grid max-w-5xl gap-3 px-1 md:grid-cols-3">
+          {IMPROVEMENT_SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion.title}
+              type="button"
+              onClick={() => searchAndGo(suggestion.term)}
+              className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-950 dark:bg-emerald-950/20 dark:hover:border-emerald-800"
+            >
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm dark:bg-gray-900 dark:text-emerald-400">
+                {suggestion.icon}
+              </span>
+              <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-gray-100">{suggestion.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{suggestion.description}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                {suggestion.action}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {!translationResult && !isLoading && (
         <div className="mx-auto grid max-w-5xl gap-3 px-1 md:grid-cols-3">
