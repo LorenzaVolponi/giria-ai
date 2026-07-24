@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { authenticator } from "otplib";
 import { POST } from "../src/app/api/v1/admin/login/route";
 import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
+import { requireAdminToken } from "../src/lib/admin-guard";
 
 describe("admin login api", () => {
   afterEach(() => {
@@ -45,6 +46,17 @@ describe("admin login api", () => {
     const setCookie = res.headers.get("set-cookie") || "";
     expect(setCookie).toContain("giria_admin_session");
     expect(setCookie).toContain("giria_admin_actor");
+    expect(setCookie).not.toContain("admin-panel-session");
+  });
+
+  it("rejects a legacy cookie carrying the static admin token", () => {
+    const req = new NextRequest("http://localhost/api/v1/admin/session", {
+      headers: { cookie: "giria_admin_session=admin-panel-session" },
+    });
+
+    const res = requireAdminToken(req);
+
+    expect(res?.status).toBe(401);
   });
 
   it("accepts valid credentials with configured TOTP", async () => {
