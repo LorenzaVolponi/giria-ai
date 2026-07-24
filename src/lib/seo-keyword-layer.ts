@@ -33,6 +33,7 @@ export type SeoKeywordCluster = {
 
 export const ORGANIC_SEO_KEYWORDS = [
   "gírias de influencer",
+" o que é farmar aura",
   "influencer",
   "linguagem de influencer",
   "nave espacial",
@@ -75,7 +76,7 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
       "Guia de gírias de influencer para entender expressões usadas em reels, lives, publis, stories e conteúdos virais.",
     primaryKeyword: "gírias de influencer",
     keywords: [
-      "gírias de influencer",
+      "gírias de adoleescentes",
       "influencer",
       "linguagem de influencer",
       "gírias de redes sociais",
