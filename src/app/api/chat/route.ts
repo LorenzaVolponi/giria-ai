@@ -18,6 +18,7 @@ const RATE_LIMIT_MAX_REQUESTS = 30;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+  if (rateLimitMap.size > 500) cleanupRateLimitMap(now);
   const timestamps = rateLimitMap.get(ip) ?? [];
   const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   recent.push(now);
@@ -25,16 +26,12 @@ function isRateLimited(ip: string): boolean {
   return recent.length > RATE_LIMIT_MAX_REQUESTS;
 }
 
-// Periodic cleanup
-if (typeof globalThis !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, timestamps] of rateLimitMap.entries()) {
-      const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-      if (recent.length === 0) rateLimitMap.delete(ip);
-      else rateLimitMap.set(ip, recent);
-    }
-  }, 30_000);
+function cleanupRateLimitMap(now = Date.now()) {
+  for (const [ip, timestamps] of rateLimitMap.entries()) {
+    const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (recent.length === 0) rateLimitMap.delete(ip);
+    else rateLimitMap.set(ip, recent);
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,21 @@ const ADMIN_ACTOR_COOKIE = "giria_admin_actor";
 
 const DEV_ADMIN_TOKEN = "admin-panel-session";
 const DEV_ADMIN_ACTOR = "admin007";
+const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 8;
+const adminSessions = new Map<string, { actor: string; role: string; expiresAt: number }>();
+
+function createOpaqueSessionToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function pruneExpiredAdminSessions() {
+  const now = Date.now();
+  for (const [token, session] of adminSessions.entries()) {
+    if (session.expiresAt <= now) adminSessions.delete(token);
+  }
+}
 
 function isProduction() {
   return process.env.NODE_ENV === "production";
@@ -29,8 +44,12 @@ export function requireAdminToken(request: NextRequest): NextResponse | null {
 
   const providedHeader = request.headers.get("x-admin-token") || "";
   const providedCookie = request.cookies.get(ADMIN_COOKIE)?.value || "";
+  const session = providedCookie ? adminSessions.get(providedCookie) : null;
+  if (session && session.expiresAt <= Date.now()) {
+    adminSessions.delete(providedCookie);
+  }
 
-  if (providedHeader !== expected && providedCookie !== expected) {
+  if (providedHeader !== expected && (!session || session.expiresAt <= Date.now())) {
     return withSecurityHeaders(NextResponse.json({ error: "Não autorizado" }, { status: 401 }));
   }
 
@@ -45,43 +64,52 @@ export function createAdminSessionResponse(ok = true, actor = DEV_ADMIN_ACTOR) {
   const expected = getExpectedToken();
   if (!expected) return adminTokenNotConfiguredResponse();
 
+  pruneExpiredAdminSessions();
   const csrf = crypto.randomUUID();
   const role = process.env.ADMIN_ROLE || "owner";
   const safeActor = actor.trim() || DEV_ADMIN_ACTOR;
+  const sessionToken = createOpaqueSessionToken();
+  adminSessions.set(sessionToken, {
+    actor: safeActor,
+    role,
+    expiresAt: Date.now() + ADMIN_SESSION_TTL_SECONDS * 1000,
+  });
 
   const res = withSecurityHeaders(NextResponse.json({ ok }, { status: 200 }));
-  res.cookies.set(ADMIN_COOKIE, expected, {
+  res.cookies.set(ADMIN_COOKIE, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: ADMIN_SESSION_TTL_SECONDS,
   });
   res.cookies.set(ADMIN_CSRF_COOKIE, csrf, {
     httpOnly: false,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: ADMIN_SESSION_TTL_SECONDS,
   });
   res.cookies.set(ADMIN_ROLE_COOKIE, role, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: ADMIN_SESSION_TTL_SECONDS,
   });
   res.cookies.set(ADMIN_ACTOR_COOKIE, safeActor, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: ADMIN_SESSION_TTL_SECONDS,
   });
   return res;
 }
 
-export function clearAdminSessionResponse() {
+export function clearAdminSessionResponse(request?: NextRequest) {
+  const token = request?.cookies.get(ADMIN_COOKIE)?.value || "";
+  if (token) adminSessions.delete(token);
   const res = withSecurityHeaders(NextResponse.json({ ok: true }, { status: 200 }));
   res.cookies.set(ADMIN_COOKIE, "", { path: "/", maxAge: 0 });
   res.cookies.set(ADMIN_CSRF_COOKIE, "", { path: "/", maxAge: 0 });
@@ -105,4 +133,8 @@ export function requireAdminRole(request: NextRequest, allowed: Array<"viewer" |
     return withSecurityHeaders(NextResponse.json({ error: "Permissão insuficiente." }, { status: 403 }));
   }
   return null;
+}
+
+export function resetAdminSessionsForTests() {
+  adminSessions.clear();
 }

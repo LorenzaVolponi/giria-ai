@@ -11,7 +11,7 @@ describe("admin dashboard api", () => {
 
   it("returns dashboard payload for valid cookie", async () => {
     const req = new NextRequest("http://localhost/api/v1/admin/dashboard", {
-      headers: { cookie: "giria_admin_session=admin-panel-session" },
+      headers: { cookie: "giria_admin_session=session-test", "x-admin-token": "admin-panel-session" },
     });
     const res = await GET(req);
     expect(res.status).toBe(200);

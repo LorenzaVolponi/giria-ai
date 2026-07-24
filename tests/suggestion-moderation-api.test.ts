@@ -20,8 +20,9 @@ describe("suggestion moderation API", () => {
       body: JSON.stringify({ status: "rejected" }),
       headers: {
         "content-type": "application/json",
-        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf; giria_admin_role=owner",
+        cookie: "giria_admin_session=session-test; giria_admin_csrf=test-csrf; giria_admin_role=owner",
         "x-csrf-token": "test-csrf",
+        "x-admin-token": "admin-panel-session",
       },
     });
 
@@ -41,8 +42,9 @@ describe("suggestion moderation API", () => {
       body: JSON.stringify({ status: "approved", reason: "ok" }),
       headers: {
         "content-type": "application/json",
-        cookie: "giria_admin_session=admin-panel-session; giria_admin_csrf=test-csrf; giria_admin_role=owner; giria_admin_actor=lorenza",
+        cookie: "giria_admin_session=session-test; giria_admin_csrf=test-csrf; giria_admin_role=owner; giria_admin_actor=lorenza",
         "x-csrf-token": "test-csrf",
+        "x-admin-token": "admin-panel-session",
       },
     });
 
