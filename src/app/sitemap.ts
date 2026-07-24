@@ -23,13 +23,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.9,
   }));
 
-  const slangRoutes: MetadataRoute.Sitemap = SLANG_DATA.slice(0, 2000).map((term) => ({
+  const slangRoutes: MetadataRoute.Sitemap = SLANG_DATA.map((term) => ({
     url: `${site}/girias/${encodeURIComponent(term.term)}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.8,
   }));
-  const intentRoutes: MetadataRoute.Sitemap = SLANG_DATA.slice(0, 2000).map((term) => ({
+  const intentRoutes: MetadataRoute.Sitemap = SLANG_DATA.map((term) => ({
     url: `${site}/o-que-significa/${encodeURIComponent(term.term)}`,
     lastModified: now,
     changeFrequency: "weekly",

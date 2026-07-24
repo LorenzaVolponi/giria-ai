@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SEO_KEYWORD_CLUSTERS } from "../src/lib/seo-keyword-layer";
+import { SLANG_DATA } from "../src/lib/slang-data";
 import sitemap from "../src/app/sitemap";
 import { GET as seoIndexGet } from "../src/app/seo-index.json/route";
 import { GET as guideSitemapGet } from "../src/app/guias/sitemap.xml/route";
@@ -38,6 +39,15 @@ describe("SEO guide index", () => {
     for (const cluster of SEO_KEYWORD_CLUSTERS) {
       expect(urls).toContain(`https://giria-ai.vercel.app/guias/${cluster.slug}`);
     }
+  });
+
+
+  it("exposes every searchable slang term in sitemap intent routes", () => {
+    const urls = sitemap().map((entry) => entry.url);
+    const expectedTermRouteCount = SLANG_DATA.length * 2;
+    const indexedTermRouteCount = urls.filter((url) => url.includes("/girias/") || url.includes("/o-que-significa/")).length;
+
+    expect(indexedTermRouteCount).toBeGreaterThanOrEqual(expectedTermRouteCount);
   });
 
   it("publishes a dedicated guide sitemap", async () => {
