@@ -225,6 +225,19 @@ const TRENDING_COLLECTIONS = [
   },
 ];
 
+const HOME_METRICS = [
+  { label: "gírias", value: "10k+" },
+  { label: "regiões", value: "53" },
+  { label: "guias SEO", value: "16" },
+] as const;
+
+const MOBILE_QUICK_ACTIONS = [
+  { label: "Traduzir agora", eyebrow: "Busca", term: "slay", icon: <Search className="h-4 w-4" />, accent: "border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-300" },
+  { label: "Gíria aleatória", eyebrow: "Descobrir", term: null, icon: <Shuffle className="h-4 w-4" />, accent: "border-amber-200 text-amber-700 dark:border-amber-900 dark:text-amber-300" },
+  { label: "Abrir Chat IA", eyebrow: "Tirar dúvida", term: "chat", icon: <Bot className="h-4 w-4" />, accent: "border-teal-200 text-teal-700 dark:border-teal-900 dark:text-teal-300" },
+  { label: "Ver regionais", eyebrow: "Mapa", term: "oxente", icon: <Globe className="h-4 w-4" />, accent: "border-violet-200 text-violet-700 dark:border-violet-900 dark:text-violet-300" },
+] as const;
+
 const IMPROVEMENT_SUGGESTIONS = [
   {
     title: "Mais gírias por contexto",
@@ -820,33 +833,35 @@ export default function GiriaApp() {
           <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 shrink-0 hidden sm:block" />
         </div>
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base max-w-lg mx-auto px-2">
-          Tradução rápida, contexto e nível de atenção para pais e educadores.
+          Tradução rápida, contexto, região e nível de atenção para pais e educadores — otimizado para celular.
         </p>
-        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 px-1 sm:hidden">
-          <button
-            type="button"
-            onClick={() => searchAndGo("slay")}
-            className="rounded-2xl border border-emerald-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-emerald-900 dark:bg-gray-900"
-          >
-            <span className="block text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Rápido</span>
-            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Traduzir</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleRandomTerm}
-            className="rounded-2xl border border-amber-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-amber-900 dark:bg-gray-900"
-          >
-            <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Surpresa</span>
-            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Aleatória</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setChatOpen(true)}
-            className="rounded-2xl border border-teal-200 bg-white/90 p-2 text-left shadow-sm transition active:scale-[0.98] dark:border-teal-900 dark:bg-gray-900"
-          >
-            <span className="block text-[10px] font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-400">Dúvida</span>
-            <span className="mt-0.5 block text-xs font-bold text-gray-900 dark:text-gray-100">Chat IA</span>
-          </button>
+        <div className="mx-auto grid max-w-md grid-cols-3 gap-2 px-1 sm:hidden" aria-label="Métricas do dicionário">
+          {HOME_METRICS.map((metric) => (
+            <div key={metric.label} className="rounded-2xl border border-gray-200 bg-white/90 px-3 py-2 shadow-sm dark:border-gray-800 dark:bg-gray-900/90">
+              <span className="block text-base font-black leading-none text-gray-950 dark:text-gray-50">{metric.value}</span>
+              <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{metric.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 px-1 sm:hidden">
+          {MOBILE_QUICK_ACTIONS.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => {
+                if (action.term === "chat") setChatOpen(true);
+                else if (action.term) searchAndGo(action.term);
+                else handleRandomTerm();
+              }}
+              className={`min-h-[64px] rounded-2xl border bg-white/95 p-3 text-left shadow-sm transition active:scale-[0.98] dark:bg-gray-900/95 ${action.accent}`}
+            >
+              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide opacity-80">
+                {action.icon}
+                {action.eyebrow}
+              </span>
+              <span className="mt-1 block text-sm font-black text-gray-950 dark:text-gray-50">{action.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -859,7 +874,7 @@ export default function GiriaApp() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleTranslate()}
-            placeholder='Digite uma gíria... (pressione "/")'
+            placeholder='Digite uma gíria, frase ou meme...'
             className="h-12 rounded-xl pl-9 text-base shadow-sm sm:h-11 sm:text-sm"
           />
           {searchQuery && (
@@ -2016,7 +2031,7 @@ export default function GiriaApp() {
 
       {/* Bottom mobile navigation bar — mobile only */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden dark:border-gray-800 dark:bg-gray-900/95"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur supports-[padding:max(0px)]:pb-[env(safe-area-inset-bottom)] sm:hidden dark:border-gray-800 dark:bg-gray-900/95"
         aria-label="Navegação mobile"
       >
         <div className="grid grid-cols-6 px-1 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">

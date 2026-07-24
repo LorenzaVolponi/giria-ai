@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as translatePost } from "../src/app/api/v1/translate/route";
 import { GET as metricsGet } from "../src/app/api/v1/metrics/route";
-import { resetRateLimitStoreForTests } from "../src/lib/rate-limit";
+import { isRateLimited, resetRateLimitStoreForTests } from "../src/lib/rate-limit";
 import { parseMetricsWindow, MAX_METRICS_WINDOW_MINUTES } from "../src/lib/metrics";
 
 function makeRequest(url: string, method: string, body?: unknown, headers?: Record<string, string>) {
@@ -22,6 +22,7 @@ describe("API v1 rate-limit and metrics", () => {
     delete process.env.ADMIN_API_TOKEN;
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    vi.restoreAllMocks();
   });
 
   afterEach(() => {
@@ -42,6 +43,22 @@ describe("API v1 rate-limit and metrics", () => {
     expect(lastStatus).toBe(429);
     expect(lastHeaders?.get("Retry-After")).toBe("60");
     expect(lastHeaders?.get("X-RateLimit-Remaining")).not.toBeNull();
+  });
+
+
+  it("uses a single Redis EVAL call for atomic fixed-window limiting", async () => {
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com/");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "redis-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ result: 3 }), { status: 200 }));
+
+    const rate = await isRateLimited("atomic-user", 5, 60);
+
+    expect(rate).toEqual({ limited: false, remaining: 2 });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain("/eval/");
+    expect(String(url)).toContain(encodeURIComponent("rl:atomic-user:"));
+    expect(init).toMatchObject({ method: "POST", cache: "no-store" });
   });
 
   it("fails closed in production when ADMIN_API_TOKEN is missing", async () => {
