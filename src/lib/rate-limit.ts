@@ -1,4 +1,13 @@
 const memoryStore = new Map<string, number[]>();
+const REDIS_FIXED_WINDOW_SCRIPT = [
+  "local current = redis.call('INCR', KEYS[1])",
+  "if current == 1 then",
+  "  redis.call('EXPIRE', KEYS[1], ARGV[1])",
+  "end",
+  "return current",
+].join("\n");
+
+type UpstashNumberResponse = { result?: number | string | null; error?: string };
 
 function getRedisConfig() {
   const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
@@ -12,30 +21,27 @@ async function incrementRedisFixedWindow(key: string, windowSec: number) {
   if (!config) return null;
 
   const redisKey = `rl:${key}:${Math.floor(Date.now() / (windowSec * 1000))}`;
-  const encodedKey = encodeURIComponent(redisKey);
-  const headers = { Authorization: `Bearer ${config.redisToken}` };
+  const endpoint = [
+    config.redisUrl,
+    "eval",
+    encodeURIComponent(REDIS_FIXED_WINDOW_SCRIPT),
+    "1",
+    encodeURIComponent(redisKey),
+    String(windowSec),
+  ].join("/");
 
-  const incrRes = await fetch(`${config.redisUrl}/incr/${encodedKey}`, {
+  const res = await fetch(endpoint, {
     method: "POST",
-    headers,
+    headers: { Authorization: `Bearer ${config.redisToken}` },
     cache: "no-store",
   }).catch(() => null);
 
-  if (!incrRes?.ok) return null;
+  if (!res?.ok) return null;
 
-  const data = (await incrRes.json().catch(() => null)) as { result?: number | string | null } | null;
+  const data = (await res.json().catch(() => null)) as UpstashNumberResponse | null;
+  if (data?.error) return null;
   const count = Number(data?.result);
-  if (!Number.isFinite(count)) return null;
-
-  if (count === 1) {
-    await fetch(`${config.redisUrl}/expire/${encodedKey}/${windowSec}`, {
-      method: "POST",
-      headers,
-      cache: "no-store",
-    }).catch(() => null);
-  }
-
-  return count;
+  return Number.isFinite(count) ? count : null;
 }
 
 function incrementMemorySlidingWindow(key: string, windowSec: number) {
