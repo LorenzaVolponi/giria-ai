@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
-  return clearAdminSessionResponse();
+  return clearAdminSessionResponse(request);
 }
 
 export async function GET(request: NextRequest) {
