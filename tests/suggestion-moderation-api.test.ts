@@ -10,19 +10,30 @@ vi.mock("../src/lib/suggestion-pipeline", () => ({
 }));
 
 import { PATCH } from "../src/app/api/v1/suggestions/[id]/route";
+import { createAdminSessionResponse } from "../src/lib/admin-guard";
+
+function cookieHeaderForAdminSession(actor = "admin007") {
+  const res = createAdminSessionResponse(true, actor);
+  const setCookie = res.headers.get("set-cookie") || "";
+  const cookies = ["giria_admin_session", "giria_admin_csrf", "giria_admin_role", "giria_admin_actor"]
+    .map((name) => `${name}=${new RegExp(`${name}=([^;]+)`).exec(setCookie)?.[1] || ""}`)
+    .join("; ");
+  const csrf = /giria_admin_csrf=([^;]+)/.exec(cookies)?.[1] || "";
+  return { cookie: cookies, csrf };
+}
 
 describe("suggestion moderation API", () => {
   it("allows rejected status without reason for admin moderation", async () => {
     moderateSuggestionStatusMock.mockResolvedValueOnce(undefined);
 
+    const session = cookieHeaderForAdminSession();
     const req = new NextRequest("http://localhost/api/v1/suggestions/abc", {
       method: "PATCH",
       body: JSON.stringify({ status: "rejected" }),
       headers: {
         "content-type": "application/json",
-        cookie: "giria_admin_session=session-test; giria_admin_csrf=test-csrf; giria_admin_role=owner",
-        "x-csrf-token": "test-csrf",
-        "x-admin-token": "admin-panel-session",
+        cookie: session.cookie,
+        "x-csrf-token": session.csrf,
       },
     });
 
@@ -34,17 +45,17 @@ describe("suggestion moderation API", () => {
     expect(moderateSuggestionStatusMock).toHaveBeenCalledWith("abc", "rejected", { actor: "admin007", reason: undefined });
   });
 
-  it("uses the authenticated actor cookie in moderation history", async () => {
+  it("uses the actor bound to the authenticated session in moderation history", async () => {
     moderateSuggestionStatusMock.mockResolvedValueOnce(undefined);
 
+    const session = cookieHeaderForAdminSession("lorenza");
     const req = new NextRequest("http://localhost/api/v1/suggestions/def", {
       method: "PATCH",
       body: JSON.stringify({ status: "approved", reason: "ok" }),
       headers: {
         "content-type": "application/json",
-        cookie: "giria_admin_session=session-test; giria_admin_csrf=test-csrf; giria_admin_role=owner; giria_admin_actor=lorenza",
-        "x-csrf-token": "test-csrf",
-        "x-admin-token": "admin-panel-session",
+        cookie: session.cookie,
+        "x-csrf-token": session.csrf,
       },
     });
 
