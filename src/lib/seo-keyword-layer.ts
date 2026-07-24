@@ -39,9 +39,7 @@ export const ORGANIC_SEO_KEYWORDS = [
   "nave espacial",
   "gíria nave espacial",
   "ET",
-  "et",
   "alienígena",
-  "alienigena",
   "gírias alienígenas",
   "gírias do Paraná",
   "Paraná",
@@ -59,7 +57,6 @@ export const ORGANIC_SEO_KEYWORDS = [
   "significado de gírias de jovens",
   "vocabulário adolescente",
   "gírias adolescentes",
-  "dicionário de gírias para pais",
   "gírias geração Alpha",
   "gírias do WhatsApp",
   "gírias do Instagram",
@@ -68,15 +65,6 @@ export const ORGANIC_SEO_KEYWORDS = [
   "gírias de funk",
   "gírias do Nordeste",
   "gírias do Sul",
-" farmar aura"
-" six seven"
-"67"
-"professora six seven"
-"tiktok"
-"gírias brasileiras"
-"farmar"
-"aura"
-"o que significa farmar aura"
 ] as const;
 
 export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
@@ -166,10 +154,8 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
       "nave espacial",
       "gíria nave espacial",
       "ET",
-      "et",
-      "alienígena",
-      "alienigena",
-      "gírias alienígenas",
+          "alienígena",
+          "gírias alienígenas",
       "meme de ET",
       "meme alienígena",
       "cultura geek brasileira",

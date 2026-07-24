@@ -8818,11 +8818,20 @@ const rawSlangData: Array<SlangTerm | undefined> = [
   ...(Array.isArray(GENERATED_SLANG_10K) ? GENERATED_SLANG_10K : []),
 ];
 
-// Deduplicate by lowercase term name (keep first occurrence)
+function normalizeTermKey(term: string): string {
+  return term
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Deduplicate by normalized term name (keep first occurrence)
 const deduplicatedMap = new Map<string, SlangTerm>();
 for (const item of rawSlangData) {
   if (!item || typeof item !== "object" || !item.term) continue;
-  const key = item.term.toLowerCase().trim();
+  const key = normalizeTermKey(item.term);
   if (!deduplicatedMap.has(key)) {
     deduplicatedMap.set(key, item);
   }
