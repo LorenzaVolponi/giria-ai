@@ -17,7 +17,26 @@ import {
   validateSuggestionPayload,
 } from "@/lib/suggestion-pipeline";
 
-const idempotencyCache = new Map<string, { expiresAt: number; fingerprint: string; payload: { id: string; score: number; status: string; promoted: boolean; createdAt: string } }>();
+type IdempotencyPayload = { id: string; score: number; status: string; promoted: boolean; createdAt: string };
+type IdempotencyCacheEntry = { expiresAt: number; fingerprint: string; payload: IdempotencyPayload };
+
+const idempotencyCache = new Map<string, IdempotencyCacheEntry>();
+
+function parseIdempotencyCache(value: string | null): IdempotencyCacheEntry | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<IdempotencyCacheEntry>;
+    if (typeof parsed.expiresAt !== "number" || !Number.isFinite(parsed.expiresAt)) return null;
+    if (typeof parsed.fingerprint !== "string") return null;
+    if (!parsed.payload || typeof parsed.payload !== "object") return null;
+    const payload = parsed.payload as Partial<IdempotencyPayload>;
+    if (typeof payload.id !== "string" || typeof payload.status !== "string" || typeof payload.createdAt !== "string") return null;
+    if (typeof payload.score !== "number" || typeof payload.promoted !== "boolean") return null;
+    return { expiresAt: parsed.expiresAt, fingerprint: parsed.fingerprint, payload: payload as IdempotencyPayload };
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -55,7 +74,7 @@ export async function POST(request: NextRequest) {
       const cacheKey = `${ip}:${idemKey}`;
       const hit = idempotencyCache.get(cacheKey);
       const hitRedis = await redisGet(`idempotency:${cacheKey}`);
-      const redisParsed = hitRedis ? (JSON.parse(hitRedis) as typeof hit) : null;
+      const redisParsed = parseIdempotencyCache(hitRedis);
       const dataHit = hit && hit.expiresAt > Date.now() ? hit : redisParsed;
       if (dataHit && dataHit.expiresAt > Date.now()) {
         if (dataHit.fingerprint !== fingerprint) {

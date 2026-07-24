@@ -49,6 +49,14 @@ export const ORGANIC_SEO_KEYWORDS = [
   "internet brasileira",
   "memes brasileiros",
   "tradutor de gírias brasileiras",
+  "gírias do momento",
+  "gírias 2026",
+  "gírias adolescentes 2026",
+  "gírias geração z",
+  "gírias do TikTok 2026",
+  "dicionário de gírias para pais",
+  "significado de gírias de jovens",
+  "vocabulário adolescente",
 ] as const;
 
 export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
@@ -201,6 +209,131 @@ export const SEO_KEYWORD_CLUSTERS: SeoKeywordCluster[] = [
         answer:
           "Depende do contexto. Pode ser brincadeira ou elogio, mas também pode soar ofensivo se usado para ridicularizar aparência, origem ou comportamento de alguém.",
       },
+    ],
+  },
+
+  {
+    slug: "girias-do-momento-2026",
+    title: "Gírias do momento em 2026: significados, exemplos e contexto",
+    shortTitle: "Gírias do momento 2026",
+    description:
+      "Guia atualizado de gírias do momento em 2026 para entender expressões populares entre jovens, TikTok, memes, escola e redes sociais.",
+    primaryKeyword: "gírias do momento 2026",
+    keywords: [
+      "gírias do momento 2026",
+      "gírias atuais",
+      "gírias novas",
+      "gírias populares",
+      "gírias adolescentes 2026",
+      "gírias internet 2026",
+      "significado de gírias atuais",
+    ],
+    intent: "Responder buscas de atualização rápida sobre expressões em alta, com explicação útil e sem prometer lista definitiva.",
+    intro:
+      "As gírias do momento mudam rápido porque nascem em vídeos curtos, comentários, grupos de escola, jogos, fandoms e memes. Este guia organiza intenções de busca atuais em uma leitura segura para pais, educadores e curiosos, com foco em significado, tom, contexto e cuidado de interpretação.",
+    quickAnswer:
+      "Gírias do momento em 2026 são expressões que aparecem com frequência em redes sociais, conversas de adolescentes, memes e comunidades digitais. O mais importante não é decorar uma lista, mas entender contexto, intenção social, ironia e possíveis riscos de interpretação.",
+    updatedAt: "2026-07-24",
+    audience: ["pais", "educadores", "adolescentes", "social media", "curiosos"],
+    semanticEntities: ["gírias do momento", "2026", "TikTok", "memes", "adolescentes", "redes sociais", "linguagem jovem"],
+    contentSignals: [
+      "Explica que tendências linguísticas mudam conforme plataforma e comunidade.",
+      "Evita afirmar ranking absoluto de termos sem evidência pública verificável.",
+      "Conecta busca por novidade com exemplos seguros e contexto social.",
+      "Direciona o usuário para o tradutor e para páginas de significado específicas.",
+    ],
+    queryVariants: [
+      "gírias do momento 2026",
+      "quais são as gírias atuais",
+      "gírias novas dos jovens",
+      "gírias populares na internet",
+      "significado das gírias de 2026",
+    ],
+    glossary: [
+      { term: "trend", meaning: "Tendência de formato, áudio, meme ou comportamento que se espalha nas redes." },
+      { term: "viral", meaning: "Conteúdo que circula muito rápido e alcança muitas pessoas." },
+      { term: "cringe", meaning: "Algo percebido como vergonhoso, ultrapassado ou desconfortável." },
+      { term: "slay", meaning: "Elogio para atitude, visual ou performance muito marcante." },
+    ],
+    examples: [
+      { phrase: "Essa gíria viralizou na escola depois da trend.", interpretation: "A expressão se espalhou a partir de um conteúdo popular." },
+      { phrase: "Não entendi se foi elogio ou ironia.", interpretation: "Muitas gírias dependem do tom e do grupo em que aparecem." },
+      { phrase: "Meu filho falou isso no grupo da sala.", interpretation: "A busca pode vir de pais tentando interpretar conversa adolescente." },
+    ],
+    sections: [
+      {
+        title: "Como acompanhar gírias sem cair em lista desatualizada",
+        body:
+          "A melhor estratégia é observar contexto, plataforma e intenção. Uma palavra pode ser elogio no TikTok, ironia em comentário e brincadeira em grupo de escola. Por isso, o Gíria AI prioriza explicação contextual em vez de apenas tradução literal.",
+      },
+      {
+        title: "Por que esse tema é importante para SEO orgânico",
+        body:
+          "Buscas por gírias do momento costumam ter intenção imediata: a pessoa ouviu um termo e quer entender rápido. Conteúdo claro, atualizado, com resposta direta e exemplos reais tende a satisfazer melhor essa necessidade.",
+      },
+    ],
+    faqs: [
+      {
+        question: "Como saber se uma gíria ainda está em alta?",
+        answer:
+          "Observe se ela aparece em vídeos recentes, comentários, grupos de conversa e variações de meme. Mesmo assim, popularidade muda por região e comunidade.",
+      },
+      {
+        question: "Gíria do momento pode ter mais de um significado?",
+        answer:
+          "Sim. Muitas expressões dependem de ironia, plataforma, região, idade e relação entre as pessoas. O contexto deve vir antes da conclusão.",
+      },
+    ],
+  },
+  {
+    slug: "girias-do-tiktok",
+    title: "Gírias do TikTok: termos, trends e linguagem dos vídeos curtos",
+    shortTitle: "Gírias do TikTok",
+    description:
+      "Entenda gírias do TikTok, trends, comentários, memes e expressões que aparecem em vídeos curtos e conversas de adolescentes.",
+    primaryKeyword: "gírias do TikTok",
+    keywords: ["gírias do TikTok", "gírias TikTok", "trend TikTok", "significado no TikTok", "memes do TikTok", "linguagem TikTok"],
+    intent: "Ajudar quem viu uma expressão em vídeo curto ou comentário e precisa entender sentido, tom e uso.",
+    intro:
+      "O TikTok acelera a circulação de gírias porque combina áudio, legenda, comentário, remix e trend. A mesma expressão pode nascer em humor, música, fandom, beleza, escola ou jogo, e depois migrar para WhatsApp, Instagram e conversas presenciais.",
+    quickAnswer:
+      "Gírias do TikTok são expressões popularizadas por vídeos curtos, trends, áudios, desafios e comentários. Para entender corretamente, veja o vídeo, o tom, a legenda, o público e se a palavra aparece como elogio, piada, crítica ou pertencimento.",
+    updatedAt: "2026-07-24",
+    audience: ["pais", "educadores", "criadores", "social media", "usuários do TikTok"],
+    semanticEntities: ["TikTok", "trend", "vídeo curto", "áudio viral", "comentários", "memes", "adolescentes"],
+    contentSignals: [
+      "Explica vocabulário de plataforma com exemplos de uso.",
+      "Diferencia trend, meme, áudio e comentário.",
+      "Ajuda pais e educadores a interpretar sem julgamento imediato.",
+      "Conecta termos de TikTok ao glossário principal.",
+    ],
+    queryVariants: ["gírias do TikTok", "o que significa no TikTok", "termos usados no TikTok", "trend significado", "gírias de comentários do TikTok"],
+    glossary: [
+      { term: "trend", meaning: "Formato repetido por várias pessoas, muitas vezes com o mesmo áudio ou roteiro." },
+      { term: "fy", meaning: "Abreviação associada ao feed ‘For You’, usada para falar de alcance e recomendação." },
+      { term: "pov", meaning: "Ponto de vista; formato de vídeo encenando uma situação." },
+      { term: "dueto", meaning: "Formato de resposta ou reação lado a lado com outro vídeo." },
+    ],
+    examples: [
+      { phrase: "Esse POV ficou muito real.", interpretation: "O vídeo encenou bem uma situação reconhecível." },
+      { phrase: "A trend chegou atrasada no Instagram.", interpretation: "Uma tendência nasceu ou cresceu primeiro no TikTok." },
+      { phrase: "O comentário virou mais famoso que o vídeo.", interpretation: "A linguagem de comentários também cria memes." },
+    ],
+    sections: [
+      {
+        title: "Como interpretar uma gíria do TikTok",
+        body:
+          "Veja se a palavra aparece no áudio, legenda, comentário ou hashtag. O local em que ela aparece muda o sentido: legenda pode explicar, comentário pode ironizar e áudio pode carregar referência cultural.",
+      },
+      {
+        title: "Por que gírias do TikTok viram busca orgânica",
+        body:
+          "Quando uma expressão viraliza, muita gente pesquisa o significado fora da plataforma. Páginas com resposta rápida, exemplos e contexto ajudam o Google a entender que o conteúdo resolve essa intenção.",
+      },
+    ],
+    faqs: [
+      { question: "Toda gíria do TikTok é segura?", answer: "Não necessariamente. A maioria é humor ou pertencimento, mas algumas podem envolver sexualidade, violência, bullying ou desafios perigosos." },
+      { question: "O significado muda entre TikTok e WhatsApp?", answer: "Pode mudar. Ao sair do vídeo e ir para conversa privada, a expressão ganha o tom do grupo e da relação entre as pessoas." },
     ],
   },
   {

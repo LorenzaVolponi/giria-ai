@@ -2,10 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET, POST } from "../src/app/api/v1/suggestions/route";
 import * as pipeline from "../src/lib/suggestion-pipeline";
+import { redisGet } from "../src/lib/redis-store";
 
 vi.mock("../src/lib/rate-limit", () => ({
   isRateLimited: vi.fn(async () => ({ limited: false })),
 }));
+
+vi.mock("../src/lib/redis-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/lib/redis-store")>();
+  return {
+    ...actual,
+    redisGet: vi.fn(async () => null),
+    redisSetEx: vi.fn(async () => true),
+  };
+});
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -171,6 +181,44 @@ describe("suggestions api", () => {
 
     expect(res2.status).toBe(409);
     expect(data2.error).toContain("Idempotency-Key");
+  });
+
+
+  it("ignores malformed Redis idempotency cache entries", async () => {
+    vi.mocked(redisGet).mockResolvedValueOnce("{malformed-json");
+    vi.spyOn(pipeline, "validateSuggestionPayload").mockReturnValue({
+      ok: true,
+      normalized: {
+        term: "cache quebrado",
+        meaning: "continua processando",
+        context: "teste",
+        submitterName: "Ana",
+        submitterWhatsapp: "+5511999999999",
+        submitterEmail: "ana@email.com",
+      },
+    });
+    vi.spyOn(pipeline, "isSuggestionEligible").mockResolvedValue({ ok: true, term: "cache quebrado" });
+    vi.spyOn(pipeline, "processSuggestion").mockResolvedValue({
+      adjustedMeaning: "continua processando",
+      totalScore: 0.88,
+      status: "approved",
+      evidence: ["local:0.88"],
+    });
+    vi.spyOn(pipeline, "saveValidatedSlang").mockResolvedValue({ id: "idem_bad_json", createdAt: "2026-05-11T00:00:00.000Z" });
+    vi.spyOn(pipeline, "autoPromoteApprovedSlang").mockResolvedValue({ promoted: false });
+    vi.spyOn(pipeline, "notifyLeadEmail").mockResolvedValue();
+
+    const req = new NextRequest("http://localhost/api/v1/suggestions", {
+      method: "POST",
+      body: JSON.stringify({ term: "cache quebrado", meaning: "continua processando", context: "teste" }),
+      headers: { "content-type": "application/json", "idempotency-key": "bad-json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(data.id).toBe("idem_bad_json");
   });
 
   it("returns summary when requested and normalizes invalid query params", async () => {
