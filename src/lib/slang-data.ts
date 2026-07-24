@@ -24,6 +24,7 @@ import { EXTRA_SLANG_DATA_18 } from './slang-extra-18';
 import { EXTRA_SLANG_DATA_19 } from './slang-extra-19';
 import { EXTRA_SLANG_DATA_20 } from './slang-extra-20';
 import { REGIONAL_SLANG_DATA } from './slang-regional';
+import { GENERATED_SLANG_10K } from './slang-generated-10k';
 
 export type RiskLevel = "green" | "yellow" | "orange" | "red";
 export type PopularityStatus = "ativo" | "em_queda" | "regional" | "internacional" | "trending";
@@ -8814,6 +8815,7 @@ const rawSlangData: Array<SlangTerm | undefined> = [
   ...(Array.isArray(EXTRA_SLANG_DATA_19) ? EXTRA_SLANG_DATA_19 : []),
   ...(Array.isArray(EXTRA_SLANG_DATA_20) ? EXTRA_SLANG_DATA_20 : []),
   ...(Array.isArray(REGIONAL_SLANG_DATA) ? REGIONAL_SLANG_DATA : []),
+  ...(Array.isArray(GENERATED_SLANG_10K) ? GENERATED_SLANG_10K : []),
 ];
 
 // Deduplicate by lowercase term name (keep first occurrence)

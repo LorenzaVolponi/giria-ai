@@ -13,8 +13,35 @@ export const viewport: Viewport = {
   themeColor: "#059669",
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+
+const globalJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Gíria AI",
+    url: siteUrl,
+    logo: `${siteUrl}/logo.svg`,
+    sameAs: ["https://twitter.com/lorenzavolponi"],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Gíria AI",
+    alternateName: ["Tradutor de Gírias", "Dicionário de Gírias Brasileiras"],
+    url: siteUrl,
+    inLanguage: "pt-BR",
+    publisher: { "@type": "Organization", name: "Gíria AI", url: siteUrl },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${siteUrl}/girias/{search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  },
+] as const;
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Gíria AI — Tradutor de Gírias Brasileiras",
     template: "%s | Gíria AI",
@@ -88,22 +115,13 @@ export default function RootLayout({
         <link rel="alternate" type="application/rss+xml" title="Guias de gírias e cultura digital | Gíria AI" href="/guias/feed.xml" />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: "Gíria AI",
-              url: process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app",
-              potentialAction: {
-                "@type": "SearchAction",
-                target: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/{search_term_string}`,
-                "query-input": "required name=search_term_string",
-              },
-            }),
-          }}
-        />
+        {globalJsonLd.map((item) => (
+          <script
+            key={item["@type"]}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+          />
+        ))}
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           {children}
           <Analytics />
