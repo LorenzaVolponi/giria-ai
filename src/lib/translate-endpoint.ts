@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
+import { getTerm, searchTerms } from "@/lib/slang-data";
 import { translateSlang } from "@/lib/translator";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -53,12 +54,33 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
     }
 
     const result = translateSlang(text);
+    const exactTerm = getTerm(result.normalized);
+    const nearestTerm = exactTerm ?? searchTerms(result.normalized)[0] ?? null;
+
     const response = NextResponse.json({
       ...result,
-      term: result.normalized,
-      meaning: result.traducaoFormal,
-      context: result.explicacaoContextual,
-      category: "outros",
+      term: nearestTerm?.term ?? result.normalized,
+      meaning: nearestTerm?.meaning ?? result.traducaoFormal,
+      adultTranslation: nearestTerm?.adultTranslation ?? result.traducaoFormal,
+      context: nearestTerm?.context ?? result.explicacaoContextual,
+      contextNotes: nearestTerm?.contextNotes ?? result.intencaoSocialEmocional,
+      category: nearestTerm?.category ?? "outros",
+      riskLevel: nearestTerm?.riskLevel ?? "green",
+      riskLabel: nearestTerm?.riskLabel ?? "Contexto seguro",
+      safeExample: nearestTerm?.safeExample ?? "",
+      origin: nearestTerm?.origin ?? "Cultura digital brasileira",
+      region: nearestTerm?.region ?? "Brasil / internet",
+      variations: nearestTerm?.variations ?? [],
+      popularityStatus: nearestTerm?.popularityStatus ?? "Em circulação",
+      relatedTerms: searchTerms(result.normalized)
+        .filter((item) => item.term !== nearestTerm?.term)
+        .slice(0, 5)
+        .map((item) => ({
+          term: item.term,
+          meaning: item.meaning,
+          category: item.category,
+        })),
+      matchType: exactTerm ? "exact" : nearestTerm ? "approximate" : "fallback",
     });
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
