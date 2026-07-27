@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import HomeLanding from "@/components/home/home-landing";
-import GiriaApp from "@/components/giria-app";
+import AiChatPopup from "@/components/home/ai-chat-popup";
+import EliteHomeLanding from "@/components/home/elite-home-landing";
+import PremiumExperience from "@/components/home/premium-experience";
+import SiteHeader from "@/components/home/site-header";
 import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
@@ -95,10 +97,10 @@ export default function Home() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
         />
       ))}
-      <HomeLanding />
-      <section id="tradutor" className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-        <GiriaApp />
-      </section>
+      <SiteHeader />
+      <EliteHomeLanding />
+      <PremiumExperience />
+      <AiChatPopup />
     </>
   );
 }
