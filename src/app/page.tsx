@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import HomeLanding from "@/components/home/home-landing";
+import SiteHeader from "@/components/home/site-header";
 import GiriaApp from "@/components/giria-app";
 import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
@@ -95,6 +96,7 @@ export default function Home() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
         />
       ))}
+      <SiteHeader />
       <HomeLanding />
       <section id="tradutor" className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
         <GiriaApp />
