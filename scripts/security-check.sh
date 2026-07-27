@@ -9,8 +9,15 @@ fi
 
 echo "[sec] Procurando padrões comuns de secrets em arquivos versionados..."
 PATTERN='(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,}|sk-[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)'
-TRACKED_FILES="$(git ls-files -z | tr '\0' '\n' | rg -v '^scripts/security-check\.sh$' || true)"
-if [[ -n "$TRACKED_FILES" ]] && printf '%s\n' "$TRACKED_FILES" | xargs rg -n -e "$PATTERN" --; then
+FOUND_SECRET=0
+while IFS= read -r -d '' file; do
+  [[ "$file" == "scripts/security-check.sh" ]] && continue
+  if rg -n -e "$PATTERN" -- "$file"; then
+    FOUND_SECRET=1
+  fi
+done < <(git ls-files -z)
+
+if [[ "$FOUND_SECRET" -eq 1 ]]; then
   echo "[sec][CRITICO] Possível segredo encontrado."; exit 1
 else
   echo "[sec] Nenhum padrão crítico encontrado."
