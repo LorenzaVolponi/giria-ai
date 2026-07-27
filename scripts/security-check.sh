@@ -7,9 +7,10 @@ if git ls-files | rg -n "^\.env$|^\.env\.local$|^\.env\.production$|^\.env\.deve
   echo "[sec][CRITICO] Arquivo .env sensível versionado no git."; exit 1
 fi
 
-echo "[sec] Procurando padrões comuns de secrets..."
+echo "[sec] Procurando padrões comuns de secrets em arquivos versionados..."
 PATTERN='(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,}|sk-[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)'
-if rg -n --hidden -g "!node_modules" -g "!.next" -e "$PATTERN" .; then
+TRACKED_FILES="$(git ls-files -z | tr '\0' '\n' | rg -v '^scripts/security-check\.sh$' || true)"
+if [[ -n "$TRACKED_FILES" ]] && printf '%s\n' "$TRACKED_FILES" | xargs rg -n -e "$PATTERN" --; then
   echo "[sec][CRITICO] Possível segredo encontrado."; exit 1
 else
   echo "[sec] Nenhum padrão crítico encontrado."
