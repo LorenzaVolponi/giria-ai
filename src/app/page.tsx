@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import HomeLanding from "@/components/home/home-landing";
 import GiriaApp from "@/components/giria-app";
 import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Tradutor de gírias brasileiras para pais e educadores | Gíria AI",
+  title: "Dicionário inteligente de gírias brasileiras | Gíria AI",
   description:
-    "Traduza gírias brasileiras, memes, expressões do TikTok, linguagem adolescente e termos regionais com contexto, exemplos seguros e nível de atenção.",
+    "Descubra o significado de gírias brasileiras, memes, expressões do TikTok, linguagem adolescente e termos regionais com contexto, origem e exemplos claros.",
   keywords: [
     "tradutor de gírias brasileiras",
     "o que significa gíria",
@@ -19,9 +20,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Gíria AI — Tradutor de gírias brasileiras",
+    title: "Gíria AI — Dicionário inteligente de gírias brasileiras",
     description:
-      "Entenda gírias, memes e expressões de adolescentes com explicação clara, contexto de uso e nível de atenção.",
+      "Entenda gírias, memes e expressões da internet brasileira com significado, contexto, origem e exemplos.",
     url: siteUrl,
     type: "website",
     locale: "pt_BR",
@@ -29,9 +30,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Gíria AI — Tradutor de gírias brasileiras",
+    title: "Gíria AI — Dicionário inteligente de gírias brasileiras",
     description:
-      "Traduza gírias brasileiras e entenda contexto, exemplos e risco de interpretação em segundos.",
+      "Descubra o significado de gírias brasileiras e entenda o contexto cultural por trás de cada expressão.",
   },
 };
 
@@ -45,7 +46,7 @@ const homeJsonLd = [
     operatingSystem: "Web",
     inLanguage: "pt-BR",
     description:
-      "Tradutor de gírias brasileiras com contexto para pais, educadores e curiosos entenderem linguagem adolescente, memes e expressões regionais.",
+      "Dicionário inteligente de gírias brasileiras com contexto para pais, educadores e curiosos entenderem linguagem adolescente, memes e expressões regionais.",
     audience: [
       { "@type": "Audience", audienceType: "pais" },
       { "@type": "Audience", audienceType: "educadores" },
@@ -61,7 +62,7 @@ const homeJsonLd = [
         name: "O que é o Gíria AI?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "O Gíria AI é um tradutor de gírias brasileiras que explica significado, contexto, exemplos seguros e nível de atenção para pais, educadores e usuários curiosos.",
+          text: "O Gíria AI é um dicionário inteligente de gírias brasileiras que explica significado, contexto, origem, exemplos e nível de atenção para pais, educadores e usuários curiosos.",
         },
       },
       {
@@ -94,7 +95,10 @@ export default function Home() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
         />
       ))}
-      <GiriaApp />
+      <HomeLanding />
+      <section id="tradutor" className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+        <GiriaApp />
+      </section>
     </>
   );
 }
