@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import HomeLanding from "@/components/home/home-landing";
+import AiChatPopup from "@/components/home/ai-chat-popup";
+import EliteHomeLanding from "@/components/home/elite-home-landing";
 import PremiumExperience from "@/components/home/premium-experience";
 import SiteHeader from "@/components/home/site-header";
 import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
@@ -97,8 +98,9 @@ export default function Home() {
         />
       ))}
       <SiteHeader />
-      <HomeLanding />
+      <EliteHomeLanding />
       <PremiumExperience />
+      <AiChatPopup />
     </>
   );
 }
