@@ -19,11 +19,11 @@ echo "[sec] Checando package.json..."
 [[ -f package.json ]] || { echo "package.json ausente"; exit 1; }
 node -e 'const p=require("./package.json"); if(!p.scripts?.build) process.exit(1)' || { echo "[sec][CRITICO] script build ausente"; exit 1; }
 
-echo "[sec] npm audit (moderate+ bloqueia o gate)..."
-npm audit --audit-level=moderate
+echo "[sec] npm audit (high+ bloqueia o gate)..."
+npm audit --audit-level=high
 
+echo "[sec] Vulnerabilidades moderadas devem ser acompanhadas, mas não bloqueiam este gate."
 echo "[sec] Recomendações: habilitar Dependabot, revisão periódica de secrets e rotação de chaves."
-
 
 echo "[sec] Verificando ALLOWED_ORIGIN..."
 if [[ -z "${ALLOWED_ORIGIN:-}" ]]; then

@@ -17,6 +17,20 @@ type ChatMessage = {
   content: string;
 };
 
+type ConciergeResponse = {
+  response?: string;
+  suggestions?: string[];
+  context?: {
+    platform?: string;
+    tone?: string;
+    generation?: string;
+    relationship?: string;
+    risk?: string;
+    confidence?: number;
+  };
+  error?: string;
+};
+
 const starters = [
   "Meu filho falou que eu estou farmando aura. É elogio?",
   "O que significa six seven?",
@@ -26,6 +40,7 @@ const starters = [
 const typingLabels = [
   "Lendo o contexto...",
   "Entendendo o tom...",
+  "Conectando os sinais culturais...",
   "Preparando uma resposta clara...",
 ];
 
@@ -33,6 +48,8 @@ export default function AiChatPopup() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [confidence, setConfidence] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typingIndex, setTypingIndex] = useState(0);
@@ -40,16 +57,31 @@ export default function AiChatPopup() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    function handleOpen(event: Event) {
+      const customEvent = event as CustomEvent<{ message?: string }>;
+      const message = customEvent.detail?.message?.trim();
+      setOpen(true);
+      if (message) {
+        setQuery(message);
+        window.setTimeout(() => inputRef.current?.focus(), 180);
+      }
+    }
+
+    window.addEventListener("giria-ai:open", handleOpen);
+    return () => window.removeEventListener("giria-ai:open", handleOpen);
+  }, []);
+
+  useEffect(() => {
     if (!loading) return;
     const timer = window.setInterval(() => {
       setTypingIndex((current) => (current + 1) % typingLabels.length);
-    }, 1250);
+    }, 1150);
     return () => window.clearInterval(timer);
   }, [loading]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading, error]);
+  }, [messages, loading, error, suggestions]);
 
   useEffect(() => {
     if (open) window.setTimeout(() => inputRef.current?.focus(), 120);
@@ -62,26 +94,28 @@ export default function AiChatPopup() {
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: value }];
     setMessages(nextMessages);
     setQuery("");
+    setSuggestions([]);
+    setConfidence(null);
     setLoading(true);
     setTypingIndex(0);
     setError(null);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/chat/concierge", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           message: value,
           history: nextMessages.slice(-10),
-          responseMode: "default",
-          experience: "concierge",
         }),
       });
-      const data = await response.json();
+      const data = (await response.json()) as ConciergeResponse;
       if (!response.ok) throw new Error(data.error || "Não consegui responder agora.");
 
       const answer = data.response || "Não encontrei uma interpretação segura para isso.";
       setMessages((current) => [...current, { role: "assistant", content: answer }]);
+      setSuggestions(Array.isArray(data.suggestions) ? data.suggestions.slice(0, 3) : []);
+      setConfidence(typeof data.context?.confidence === "number" ? data.context.confidence : null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não consegui responder agora.");
     } finally {
@@ -96,6 +130,8 @@ export default function AiChatPopup() {
 
   function reset() {
     setMessages([]);
+    setSuggestions([]);
+    setConfidence(null);
     setQuery("");
     setError(null);
   }
@@ -143,7 +179,7 @@ export default function AiChatPopup() {
                         <CheckCircle2 className="h-3 w-3" /> online
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">Entendo palavra, tom, contexto e intenção</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Copiloto de cultura digital brasileira</p>
                   </div>
                 </div>
 
@@ -239,6 +275,36 @@ export default function AiChatPopup() {
                           <span>{typingLabels[typingIndex]}</span>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {!loading && confidence !== null && messages.at(-1)?.role === "assistant" && (
+                    <div className="ml-10 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                        <span>Confiança da interpretação</span>
+                        <span>{Math.round(confidence * 100)}%</span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-700"
+                          style={{ width: `${Math.max(8, Math.round(confidence * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {!loading && suggestions.length > 0 && (
+                    <div className="ml-10 flex flex-wrap gap-2">
+                      {suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => void sendMessage(suggestion)}
+                          className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-700"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
