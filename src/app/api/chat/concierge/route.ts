@@ -73,24 +73,35 @@ function findTerms(message: string): SlangTerm[] {
 
 function lastRelevantTerms(history: Array<{ role: string; content: string }>): SlangTerm[] {
   for (const item of [...history].reverse()) {
+    if (item.role !== "user") continue;
     const terms = findTerms(item.content);
     if (terms.length > 0) return terms;
   }
   return [];
 }
 
-function contextualFallback(message: string): string {
+function isFollowUp(message: string): boolean {
+  const normalized = normalize(message);
+  return /^(e\b|mas\b|isso\b|esse\b|essa\b|ele\b|ela\b|como\b|por que\b|porque\b|qual\b|onde\b|quando\b|pode\b|entao\b|e se\b)/.test(normalized)
+    || /(como respondo|isso muda|qual o risco|devo me preocupar|pode ser meme|pode ser ironia|o que eu falo)/.test(normalized);
+}
+
+function contextualFallback(message: string, hasHistory: boolean): string {
   const normalized = normalize(message);
 
   if (/^(oi|ola|eai|bom dia|boa tarde|boa noite)/.test(normalized)) {
-    return "Oi! Me conte a frase completa — quem falou, onde apareceu e o que estava acontecendo. Assim eu consigo separar significado, tom e intenção.";
+    return "Oi! Cole a frase completa e me diga onde apareceu. Eu separo **significado, tom, intenção e nível de atenção**.";
+  }
+
+  if (hasHistory && isFollowUp(message)) {
+    return "Eu entendi que isso é uma continuação, mas ainda falta uma expressão concreta no histórico recente. Cole novamente a frase ou a gíria e eu sigo da mesma análise.";
   }
 
   if (/(ironia|brincadeira|zoeira|ofensa|provocacao)/.test(normalized)) {
-    return "Consigo ajudar, mas preciso da frase exata. **A mesma expressão pode ser elogio, zoeira ou provocação dependendo do tom e da relação entre as pessoas.**\n\nCole aqui a mensagem completa e, se souber, diga onde apareceu: escola, TikTok, WhatsApp, Discord ou jogo.";
+    return "Consigo analisar, mas preciso da frase exata. **A mesma expressão pode ser elogio, zoeira ou provocação dependendo do tom e da relação entre as pessoas.**\n\nCole a mensagem completa e diga se veio de escola, TikTok, WhatsApp, Discord ou jogo.";
   }
 
-  return "Ainda não encontrei essa expressão com confiança suficiente na base. Não quero inventar um significado.\n\nMe envie **a frase completa**, onde ela apareceu e, se possível, a idade aproximada de quem falou. Com esses sinais eu consigo testar variações e interpretar o contexto com mais segurança.";
+  return "Ainda não encontrei essa expressão com confiança suficiente na base — e prefiro não inventar.\n\nEnvie **a frase completa**, a plataforma onde apareceu e, se souber, a idade aproximada de quem falou. Com isso eu testo variações e interpreto o contexto com muito mais segurança.";
 }
 
 function suggestionsFor(terms: SlangTerm[]): string[] {
@@ -127,6 +138,11 @@ export async function POST(request: NextRequest) {
     const history = Array.isArray(body.history)
       ? body.history
           .filter((item) => item && typeof item.role === "string" && typeof item.content === "string")
+          .map((item) => ({
+            role: item.role,
+            content: sanitizeUserInput(item.content, MAX_MESSAGE_LENGTH),
+          }))
+          .filter((item) => item.content)
           .slice(-10)
       : [];
 
@@ -135,14 +151,20 @@ export async function POST(request: NextRequest) {
     }
 
     const directTerms = findTerms(message);
-    const followUp = directTerms.length === 0 && /^(e |mas |isso|esse|essa|ele|ela|como|por que|porque)/.test(normalize(message));
-    const terms = followUp ? lastRelevantTerms(history) : directTerms;
-    const context = analyzeCulturalContext(message, terms);
+    const inheritedTerms = directTerms.length === 0 && isFollowUp(message)
+      ? lastRelevantTerms(history.slice(0, -1))
+      : [];
+    const terms = directTerms.length > 0 ? directTerms : inheritedTerms;
+
+    const contextSource = terms.length > 0 && inheritedTerms.length > 0
+      ? `${history.filter((item) => item.role === "user").slice(-2).map((item) => item.content).join(" ")} ${message}`
+      : message;
+    const context = analyzeCulturalContext(contextSource, terms);
 
     let response: string;
     if (terms.length === 1) response = formatConciergeTermResponse(terms[0], context);
     else if (terms.length > 1) response = formatConciergeMultiTermResponse(terms, context);
-    else response = contextualFallback(message);
+    else response = contextualFallback(message, history.length > 1);
 
     return withSecurityHeaders(NextResponse.json({
       response,
@@ -156,6 +178,7 @@ export async function POST(request: NextRequest) {
         confidence: context.confidence,
       },
       terms: terms.map((term) => term.term),
+      inheritedContext: inheritedTerms.length > 0,
     }));
   } catch (error) {
     console.error("Concierge chat error", error);
