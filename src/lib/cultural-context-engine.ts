@@ -119,80 +119,157 @@ export function analyzeCulturalContext(message: string, terms: SlangTerm[]): Cul
   };
 }
 
-function contextLead(context: CulturalContext): string {
-  if (context.tone === "concerned") return "Entendo por que isso chamou sua atenção.";
-  if (context.tone === "playful") return "Pelo jeito, isso veio em tom de brincadeira.";
-  if (context.tone === "ironic") return "Aqui o tom parece mais irônico do que literal.";
-  if (context.tone === "provocative") return "Isso pode ser provocação, então o contexto importa bastante.";
-  if (context.tone === "positive") return "A leitura mais provável é positiva.";
-  return "A leitura mais provável é esta:";
+function intentLabel(context: CulturalContext): string {
+  if (context.tone === "positive") return "elogio";
+  if (context.tone === "playful") return "brincadeira ou zoeira leve";
+  if (context.tone === "ironic") return "ironia ou deboche";
+  if (context.tone === "provocative") return "provocação";
+  if (context.tone === "concerned") return "uso ambíguo que merece confirmação";
+  return "linguagem informal; o contexto define a intenção";
 }
 
 function audienceTip(context: CulturalContext): string {
   if (context.relationship === "parent_child") {
-    return "Uma boa resposta seria perguntar com leveza: _“Vocês usam isso como elogio ou zoeira?”_";
+    return "Pergunte com leveza: _“Vocês usam isso como elogio, brincadeira ou crítica?”_";
   }
   if (context.relationship === "educator_student") {
-    return "Em sala, vale perguntar como o grupo usa a expressão antes de corrigir ou repreender.";
+    return "Pergunte como a turma usa a expressão antes de corrigir ou repreender.";
   }
   if (context.relationship === "partner") {
-    return "Entre parceiros, confirme o tom antes de interpretar como crítica ou ofensa.";
+    return "Confirme o tom antes de interpretar como crítica ou ofensa.";
   }
-  return "Para ter certeza, vale perguntar onde a expressão apareceu e com que tom foi dita.";
+  if (context.relationship === "peer") {
+    return "Responda no mesmo nível de leveza e peça contexto se a intenção não estiver clara.";
+  }
+  return "Pergunte onde apareceu e com que tom foi dita antes de concluir.";
 }
 
-function platformLabel(platform: PlatformSignal): string | null {
+function naturalReply(context: CulturalContext): string {
+  if (context.tone === "positive") return "_“Boa, então foi elogio 😄”_";
+  if (context.tone === "playful") return "_“Tá, mas foi zoeira boa ou vocês estão me tirando?”_";
+  if (context.tone === "ironic") return "_“Entendi a ironia. Só confirma o que você quis dizer.”_";
+  if (context.tone === "provocative") return "_“Não entendi se foi brincadeira ou provocação. Explica melhor.”_";
+  return "_“Me explica como vocês usam isso?”_";
+}
+
+function platformLabel(platform: PlatformSignal): string {
   const labels: Record<PlatformSignal, string> = {
     tiktok: "TikTok",
-    instagram: "Instagram",
+    instagram: "Instagram/Reels",
     discord: "Discord",
     whatsapp: "WhatsApp",
     gaming: "jogos e comunidades gamer",
     school: "ambiente escolar",
-    general: "",
+    general: "internet e conversas informais",
   };
-  return labels[platform] || null;
+  return labels[platform];
+}
+
+function generationLabel(generation: GenerationSignal): string {
+  const labels: Record<GenerationSignal, string> = {
+    gen_alpha: "Geração Alpha",
+    gen_z: "Geração Z",
+    mixed: "Geração Z e Alpha",
+    unknown: "uso digital amplo",
+  };
+  return labels[generation];
+}
+
+function riskSection(level: RiskLevel): { emoji: string; label: string; explanation: string } {
+  const map: Record<RiskLevel, { emoji: string; label: string; explanation: string }> = {
+    green: { emoji: "🟢", label: "Baixo", explanation: "Não há sinal de alerta por padrão." },
+    yellow: { emoji: "🟡", label: "Atenção ao contexto", explanation: "O tom pode mudar bastante a interpretação." },
+    orange: { emoji: "🟠", label: "Cautela", explanation: "Pode envolver provocação, humilhação ou conflito." },
+    red: { emoji: "🔴", label: "Sensível", explanation: "Vale conversar diretamente, com calma e sem confronto." },
+  };
+  return map[level];
+}
+
+function compactVariations(term: SlangTerm): string {
+  const variations = Array.isArray(term.variations) ? term.variations.filter(Boolean).slice(0, 5) : [];
+  return variations.length > 0 ? variations.map((variation) => `\`${variation}\``).join(" · ") : "Sem variações relevantes na base.";
 }
 
 export function formatConciergeTermResponse(term: SlangTerm, context: CulturalContext): string {
-  const platform = platformLabel(context.platform);
-  const riskCopy: Record<RiskLevel, string> = {
-    green: "Não vejo sinal de alerta por padrão.",
-    yellow: "O tom pode mudar a interpretação, então vale confirmar o contexto.",
-    orange: "Há espaço para provocação, humilhação ou conflito; observe como foi usado.",
-    red: "O conteúdo merece atenção cuidadosa e conversa direta, sem confronto.",
-  };
+  const risk = riskSection(term.riskLevel);
 
-  const originLine = term.origin ? `\n\n**De onde vem:** ${term.origin}` : "";
-  const platformLine = platform ? `\n\nÉ comum em **${platform}** e conversas online.` : "";
-  const exampleLine = term.safeExample ? `\n\n**Exemplo:** _“${term.safeExample}”_` : "";
+  return `## ${risk.emoji} Resposta rápida
 
-  return `${contextLead(context)}
+**“${term.term}”** significa: **${term.adultTranslation}**
 
-**“${term.term}”** quer dizer, em português direto: **${term.adultTranslation}**
+## 🎯 O que provavelmente quiseram dizer
+
+A leitura mais provável é **${intentLabel(context)}**.
 
 ${term.meaning}
 
-**Nesse contexto:** ${term.context}${platformLine}
+## 🧠 Tradução para um adulto
 
-**Nível de atenção:** ${riskCopy[term.riskLevel]}${exampleLine}${originLine}
+> ${term.adultTranslation}
 
-**Como lidar:** ${audienceTip(context)}`;
+## 👀 Como um adolescente entende
+
+${term.context}
+
+## ⚠️ Existe risco?
+
+**${risk.label}.** ${risk.explanation}
+
+## 💬 Como responder naturalmente
+
+${naturalReply(context)}
+
+${audienceTip(context)}
+
+## 📱 Onde essa expressão aparece
+
+Mais comum em **${platformLabel(context.platform)}**, com uso associado a **${generationLabel(context.generation)}**.
+
+${term.safeExample ? `**Exemplo realista:** _“${term.safeExample}”_` : ""}
+
+## 🔎 Variações parecidas
+
+${compactVariations(term)}
+
+${term.origin ? `## 🧭 Origem
+
+${term.origin}` : ""}`.trim();
 }
 
 export function formatConciergeMultiTermResponse(terms: SlangTerm[], context: CulturalContext): string {
-  const summary = terms
-    .slice(0, 4)
+  const risk = riskSection(context.risk);
+  const items = terms
+    .slice(0, 5)
     .map((term) => `- **${term.term}** — ${term.adultTranslation}`)
     .join("\n");
 
-  return `${contextLead(context)}
+  const primary = terms[0];
 
-Encontrei **${terms.length} expressões** relevantes na frase:
+  return `## ${risk.emoji} Resposta rápida
 
-${summary}
+Encontrei **${terms.length} expressões**. No conjunto, a mensagem parece ter tom de **${intentLabel(context)}**.
 
-No conjunto, a mensagem parece ter tom **${context.tone === "playful" ? "de brincadeira" : context.tone === "ironic" ? "irônico" : context.tone === "provocative" ? "provocativo" : "informal"}**.
+## 🧩 Tradução por partes
 
-**Como responder:** ${audienceTip(context)}`;
+${items}
+
+## 🎯 Leitura do conjunto
+
+A combinação sugere uma mensagem **${context.tone === "playful" ? "leve e brincalhona" : context.tone === "ironic" ? "irônica" : context.tone === "provocative" ? "provocativa" : context.tone === "positive" ? "positiva" : "informal e dependente de contexto"}**.
+
+## ⚠️ Existe risco?
+
+**${risk.label}.** ${risk.explanation}
+
+## 💬 Como responder naturalmente
+
+${naturalReply(context)}
+
+${audienceTip(context)}
+
+## 📱 Onde isso costuma aparecer
+
+Em **${platformLabel(context.platform)}**, especialmente entre pessoas de **${generationLabel(context.generation)}**.
+
+${primary?.safeExample ? `**Exemplo relacionado:** _“${primary.safeExample}”_` : ""}`.trim();
 }
