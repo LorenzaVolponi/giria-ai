@@ -1,19 +1,38 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
-  Bot,
   CheckCircle2,
+  Copy,
+  Loader2,
   MapPinned,
   Search,
   ShieldCheck,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+
+type RelatedTerm = {
+  term: string;
+};
+
+type Translation = {
+  term?: string;
+  meaning?: string;
+  adultTranslation?: string;
+  context?: string;
+  category?: string;
+  riskLabel?: string;
+  safeExample?: string;
+  origin?: string;
+  region?: string;
+  popularityStatus?: string;
+  relatedTerms?: RelatedTerm[];
+  matchType?: "exact" | "approximate" | "fallback";
+};
 
 const popularTerms = ["six seven", "farmar aura", "brainrot", "delulu", "cooked"];
 
@@ -41,209 +60,202 @@ const paths = [
   },
 ];
 
-const demoConversation = [
-  {
-    question: "Meu filho falou que eu estou farmando aura. Isso é elogio?",
-    lead: "A leitura mais provável é positiva.",
-    answer: "“Farmar aura” é ganhar presença, respeito ou carisma por fazer algo marcante — às vezes com um toque de ironia.",
-    tags: ["Tom: positivo", "Contexto: internet"],
-  },
-  {
-    question: "O que significa six seven?",
-    lead: "Pelo jeito, isso veio em tom de brincadeira.",
-    answer: "“Six seven” é um meme nonsense. Normalmente não há tradução literal: a graça está em repetir a referência e mostrar que você entendeu a piada do grupo.",
-    tags: ["Gen Alpha", "Meme sem sentido fixo"],
-  },
-  {
-    question: "Ele disse que está cooked depois da prova.",
-    lead: "Aqui parece exagero cômico, não um alerta por padrão.",
-    answer: "“Cooked” quer dizer “estou ferrado” ou “não tem mais jeito”. Em contexto de prova, geralmente significa que a pessoa acha que foi mal.",
-    tags: ["Tom: dramático", "Atenção: baixa"],
-  },
-];
-
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export default function EliteHomeLanding() {
-  const router = useRouter();
   const [query, setQuery] = useState("");
-  const [demoIndex, setDemoIndex] = useState(0);
-  const [demoStep, setDemoStep] = useState<"reading" | "answer">("answer");
+  const [translation, setTranslation] = useState<Translation | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setDemoStep("reading");
-      window.setTimeout(() => {
-        setDemoIndex((current) => (current + 1) % demoConversation.length);
-        setDemoStep("answer");
-      }, 900);
-    }, 6200);
+  async function translate(event?: FormEvent, preset?: string) {
+    event?.preventDefault();
+    const value = (preset ?? query).trim();
+    if (!value || loading) return;
 
-    return () => window.clearInterval(timer);
-  }, []);
+    setQuery(value);
+    setLoading(true);
+    setError(null);
+    setTranslation(null);
 
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = query.trim();
-    if (!value) return;
-    window.dispatchEvent(new CustomEvent("giria-ai:open", { detail: { message: value } }));
+    try {
+      const response = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slang: value }),
+      });
+      const data = (await response.json()) as Translation & { error?: string };
+      if (!response.ok) throw new Error(data.error || "Não foi possível traduzir agora.");
+      setTranslation(data);
+      window.requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível traduzir agora.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function openChat(message?: string) {
-    window.dispatchEvent(new CustomEvent("giria-ai:open", { detail: { message } }));
+  async function copyResult() {
+    if (!translation) return;
+    const text = [translation.term, translation.adultTranslation || translation.meaning, translation.context]
+      .filter(Boolean)
+      .join("\n\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
   }
-
-  const demo = demoConversation[demoIndex];
 
   return (
     <main className="bg-[#f7f7f5] text-[#111111] dark:bg-slate-950 dark:text-white">
       <section className="relative isolate overflow-hidden border-b border-black/5 bg-white dark:border-white/10 dark:bg-slate-950">
-        <div className="pointer-events-none absolute inset-0 -z-20 bg-[linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:linear-gradient(to_bottom,black,transparent_90%)] dark:opacity-20" />
-        <div className="pointer-events-none absolute left-[18%] top-12 -z-10 h-72 w-72 rounded-full bg-emerald-200/50 blur-[110px]" />
-        <div className="pointer-events-none absolute right-[2%] top-28 -z-10 h-80 w-80 rounded-full bg-sky-200/40 blur-[120px] dark:bg-sky-500/10" />
+        <div className="pointer-events-none absolute inset-0 -z-20 hidden bg-[linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:linear-gradient(to_bottom,black,transparent_90%)] sm:block dark:opacity-20" />
+        <div className="pointer-events-none absolute left-[18%] top-12 -z-10 hidden h-72 w-72 rounded-full bg-emerald-200/50 blur-[110px] sm:block" />
 
-        <div className="mx-auto grid min-h-[760px] max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[0.93fr_1.07fr] lg:gap-10 lg:px-10 lg:py-20">
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-800 shadow-sm backdrop-blur dark:border-emerald-400/20 dark:bg-slate-900/80 dark:text-emerald-300">
+        <div className="mx-auto max-w-5xl px-4 pb-10 pt-8 sm:px-8 sm:pb-16 sm:pt-14 lg:px-10 lg:pt-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-800 shadow-sm backdrop-blur dark:border-emerald-400/20 dark:bg-slate-900/80 dark:text-emerald-300 sm:px-4 sm:text-[11px]">
               <Sparkles className="h-3.5 w-3.5" /> O Brasil fala. O Gíria AI explica.
             </div>
 
-            <h1 className="mt-8 max-w-4xl text-balance text-5xl font-semibold leading-[0.94] tracking-[-0.058em] sm:text-6xl lg:text-[5.15rem]">
+            <h1 className="mt-5 text-balance text-[2.55rem] font-semibold leading-[0.96] tracking-[-0.055em] sm:mt-8 sm:text-6xl lg:text-[5rem]">
               Entenda o que realmente quiseram dizer.
               <span className="mt-2 block bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 bg-clip-text text-transparent">
                 Sem pagar de perdido.
               </span>
             </h1>
 
-            <p className="mt-7 max-w-xl text-lg leading-8 text-black/60 dark:text-white/60">
-              Não traduzimos apenas palavras. Interpretamos intenção, tom, contexto cultural e nível de atenção em expressões do TikTok, Instagram, Discord, games e conversas reais.
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-black/60 dark:text-white/60 sm:mt-7 sm:text-lg sm:leading-8">
+              Digite uma gíria, frase ou meme. A gente explica significado, intenção, contexto e nível de atenção em segundos.
             </p>
-
-            <form
-              onSubmit={submitSearch}
-              className="mt-9 max-w-2xl rounded-[1.4rem] border border-black/10 bg-white/90 p-2 shadow-[0_24px_80px_rgba(15,23,42,0.11)] backdrop-blur transition focus-within:border-emerald-300 focus-within:shadow-[0_28px_90px_rgba(16,185,129,0.13)] dark:border-white/10 dark:bg-slate-900/90"
-            >
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <label className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/30 dark:text-white/35" />
-                  <span className="sr-only">Conversar sobre uma gíria</span>
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder='Ex.: Meu filho disse “six seven”...'
-                    className="h-14 w-full rounded-xl border-0 bg-[#f5f6f4] pl-12 pr-4 text-base outline-none placeholder:text-black/35 focus:bg-white dark:bg-slate-950 dark:placeholder:text-white/35"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-600"
-                >
-                  Conversar com a IA <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
-              <span className="mr-1 text-black/45 dark:text-white/45">As pessoas estão perguntando:</span>
-              {popularTerms.map((term) => (
-                <button
-                  key={term}
-                  type="button"
-                  onClick={() => openChat(`O que significa ${term}?`)}
-                  className="rounded-full border border-black/10 bg-white/80 px-3 py-1.5 font-medium text-black/65 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-white/70"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="relative lg:-mr-8">
-            <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-emerald-200/45 via-cyan-100/20 to-violet-200/35 blur-3xl" />
-            <div className="relative overflow-hidden rounded-[2.2rem] border border-white/40 bg-slate-950 p-3 shadow-[0_38px_120px_rgba(2,6,23,0.30)] sm:p-4">
-              <div className="flex items-center justify-between px-3 py-2.5 text-white">
-                <div className="flex items-center gap-3">
-                  <span className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
-                    <Bot className="h-5 w-5" />
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-emerald-300" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">Gíria AI</p>
-                    <p className="text-xs text-white/45">Especialista em cultura digital brasileira</p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-emerald-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Online
-                </span>
-              </div>
-
-              <div className="mt-3 min-h-[520px] rounded-[1.7rem] bg-[#fbfcfb] p-5 text-black sm:p-7">
-                <div className="ml-auto max-w-[88%] rounded-[1.4rem] rounded-br-md bg-slate-100 px-5 py-4 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/35">Você</p>
-                  <p className="mt-2 font-semibold leading-7">“{demo.question}”</p>
-                </div>
-
-                <div className="mt-5 flex gap-3">
-                  <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-emerald-300">
-                    <Bot className="h-4 w-4" />
-                  </span>
-                  <div className="min-h-52 flex-1 rounded-[1.4rem] rounded-bl-md border border-slate-200 bg-white px-5 py-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-                    {demoStep === "reading" ? (
-                      <div className="flex h-40 items-center gap-3 text-sm text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:-0.24s]" />
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:-0.12s]" />
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500" />
-                        </span>
-                        Entendendo o contexto...
-                      </div>
-                    ) : (
-                      <div className="animate-[fadeIn_0.45s_ease-out]">
-                        <p className="text-sm font-semibold text-emerald-700">{demo.lead}</p>
-                        <p className="mt-3 text-[15px] leading-7 text-slate-700">{demo.answer}</p>
-                        <div className="mt-5 flex flex-wrap gap-2">
-                          {demo.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs font-medium text-emerald-700">
-                          <CheckCircle2 className="h-4 w-4" /> Contexto interpretado com base cultural
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => openChat(demo.question)}
-                  className="mt-6 flex w-full items-center justify-between rounded-2xl bg-slate-950 px-5 py-4 text-left font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-600"
-                >
-                  Pergunte qualquer expressão <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
+          <form
+            onSubmit={(event) => void translate(event)}
+            className="mx-auto mt-7 max-w-3xl rounded-[1.35rem] border border-black/10 bg-white/95 p-2 shadow-[0_20px_70px_rgba(15,23,42,0.12)] backdrop-blur transition focus-within:border-emerald-300 dark:border-white/10 dark:bg-slate-900/95 sm:mt-9 sm:rounded-[1.6rem] sm:p-2.5"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <label className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/30 dark:text-white/35" />
+                <span className="sr-only">Pesquisar gíria</span>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder='Ex.: “farmar aura”, “six seven”...'
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  className="h-14 w-full rounded-xl border-0 bg-[#f5f6f4] pl-12 pr-4 text-base outline-none placeholder:text-black/35 focus:bg-white focus:ring-2 focus:ring-emerald-400 dark:bg-slate-950 dark:placeholder:text-white/35 sm:h-16 sm:rounded-2xl"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={loading || !query.trim()}
+                className="inline-flex h-14 min-w-36 items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 font-semibold text-white transition motion-safe:hover:-translate-y-0.5 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:rounded-2xl"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                Entender
+              </button>
             </div>
+          </form>
+
+          <div className="mx-auto mt-4 flex max-w-3xl gap-2 overflow-x-auto pb-2 text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:overflow-visible">
+            {popularTerms.map((term) => (
+              <button
+                key={term}
+                type="button"
+                onClick={() => void translate(undefined, term)}
+                className="min-h-11 shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 font-medium text-black/65 transition motion-safe:hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-900 dark:text-white/70"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+
+          <div ref={resultRef} aria-live="polite" className="mx-auto max-w-4xl">
+            {error && (
+              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+                {error}
+              </div>
+            )}
+
+            {translation && !loading && (
+              <article className="mt-7 overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:bg-slate-900 sm:mt-10 sm:rounded-[2rem]">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-8 sm:py-6">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600 sm:text-xs">
+                      {translation.matchType === "approximate" ? "Melhor aproximação" : "Resultado"}
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-4xl">“{translation.term || query}”</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void copyResult()}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                    aria-label="Copiar resultado"
+                  >
+                    {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                <div className="p-5 sm:p-8">
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:rounded-3xl sm:p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300 sm:text-xs">Em português claro</p>
+                    <p className="mt-3 text-base font-bold leading-7 text-slate-800 dark:text-slate-100 sm:text-lg sm:leading-8">
+                      {translation.adultTranslation || translation.meaning}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4">
+                    <ResultCard label="Significado" value={translation.meaning} />
+                    <ResultCard label="Contexto" value={translation.context} />
+                    <ResultCard label="Exemplo" value={translation.safeExample} />
+                    <ResultCard label="Origem" value={translation.origin} />
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
+                    {[translation.category, translation.region, translation.riskLabel, translation.popularityStatus]
+                      .filter(Boolean)
+                      .map((tag) => (
+                        <span key={tag} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {tag}
+                        </span>
+                      ))}
+                  </div>
+
+                  {translation.relatedTerms && translation.relatedTerms.length > 0 && (
+                    <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 sm:text-xs">Veja também</p>
+                      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
+                        {translation.relatedTerms.slice(0, 6).map((item) => (
+                          <button
+                            key={item.term}
+                            type="button"
+                            onClick={() => void translate(undefined, item.term)}
+                            className="min-h-11 shrink-0 rounded-full border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300"
+                          >
+                            {item.term}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </article>
+            )}
+          </div>
+
+          <div className="mt-5 flex items-center justify-center gap-2 text-center text-[11px] font-semibold text-black/40 dark:text-white/40 sm:text-xs">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" /> Conteúdo educativo. Em situações de risco, confirme o contexto real.
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10">
-        <div className="flex flex-col gap-4 border-b border-black/10 pb-8 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20 lg:px-10">
+        <div className="flex flex-col gap-4 border-b border-black/10 pb-7 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between sm:pb-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">Comece por onde fizer sentido</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">Explore a cultura digital</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">Fácil para quem só quer entender.</h2>
           </div>
-          <Link href="/girias" className="inline-flex items-center gap-2 font-semibold text-black/65 transition hover:text-[#007f5d] dark:text-white/65">
+          <Link href="/girias" className="inline-flex min-h-11 items-center gap-2 font-semibold text-black/65 transition hover:text-[#007f5d] dark:text-white/65">
             Ver dicionário completo <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -252,16 +264,16 @@ export default function EliteHomeLanding() {
           {paths.map((item) => {
             const Icon = item.icon;
             return (
-              <Link key={item.title} href={item.href} className="group bg-white p-7 transition hover:bg-[#fbfbf9] dark:bg-slate-900 dark:hover:bg-slate-900/80">
+              <Link key={item.title} href={item.href} className="group bg-white p-6 transition hover:bg-[#fbfbf9] dark:bg-slate-900 dark:hover:bg-slate-900/80 sm:p-7">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#f1f1ef] text-black/70 dark:bg-slate-800 dark:text-white/70">
                     <Icon className="h-5 w-5" />
                   </span>
                   <ArrowRight className="h-4 w-4 text-black/25 transition group-hover:translate-x-1 group-hover:text-[#007f5d] dark:text-white/25" />
                 </div>
-                <h3 className="mt-7 text-2xl font-semibold tracking-tight">{item.title}</h3>
-                <p className="mt-3 min-h-20 text-sm leading-7 text-black/55 dark:text-white/55">{item.description}</p>
-                <div className="mt-6 flex flex-wrap gap-2">
+                <h3 className="mt-6 text-2xl font-semibold tracking-tight sm:mt-7">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-black/55 dark:text-white/55 sm:min-h-20">{item.description}</p>
+                <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
                   {item.links.map((link) => (
                     <span key={link} className="rounded-full border border-black/10 px-3 py-1.5 text-xs font-medium text-black/50 dark:border-white/10 dark:text-white/50">
                       {link}
@@ -274,10 +286,19 @@ export default function EliteHomeLanding() {
         </div>
 
         <div className="mt-8 flex items-center gap-3 text-sm text-black/50 dark:text-white/50">
-          <BookOpen className="h-4 w-4" />
-          Conteúdo organizado para consulta rápida, pesquisa e aprofundamento.
+          <BookOpen className="h-4 w-4" /> Conteúdo organizado para consulta rápida, pesquisa e aprofundamento.
         </div>
       </section>
     </main>
+  );
+}
+
+function ResultCard({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 sm:text-xs">{label}</p>
+      <p className="mt-2 text-sm leading-7 text-slate-700 dark:text-slate-300">{value}</p>
+    </div>
   );
 }
