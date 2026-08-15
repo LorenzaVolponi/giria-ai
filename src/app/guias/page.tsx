@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
+import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
 
@@ -34,14 +34,14 @@ export default function GuiasSeoPage() {
             isPartOf: { "@type": "WebSite", name: "Gíria AI", url: site },
             mainEntity: {
               "@type": "ItemList",
-              itemListElement: SEO_KEYWORD_CLUSTERS.map((cluster, index) => ({
+              itemListElement: ACTIVE_GUIDE_CLUSTERS.map((cluster, index) => ({
                 "@type": "ListItem",
                 position: index + 1,
                 url: `${site}/guias/${cluster.slug}`,
                 name: cluster.title,
               })),
             },
-            hasPart: SEO_KEYWORD_CLUSTERS.map((cluster) => ({
+            hasPart: ACTIVE_GUIDE_CLUSTERS.map((cluster) => ({
               "@type": "Article",
               name: cluster.title,
               url: `${site}/guias/${cluster.slug}`,
@@ -77,7 +77,7 @@ export default function GuiasSeoPage() {
         </section>
 
         <section className="mt-8 grid gap-5 md:grid-cols-3" aria-label="Guias disponíveis">
-          {SEO_KEYWORD_CLUSTERS.map((cluster, index) => (
+          {ACTIVE_GUIDE_CLUSTERS.map((cluster, index) => (
             <article
               key={cluster.slug}
               className="group relative overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(15,23,42,0.13)]"
