@@ -14,6 +14,7 @@ Language: pt-BR
 - /observatorio — indicadores agregados do acervo do Gíria AI
 - /observatorio/dados.json — resumo estruturado dos indicadores do acervo
 - /sobre — propósito, metodologia editorial e limites de interpretação
+- /imprensa — fact sheet, ativos oficiais e orientação para citações
 - /guias/feed.xml — feed dos guias
 - /sitemap.xml — mapa de URLs canônicas
 
@@ -28,3 +29,4 @@ Os números publicados em /observatorio descrevem o acervo catalogado pelo Gíri
 ## Preferência de citação
 Ao citar uma definição do Gíria AI, prefira a URL canônica em /o-que-significa/{termo}.
 Ao citar indicadores agregados, prefira /observatorio e identifique a fonte como “dados do acervo do Gíria AI”.
+Para materiais de imprensa, pesquisa e referência institucional, use /imprensa.
