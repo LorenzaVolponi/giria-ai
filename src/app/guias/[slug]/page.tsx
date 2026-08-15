@@ -20,14 +20,12 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const cluster = getSeoKeywordCluster(slug);
-  if (!cluster) return { title: "Guia não encontrado | Gíria AI" };
+  if (!cluster) return { title: "Guia não encontrado" };
   const url = `${site}/guias/${cluster.slug}`;
-  const uniqueKeywords = Array.from(new Set([cluster.primaryKeyword, ...cluster.keywords]));
 
   return {
-    title: `${cluster.title} | Gíria AI`,
+    title: cluster.title,
     description: cluster.description,
-    keywords: uniqueKeywords,
     alternates: { canonical: url },
     openGraph: {
       title: cluster.title,
@@ -71,10 +69,9 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
     inLanguage: "pt-BR",
     keywords: uniqueKeywords.join(", "),
     dateModified: cluster.updatedAt,
-    datePublished: cluster.updatedAt,
     mainEntityOfPage: url,
-    author: { "@type": "Organization", name: "Gíria AI" },
-    publisher: { "@type": "Organization", name: "Gíria AI" },
+    author: { "@type": "Organization", name: "Gíria AI", url: site },
+    publisher: { "@type": "Organization", name: "Gíria AI", url: site },
     about: cluster.semanticEntities.map((entity) => ({ "@type": "Thing", name: entity })),
     audience: cluster.audience.map((audience) => ({ "@type": "Audience", audienceType: audience })),
   };
@@ -85,7 +82,7 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
     description: cluster.description,
     url,
     inLanguage: "pt-BR",
-    primaryImageOfPage: `${site}/favicon.svg`,
+    isPartOf: { "@type": "WebSite", name: "Gíria AI", url: site },
     about: cluster.semanticEntities.map((entity) => ({ "@type": "Thing", name: entity })),
     speakable: {
       "@type": "SpeakableSpecification",
@@ -104,16 +101,6 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
       inDefinedTermSet: url,
     })),
   };
-  const searchIntentJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: `Buscas relacionadas: ${cluster.primaryKeyword}`,
-    itemListElement: cluster.queryVariants.map((query, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: query,
-    })),
-  };
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -129,7 +116,6 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(definedTermSetJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(searchIntentJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script
         type="application/ld+json"
@@ -157,14 +143,14 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
           <div className="relative grid gap-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
             <div>
               <p className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                Camada SEO temática
+                Guia de cultura digital
               </p>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">{cluster.title}</h1>
-              <p className="mt-4 text-sm text-slate-500">Atualizado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
+              <p className="mt-4 text-sm text-slate-500">Revisado em {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</p>
               <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 md:text-lg">{cluster.intro}</p>
             </div>
             <aside className="rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Keyword foco</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Tema central</p>
               <p className="mt-2 text-2xl font-semibold">{cluster.primaryKeyword}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {cluster.semanticEntities.slice(0, 5).map((entity) => (
@@ -180,10 +166,10 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
         <nav className="sticky top-3 z-10 mt-5 rounded-full border border-white/70 bg-white/85 px-4 py-3 text-sm shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur" aria-label="Sumário do guia">
           <ul className="flex gap-3 overflow-x-auto whitespace-nowrap text-slate-600">
             <li><a href="#resposta-rapida" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Resposta</a></li>
-            <li><a href="#intencao" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Busca</a></li>
+            <li><a href="#contexto" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Contexto</a></li>
             <li><a href="#glossario" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Glossário</a></li>
             <li><a href="#exemplos" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Exemplos</a></li>
-            <li><a href="#sinais" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Qualidade</a></li>
+            <li><a href="#interpretacao" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">Interpretação</a></li>
             <li><a href="#faq" className="rounded-full px-3 py-1 transition hover:bg-emerald-50 hover:text-emerald-700">FAQ</a></li>
           </ul>
         </nav>
@@ -192,19 +178,22 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
           <div className="space-y-6">
             <section id="resposta-rapida" className="rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-[0_18px_60px_rgba(16,185,129,0.12)]">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Resposta rápida</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">O que saber sobre {cluster.primaryKeyword}</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">O que você precisa saber</h2>
               <p className="mt-3 leading-7 text-slate-700">{cluster.quickAnswer}</p>
             </section>
 
-            <section id="intencao" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <h2 className="text-2xl font-semibold tracking-tight">Intenção de busca</h2>
+            <section id="contexto" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Onde esse vocabulário aparece</h2>
               <p className="mt-3 leading-7 text-slate-600">{cluster.intent}</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                {cluster.queryVariants.map((query) => (
-                  <span key={query} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                    {query}
-                  </span>
-                ))}
+              <div className="mt-5">
+                <p className="text-sm font-semibold text-slate-900">Perguntas relacionadas</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {cluster.queryVariants.map((query) => (
+                    <span key={query} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+                      {query}
+                    </span>
+                  ))}
+                </div>
               </div>
             </section>
 
@@ -232,8 +221,8 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
               </div>
             </section>
 
-            <section id="sinais" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <h2 className="text-2xl font-semibold tracking-tight">Por que este guia responde melhor à busca?</h2>
+            <section id="interpretacao" className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-2xl font-semibold tracking-tight">Como interpretar sem perder o contexto</h2>
               <ul className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
                 {cluster.contentSignals.map((signal) => (
                   <li key={signal} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">{signal}</li>
@@ -264,8 +253,8 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <section id="entidades" className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <h2 className="text-lg font-semibold">Entidades semânticas</h2>
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+              <h2 className="text-lg font-semibold">Termos relacionados</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {cluster.semanticEntities.map((entity) => (
                   <span key={entity} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-800">
@@ -273,15 +262,16 @@ export default async function GuiaSeoDetalhePage({ params }: Props) {
                   </span>
                 ))}
               </div>
-              <p className="mt-4 text-sm leading-6 text-slate-600">Público principal: {cluster.audience.join(", ")}.</p>
+              <p className="mt-4 text-sm leading-6 text-slate-600">Útil para: {cluster.audience.join(", ")}.</p>
             </section>
 
             <section className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_18px_60px_rgba(15,23,42,0.16)]">
-              <h2 className="text-lg font-semibold">Próximos passos</h2>
+              <h2 className="text-lg font-semibold">Continue explorando</h2>
               <ul className="mt-4 space-y-3 text-sm text-slate-200">
-                <li><Link href="/o-que-significa" className="underline underline-offset-4">Buscar significado direto</Link></li>
-                <li><Link href="/girias" className="underline underline-offset-4">Explorar glossário completo</Link></li>
-                <li><Link href="/girias/regionais" className="underline underline-offset-4">Ver gírias regionais</Link></li>
+                <li><Link href="/o-que-significa" className="underline underline-offset-4">Buscar o significado de uma gíria</Link></li>
+                <li><Link href="/girias" className="underline underline-offset-4">Explorar o dicionário completo</Link></li>
+                <li><Link href="/girias/regionais" className="underline underline-offset-4">Descobrir gírias por região</Link></li>
+                <li><Link href="/sobre" className="underline underline-offset-4">Conhecer o Gíria AI</Link></li>
               </ul>
             </section>
 

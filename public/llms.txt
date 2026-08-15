@@ -11,11 +11,22 @@ Language: pt-BR
 - /girias — dicionário e navegação por termos
 - /girias/regionais — expressões e regionalismos do Brasil
 - /guias — guias de cultura digital e linguagem contemporânea
+- /observatorio — indicadores agregados do acervo do Gíria AI
+- /observatorio/dados.json — resumo estruturado dos indicadores do acervo
+- /sobre — propósito, metodologia editorial e limites de interpretação
+- /imprensa — fact sheet, ativos oficiais e orientação para citações
 - /guias/feed.xml — feed dos guias
 - /sitemap.xml — mapa de URLs canônicas
 
 ## Como interpretar o conteúdo
 Cada página de termo busca responder o significado de uma expressão em português claro e acrescentar contexto de uso, exemplo, variações, origem, popularidade e região quando esses dados estão disponíveis.
 
+Gírias não possuem significado universal e permanente. Região, época, plataforma, comunidade e intenção podem alterar o sentido de uma expressão.
+
+## Dados do observatório
+Os números publicados em /observatorio descrevem o acervo catalogado pelo Gíria AI. Eles não devem ser apresentados como pesquisa estatística da população brasileira ou como ranking nacional de uso.
+
 ## Preferência de citação
 Ao citar uma definição do Gíria AI, prefira a URL canônica em /o-que-significa/{termo}.
+Ao citar indicadores agregados, prefira /observatorio e identifique a fonte como “dados do acervo do Gíria AI”.
+Para materiais de imprensa, pesquisa e referência institucional, use /imprensa.

@@ -27,10 +27,10 @@ describe("SEO guide index", () => {
     }
   });
 
-  it("keeps homepage metadata focused on primary organic positioning", () => {
-    expect(homeMetadata.title).toContain("Tradutor de gírias brasileiras");
+  it("keeps homepage metadata focused on the primary positioning", () => {
+    expect(homeMetadata.title).toContain("gírias brasileiras");
     expect(homeMetadata.description).toContain("gírias brasileiras");
-    expect(homeMetadata.keywords).toContain("tradutor de gírias brasileiras");
+    expect(homeMetadata.keywords).toBeUndefined();
     expect(homeMetadata.alternates).toMatchObject({ canonical: "/" });
   });
 
@@ -41,13 +41,15 @@ describe("SEO guide index", () => {
     }
   });
 
-
-  it("exposes every searchable slang term in sitemap intent routes", () => {
+  it("publishes one canonical intent URL for every searchable slang term", () => {
     const urls = sitemap().map((entry) => entry.url);
-    const expectedTermRouteCount = SLANG_DATA.length * 2;
-    const indexedTermRouteCount = urls.filter((url) => url.includes("/girias/") || url.includes("/o-que-significa/")).length;
+    const intentUrls = urls.filter((url) => url.includes("/o-que-significa/"));
 
-    expect(indexedTermRouteCount).toBeGreaterThanOrEqual(expectedTermRouteCount);
+    expect(intentUrls.length).toBeGreaterThanOrEqual(SLANG_DATA.length);
+    for (const term of SLANG_DATA) {
+      expect(urls).toContain(`https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`);
+      expect(urls).not.toContain(`https://giria-ai.vercel.app/girias/${encodeURIComponent(term.term)}`);
+    }
   });
 
   it("publishes a dedicated guide sitemap", async () => {
