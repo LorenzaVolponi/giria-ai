@@ -4,10 +4,37 @@ set -euo pipefail
 BASE_URL="${1:-${BASE_URL:-https://giria-ai.vercel.app}}"
 BASE_URL="${BASE_URL%/}"
 ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-}"
+EXPECTED_COMMIT_SHA="${EXPECTED_COMMIT_SHA:-}"
 
 CURL_RETRY=(--retry 12 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30)
 
 echo "[smoke] Base URL: $BASE_URL"
+
+check_release_commit() {
+  if [[ -z "$EXPECTED_COMMIT_SHA" ]]; then
+    echo "⚠️ EXPECTED_COMMIT_SHA não definido: pulando check de release"
+    return 0
+  fi
+
+  local expected="${EXPECTED_COMMIT_SHA:0:12}"
+  local body actual
+
+  for attempt in $(seq 1 18); do
+    body="$(curl -fsS --connect-timeout 10 --max-time 20 "$BASE_URL/api/v1/health" 2>/dev/null || true)"
+    actual="$(printf '%s' "$body" | node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { try { process.stdout.write(JSON.parse(input).commit || ""); } catch {} });')"
+
+    if [[ "$actual" == "$expected" ]]; then
+      echo "✅ release $expected live"
+      return 0
+    fi
+
+    echo "[smoke] aguardando release $expected (atual: ${actual:-indisponivel})"
+    sleep 10
+  done
+
+  echo "❌ produção não chegou ao commit $expected"
+  return 1
+}
 
 check_url() {
   local path="$1"
@@ -15,6 +42,7 @@ check_url() {
   echo "✅ $path ok"
 }
 
+check_release_commit
 check_url "/"
 check_url "/api/v1/health"
 check_url "/robots.txt"
