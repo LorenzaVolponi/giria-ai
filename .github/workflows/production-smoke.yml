@@ -1,4 +1,4 @@
-name: Post Deploy Smoke
+name: Production Surface Smoke
 
 on:
   workflow_dispatch:
@@ -9,6 +9,9 @@ on:
         default: "https://giria-ai.vercel.app"
   push:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   smoke:
