@@ -1,0 +1,75 @@
+name: IndexNow Discovery
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  indexnow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve production site
+        id: site
+        shell: bash
+        run: |
+          SITE_URL="${{ vars.PRODUCTION_BASE_URL }}"
+          if [ -z "$SITE_URL" ]; then
+            SITE_URL="https://giria-ai.vercel.app"
+          fi
+          SITE_URL="${SITE_URL%/}"
+          echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Validate submission script
+        run: node --check scripts/indexnow-submit.mjs
+
+      - name: Dry-run changed URL detection
+        if: github.event_name != 'push'
+        env:
+          SITE_URL: ${{ steps.site.outputs.site_url }}
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+          INDEXNOW_DRY_RUN: "1"
+          INDEXNOW_ALL_CORE: "1"
+        run: node scripts/indexnow-submit.mjs
+
+      - name: Wait until verification key is public
+        if: github.event_name == 'push'
+        env:
+          SITE_URL: ${{ steps.site.outputs.site_url }}
+          INDEXNOW_KEY: 7d9e3b6a2f414c88a5d791e6b4c2f3a8
+        shell: bash
+        run: |
+          KEY_URL="$SITE_URL/$INDEXNOW_KEY.txt"
+          for attempt in $(seq 1 18); do
+            BODY="$(curl -fsS --connect-timeout 10 --max-time 20 "$KEY_URL" 2>/dev/null || true)"
+            if [ "$BODY" = "$INDEXNOW_KEY" ]; then
+              echo "IndexNow verification key is public."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "IndexNow verification key did not become public at $KEY_URL"
+          exit 1
+
+      - name: Submit meaningful changed URLs
+        if: github.event_name == 'push'
+        env:
+          SITE_URL: ${{ steps.site.outputs.site_url }}
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+          INDEXNOW_KEY: 7d9e3b6a2f414c88a5d791e6b4c2f3a8
+        run: node scripts/indexnow-submit.mjs
