@@ -7,6 +7,7 @@ export type EditorialSource = {
 
 export type EditorialEvidence = {
   reviewedAt: string;
+  definition: string;
   context: string;
   relatedTerms: string[];
   sources: EditorialSource[];
@@ -17,6 +18,8 @@ const normalize = (value: string) => value.trim().toLowerCase();
 const EDITORIAL_EVIDENCE: Record<string, EditorialEvidence> = {
   "farmar aura": {
     reviewedAt: "2026-08-15",
+    definition:
+      "Farmar aura significa acumular simbolicamente presença, carisma, respeito ou status social por uma atitude marcante. Pode ser elogio sincero ou ironia quando alguém parece estar se esforçando demais para parecer descolado.",
     context:
       "A expressão segue recebendo cobertura editorial no Brasil em 2026 e saiu do uso puramente online para aparecer também em eventos presenciais. O sentido continua ligado a acumular, de forma séria ou irônica, presença, carisma, respeito ou status social simbólico.",
     relatedTerms: ["aura", "aura farming", "six seven", "brainrot"],
@@ -43,6 +46,8 @@ const EDITORIAL_EVIDENCE: Record<string, EditorialEvidence> = {
   },
   "six seven": {
     reviewedAt: "2026-08-15",
+    definition:
+      "Six seven, 67 ou 6-7 é um meme propositalmente ambíguo e muitas vezes sem significado literal fixo. Ele funciona como piada nonsense, reação e sinal de pertencimento entre quem reconhece a referência.",
     context:
       "Six seven, também escrito 67 ou 6-7, funciona principalmente como meme nonsense e marcador de pertencimento. A ambiguidade faz parte da piada: em muitos usos não existe uma tradução literal estável.",
     relatedTerms: ["41", "brainrot", "farmar aura", "aura farming"],
