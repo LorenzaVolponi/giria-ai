@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "[sec] Verificando vazamento de .env no Git..."
-if git ls-files | rg -n "^\.env$|^\.env\.local$|^\.env\.production$|^\.env\.development$"; then
+if git ls-files | grep -En '^\.env$|^\.env\.local$|^\.env\.production$|^\.env\.development$'; then
   echo "[sec][CRITICO] Arquivo .env sensível versionado no git."; exit 1
 fi
 
@@ -12,7 +12,7 @@ PATTERN='(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,}|sk-[A-Za-z0-9]{20,}|BEGIN (RSA|O
 FOUND_SECRET=0
 while IFS= read -r -d '' file; do
   [[ "$file" == "scripts/security-check.sh" ]] && continue
-  if rg -n -e "$PATTERN" -- "$file"; then
+  if grep -IEn -e "$PATTERN" -- "$file"; then
     FOUND_SECRET=1
   fi
 done < <(git ls-files -z)
