@@ -1,10 +1,10 @@
-import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
+import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 import { getEditorialEvidenceTerms } from "@/lib/editorial-evidence";
 
 export function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const updatedAt = new Date(
-    Math.max(...SEO_KEYWORD_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime())),
+    Math.max(...ACTIVE_GUIDE_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime())),
   ).toISOString();
 
   return Response.json(
@@ -24,7 +24,7 @@ export function GET() {
         term,
         url: `${site}/o-que-significa/${encodeURIComponent(term)}`,
       })),
-      guides: SEO_KEYWORD_CLUSTERS.map((cluster) => ({
+      guides: ACTIVE_GUIDE_CLUSTERS.map((cluster) => ({
         slug: cluster.slug,
         url: `${site}/guias/${cluster.slug}`,
         title: cluster.title,
