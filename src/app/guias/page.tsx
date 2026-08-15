@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ORGANIC_SEO_KEYWORDS, SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
+import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Guias de gírias, memes e linguagem da internet | Gíria AI",
+  title: "Guias de gírias, memes e cultura digital",
   description:
-    "Guias temáticos de gírias brasileiras, influencer, nave espacial, ET, alienígena, Paraná e cultura digital.",
-  keywords: [...ORGANIC_SEO_KEYWORDS],
+    "Guias do Gíria AI para entender gírias brasileiras, memes, linguagem adolescente, redes sociais e regionalismos com contexto e exemplos claros.",
   alternates: { canonical: `${site}/guias` },
   openGraph: {
-    title: "Guias de gírias, memes e linguagem da internet | Gíria AI",
+    title: "Guias de gírias, memes e cultura digital | Gíria AI",
     description:
-      "Camadas editoriais para entender linguagem de influencer, memes espaciais, ET, alienígena, Paraná e expressões brasileiras.",
+      "Entenda a linguagem da internet brasileira com guias sobre gírias, memes, redes sociais, gerações e regionalismos.",
     url: `${site}/guias`,
     type: "website",
   },
@@ -29,8 +28,10 @@ export default function GuiasSeoPage() {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             name: "Guias de gírias e cultura digital",
-            description: metadata.description,
+            description:
+              "Guias do Gíria AI para entender gírias brasileiras, memes, linguagem adolescente, redes sociais e regionalismos com contexto e exemplos claros.",
             url: `${site}/guias`,
+            isPartOf: { "@type": "WebSite", name: "Gíria AI", url: site },
             mainEntity: {
               "@type": "ItemList",
               itemListElement: SEO_KEYWORD_CLUSTERS.map((cluster, index) => ({
@@ -44,7 +45,6 @@ export default function GuiasSeoPage() {
               "@type": "Article",
               name: cluster.title,
               url: `${site}/guias/${cluster.slug}`,
-              keywords: Array.from(new Set([cluster.primaryKeyword, ...cluster.keywords])).join(", "),
               dateModified: cluster.updatedAt,
             })),
           }),
@@ -56,26 +56,27 @@ export default function GuiasSeoPage() {
           <div className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-violet-200/40 blur-3xl" />
           <div className="relative max-w-3xl">
             <p className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-              Guias premium de SEO
+              Biblioteca Gíria AI
             </p>
             <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-              Gírias, memes e cultura digital com leitura clara.
+              Entenda a internet brasileira sem precisar adivinhar.
             </h1>
             <p className="mt-5 text-base leading-8 text-slate-600 md:text-lg">
-              Camada editorial do Gíria AI para organizar buscas orgânicas por temas específicos: linguagem de influencer,
-              memes com nave espacial, ET e alienígena, além de gírias do Paraná e regionalismos brasileiros.
+              Guias para decodificar gírias, memes, redes sociais, regionalismos e mudanças de linguagem com significado,
+              contexto cultural, exemplos e cuidado de interpretação.
             </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {ORGANIC_SEO_KEYWORDS.slice(0, 8).map((keyword) => (
-                <span key={keyword} className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs text-slate-600 shadow-sm">
-                  {keyword}
-                </span>
-              ))}
+            <div className="mt-7 flex flex-wrap gap-3 text-sm">
+              <Link href="/o-que-significa" className="rounded-full bg-slate-950 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700">
+                Buscar uma gíria
+              </Link>
+              <Link href="/girias" className="rounded-full border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700">
+                Abrir dicionário
+              </Link>
             </div>
           </div>
         </section>
 
-        <section className="mt-8 grid gap-5 md:grid-cols-3">
+        <section className="mt-8 grid gap-5 md:grid-cols-3" aria-label="Guias disponíveis">
           {SEO_KEYWORD_CLUSTERS.map((cluster, index) => (
             <article
               key={cluster.slug}
@@ -86,21 +87,13 @@ export default function GuiasSeoPage() {
                 <p className="rounded-full bg-slate-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
                   Guia {String(index + 1).padStart(2, "0")}
                 </p>
-                <span className="text-xs text-slate-400">{new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</span>
+                <span className="text-xs text-slate-400">Revisado {new Date(cluster.updatedAt).toLocaleDateString("pt-BR")}</span>
               </div>
               <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">{cluster.shortTitle}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">{cluster.description}</p>
-              <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">Foco</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{cluster.primaryKeyword}</p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {cluster.queryVariants.slice(0, 2).map((query) => (
-                  <span key={query} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
-                    {query}
-                  </span>
-                ))}
-              </div>
+              <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">Você vai entender</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {cluster.semanticEntities.slice(0, 3).map((entity) => (
+                {cluster.semanticEntities.slice(0, 4).map((entity) => (
                   <span key={entity} className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-800">
                     {entity}
                   </span>
@@ -110,7 +103,7 @@ export default function GuiasSeoPage() {
                 href={`/guias/${cluster.slug}`}
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition group-hover:bg-emerald-700"
               >
-                Abrir guia <span aria-hidden="true">→</span>
+                Ler guia <span aria-hidden="true">→</span>
               </Link>
             </article>
           ))}
