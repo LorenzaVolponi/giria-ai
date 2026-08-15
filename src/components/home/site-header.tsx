@@ -14,21 +14,28 @@ export default function SiteHeader() {
           <span className="text-lg">Gíria AI</span>
         </Link>
 
+        <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-600 dark:text-slate-300 lg:flex" aria-label="Navegação principal">
+          <Link href="/girias" className="transition hover:text-emerald-600">Dicionário</Link>
+          <Link href="/guias" className="transition hover:text-emerald-600">Guias</Link>
+          <Link href="/observatorio" className="transition hover:text-emerald-600">Observatório</Link>
+          <Link href="/sobre" className="transition hover:text-emerald-600">Sobre</Link>
+        </nav>
+
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/girias"
-            aria-label="Pesquisar gírias"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-800 dark:text-slate-300"
+            aria-label="Explorar dicionário de gírias"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-800 dark:text-slate-300 lg:hidden"
           >
             <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">Buscar</span>
+            <span className="hidden sm:inline">Dicionário</span>
           </Link>
 
           <Link
-            href="#tradutor"
+            href="/o-que-significa"
             className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-600 dark:bg-white dark:text-slate-950 dark:hover:bg-emerald-400"
           >
-            Perguntar à IA
+            Entender uma gíria
           </Link>
         </div>
       </div>
