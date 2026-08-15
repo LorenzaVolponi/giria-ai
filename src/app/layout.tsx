@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,7 +33,7 @@ const globalJsonLd = [
     publisher: { "@type": "Organization", name: "Gíria AI", url: siteUrl },
     potentialAction: {
       "@type": "SearchAction",
-      target: `${siteUrl}/girias/{search_term_string}`,
+      target: `${siteUrl}/o-que-significa/{search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   },
@@ -43,31 +42,20 @@ const globalJsonLd = [
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Gíria AI — Tradutor de Gírias Brasileiras",
+    default: "Gíria AI — Dicionário e tradutor de gírias brasileiras",
     template: "%s | Gíria AI",
   },
   applicationName: "Gíria AI",
   category: "education",
   description:
-    "Tradutor de gírias brasileiras para entender linguagem adolescente, memes, TikTok, regionalismos e expressões da internet com contexto e exemplos seguros.",
-  keywords: [
-    "gírias brasileiras",
-    "tradutor de gírias",
-    "linguagem adolescente",
-    "gírias internet",
-    "slang brasileiro",
-    "entender adolescentes",
-    "gírias funk",
-    "gírias TikTok",
-    ...ORGANIC_SEO_KEYWORDS,
-  ],
-  authors: [{ name: "AIX8C", url: "https://twitter.com/lorenzavolponi" }],
-  creator: "AIX8C",
+    "Entenda gírias brasileiras, memes e expressões da internet com significado, contexto, exemplos de uso, origem e variações regionais.",
+  authors: [{ name: "Gíria AI" }],
+  creator: "Gíria AI",
   publisher: "Gíria AI",
   openGraph: {
-    title: "Gíria AI — Tradutor de Gírias Brasileiras",
+    title: "Gíria AI — Dicionário e tradutor de gírias brasileiras",
     description:
-      "Tradutor de gírias brasileiras com contexto para pais, educadores e curiosos entenderem memes, TikTok e linguagem adolescente.",
+      "Entenda gírias brasileiras, memes e expressões da internet com significado, contexto, exemplos e variações regionais.",
     images: [{ url: "/logo.svg", width: 512, height: 512, alt: "Logo do Gíria AI" }],
     url: "/",
     type: "website",
@@ -76,9 +64,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Gíria AI — Tradutor de Gírias Brasileiras",
+    title: "Gíria AI — Dicionário e tradutor de gírias brasileiras",
     description:
-      "Tradutor de gírias brasileiras com contexto para pais, educadores e curiosos entenderem memes, TikTok e linguagem adolescente.",
+      "Entenda gírias brasileiras, memes e expressões da internet com significado, contexto e exemplos.",
     images: [{ url: "/logo.svg", width: 512, height: 512, alt: "Logo do Gíria AI" }],
   },
   robots: {

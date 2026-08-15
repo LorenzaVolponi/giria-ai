@@ -4,16 +4,15 @@ import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${site}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
-    { url: `${site}/girias`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
-    { url: `${site}/girias/regionais`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${site}/girias/enviadas-por-usuarios`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
-    { url: `${site}/guias`, lastModified: now, changeFrequency: "weekly", priority: 0.88 },
-    { url: `${site}/o-que-significa`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${site}/sobre`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${site}/`, changeFrequency: "daily", priority: 1 },
+    { url: `${site}/girias`, changeFrequency: "daily", priority: 0.95 },
+    { url: `${site}/girias/regionais`, changeFrequency: "daily", priority: 0.9 },
+    { url: `${site}/girias/enviadas-por-usuarios`, changeFrequency: "daily", priority: 0.85 },
+    { url: `${site}/guias`, changeFrequency: "weekly", priority: 0.88 },
+    { url: `${site}/o-que-significa`, changeFrequency: "daily", priority: 0.95 },
+    { url: `${site}/sobre`, changeFrequency: "monthly", priority: 0.6 },
   ];
 
   const seoGuideRoutes: MetadataRoute.Sitemap = SEO_KEYWORD_CLUSTERS.map((cluster) => ({
@@ -23,18 +22,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.9,
   }));
 
-  const slangRoutes: MetadataRoute.Sitemap = SLANG_DATA.map((term) => ({
-    url: `${site}/girias/${encodeURIComponent(term.term)}`,
-    lastModified: now,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
   const intentRoutes: MetadataRoute.Sitemap = SLANG_DATA.map((term) => ({
     url: `${site}/o-que-significa/${encodeURIComponent(term.term)}`,
-    lastModified: now,
     changeFrequency: "weekly",
-    priority: 0.75,
+    priority: 0.85,
   }));
 
-  return [...staticRoutes, ...seoGuideRoutes, ...slangRoutes, ...intentRoutes];
+  return [...staticRoutes, ...seoGuideRoutes, ...intentRoutes];
 }

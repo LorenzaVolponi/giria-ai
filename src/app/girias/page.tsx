@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SLANG_DATA } from "@/lib/slang-data";
-import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 export const metadata: Metadata = {
-  title: "Gírias Populares | Gíria AI",
-  description: "Navegue por gírias populares, linguagem de influencer, memes com ET, alienígena, nave espacial e expressões do Paraná.",
-  keywords: ["gírias", "o que significa", "dicionário de gírias", "gíria brasileira", "tradutor de gírias", ...ORGANIC_SEO_KEYWORDS],
+  title: "Dicionário de gírias brasileiras",
+  description:
+    "Explore gírias brasileiras por significado, contexto, uso e região. Encontre expressões de internet, escola, games, memes e redes sociais em linguagem clara.",
   alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
 };
 
@@ -15,23 +14,25 @@ export default function GiriasPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="text-3xl font-bold">Glossário de gírias populares</h1>
-      <p className="mt-3 text-muted-foreground">Clique em uma gíria para abrir a explicação detalhada.</p>
+      <h1 className="text-3xl font-bold">Dicionário de gírias brasileiras</h1>
+      <p className="mt-3 text-muted-foreground">
+        Consulte significado, contexto e exemplos para entender como cada expressão é usada de verdade.
+      </p>
       <p className="mt-2 text-sm">
-        Quer focar por localização?{" "}
+        Quer explorar por localização?{" "}
         <Link href="/girias/regionais" className="underline font-medium">
-          Ver página de gírias regionais
+          Veja gírias regionais
         </Link>
-        {" "}ou explore os{" "}
+        {" "}ou aprofunde temas e tendências nos{" "}
         <Link href="/guias" className="underline font-medium">
-          guias de influencer, ET, alienígena, nave espacial e Paraná
+          guias de cultura digital
         </Link>
         .
       </p>
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
         {topTerms.map((term) => (
           <li key={term.term} className="rounded-lg border p-4 hover:bg-muted/50">
-            <Link href={`/girias/${encodeURIComponent(term.term)}`} className="font-semibold">
+            <Link href={`/o-que-significa/${encodeURIComponent(term.term)}`} className="font-semibold">
               {term.term}
             </Link>
             <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{term.meaning}</p>

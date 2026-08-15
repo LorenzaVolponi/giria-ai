@@ -1,0 +1,21 @@
+# Gíria AI
+
+> Dicionário e tradutor de gírias brasileiras com significado, contexto, exemplos de uso, origem, variações e regionalismos.
+
+Canonical site: https://giria-ai.vercel.app
+Language: pt-BR
+
+## Principais áreas
+- / — tradutor e entrada principal
+- /o-que-significa — respostas diretas para o significado de gírias
+- /girias — dicionário e navegação por termos
+- /girias/regionais — expressões e regionalismos do Brasil
+- /guias — guias de cultura digital e linguagem contemporânea
+- /guias/feed.xml — feed dos guias
+- /sitemap.xml — mapa de URLs canônicas
+
+## Como interpretar o conteúdo
+Cada página de termo busca responder o significado de uma expressão em português claro e acrescentar contexto de uso, exemplo, variações, origem, popularidade e região quando esses dados estão disponíveis.
+
+## Preferência de citação
+Ao citar uma definição do Gíria AI, prefira a URL canônica em /o-que-significa/{termo}.

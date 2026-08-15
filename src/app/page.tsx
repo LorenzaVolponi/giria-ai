@@ -2,23 +2,13 @@ import type { Metadata } from "next";
 import AiChatPopup from "@/components/home/ai-chat-popup";
 import EliteHomeLanding from "@/components/home/elite-home-landing";
 import SiteHeader from "@/components/home/site-header";
-import { ORGANIC_SEO_KEYWORDS } from "@/lib/seo-keyword-layer";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Dicionário inteligente de gírias brasileiras | Gíria AI",
+  title: "Dicionário inteligente de gírias brasileiras",
   description:
-    "Descubra o significado de gírias brasileiras, memes, expressões do TikTok, linguagem adolescente e termos regionais com contexto, origem e exemplos claros.",
-  keywords: [
-    "tradutor de gírias brasileiras",
-    "o que significa gíria",
-    "dicionário de gírias brasileiras",
-    "gírias adolescentes",
-    "gírias do TikTok",
-    "linguagem adolescente para pais",
-    ...ORGANIC_SEO_KEYWORDS,
-  ],
+    "Descubra o significado de gírias brasileiras, memes, expressões de redes sociais e regionalismos com contexto, origem e exemplos claros.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Gíria AI — Dicionário inteligente de gírias brasileiras",
@@ -47,7 +37,7 @@ const homeJsonLd = [
     operatingSystem: "Web",
     inLanguage: "pt-BR",
     description:
-      "Dicionário inteligente de gírias brasileiras com contexto para pais, educadores e curiosos entenderem linguagem adolescente, memes e expressões regionais.",
+      "Dicionário inteligente de gírias brasileiras com significado, contexto, origem, exemplos e variações regionais.",
     audience: [
       { "@type": "Audience", audienceType: "pais" },
       { "@type": "Audience", audienceType: "educadores" },
@@ -68,10 +58,10 @@ const homeJsonLd = [
       },
       {
         "@type": "Question",
-        name: "O Gíria AI explica gírias do TikTok e memes?",
+        name: "O Gíria AI explica gírias de redes sociais e memes?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Sim. A ferramenta organiza expressões de TikTok, redes sociais, memes, conversas de grupo, regionalismos e linguagem adolescente em português do Brasil.",
+          text: "Sim. A ferramenta organiza expressões de redes sociais, memes, conversas de grupo, regionalismos e linguagem jovem em português do Brasil.",
         },
       },
       {
@@ -79,7 +69,7 @@ const homeJsonLd = [
         name: "Como pesquisar o significado de uma gíria?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Digite a gíria na busca da página inicial ou navegue pelas páginas de glossário, guias e termos individuais para encontrar explicações detalhadas.",
+          text: "Digite a gíria na busca da página inicial ou navegue pelo dicionário, pelos guias e pelas páginas individuais de significado.",
         },
       },
     ],
