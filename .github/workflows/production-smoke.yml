@@ -50,5 +50,6 @@ jobs:
       - name: Run production smoke
         env:
           BASE_URL: ${{ steps.target.outputs.base_url }}
+          EXPECTED_COMMIT_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
         run: bash scripts/post-deploy-smoke.sh "$BASE_URL"
