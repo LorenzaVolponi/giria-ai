@@ -41,7 +41,7 @@ const matches = (predicate) => changedFiles.some(predicate);
 const allCore = matches((file) => file === "__all_core__" || file === `public/${key}.txt`);
 
 if (allCore) {
-  add("/", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre");
+  add("/", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre", "/editorial-index.json");
 }
 
 if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/components/home/") || file === "src/app/layout.tsx")) {
@@ -50,6 +50,19 @@ if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/compon
 
 if (matches((file) => file.startsWith("src/app/o-que-significa/"))) {
   add("/o-que-significa");
+}
+
+if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) {
+  add("/editorial-index.json");
+}
+
+if (matches((file) => file === "src/lib/editorial-evidence.ts")) {
+  add(
+    "/editorial-index.json",
+    "/o-que-significa",
+    "/o-que-significa/farmar%20aura",
+    "/o-que-significa/six%20seven",
+  );
 }
 
 if (matches((file) => file.startsWith("src/app/girias/"))) {

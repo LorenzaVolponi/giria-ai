@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SLANG_DATA } from "@/lib/slang-data";
-import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
+import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
@@ -17,7 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${site}/sobre`, changeFrequency: "monthly", priority: 0.7 },
   ];
 
-  const seoGuideRoutes: MetadataRoute.Sitemap = SEO_KEYWORD_CLUSTERS.map((cluster) => ({
+  const guideRoutes: MetadataRoute.Sitemap = ACTIVE_GUIDE_CLUSTERS.map((cluster) => ({
     url: `${site}/guias/${cluster.slug}`,
     lastModified: new Date(cluster.updatedAt),
     changeFrequency: "weekly",
@@ -30,5 +30,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...seoGuideRoutes, ...intentRoutes];
+  return [...staticRoutes, ...guideRoutes, ...intentRoutes];
 }

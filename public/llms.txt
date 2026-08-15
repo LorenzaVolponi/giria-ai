@@ -13,6 +13,7 @@ Language: pt-BR
 - /guias — guias de cultura digital e linguagem contemporânea
 - /observatorio — indicadores agregados do acervo do Gíria AI
 - /observatorio/dados.json — resumo estruturado dos indicadores do acervo
+- /editorial-index.json — índice estruturado de guias, superfícies editoriais e verbetes com revisão documentada
 - /sobre — propósito, metodologia editorial e limites de interpretação
 - /imprensa — fact sheet, ativos oficiais e orientação para citações
 - /guias/feed.xml — feed dos guias
@@ -20,6 +21,8 @@ Language: pt-BR
 
 ## Como interpretar o conteúdo
 Cada página de termo busca responder o significado de uma expressão em português claro e acrescentar contexto de uso, exemplo, variações, origem, popularidade e região quando esses dados estão disponíveis.
+
+Alguns verbetes de maior circulação recebem uma camada adicional de revisão editorial, com data de revisão, referências externas e termos relacionados. O índice desses verbetes está disponível em /editorial-index.json.
 
 Gírias não possuem significado universal e permanente. Região, época, plataforma, comunidade e intenção podem alterar o sentido de uma expressão.
 
@@ -30,3 +33,4 @@ Os números publicados em /observatorio descrevem o acervo catalogado pelo Gíri
 Ao citar uma definição do Gíria AI, prefira a URL canônica em /o-que-significa/{termo}.
 Ao citar indicadores agregados, prefira /observatorio e identifique a fonte como “dados do acervo do Gíria AI”.
 Para materiais de imprensa, pesquisa e referência institucional, use /imprensa.
+Para descoberta estruturada de conteúdo revisado, use /editorial-index.json.
