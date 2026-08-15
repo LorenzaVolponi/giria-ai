@@ -1,4 +1,4 @@
-import { SEO_KEYWORD_CLUSTERS } from "@/lib/seo-keyword-layer";
+import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 
 function xmlEscape(value: string): string {
   return value
@@ -14,11 +14,11 @@ export function GET() {
   const urls = [
     {
       loc: `${site}/guias`,
-      lastmod: new Date(Math.max(...SEO_KEYWORD_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime()))).toISOString(),
+      lastmod: new Date(Math.max(...ACTIVE_GUIDE_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime()))).toISOString(),
       changefreq: "weekly",
       priority: "0.88",
     },
-    ...SEO_KEYWORD_CLUSTERS.map((cluster) => ({
+    ...ACTIVE_GUIDE_CLUSTERS.map((cluster) => ({
       loc: `${site}/guias/${cluster.slug}`,
       lastmod: new Date(cluster.updatedAt).toISOString(),
       changefreq: "weekly",
