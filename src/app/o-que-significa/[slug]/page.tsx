@@ -20,14 +20,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const url = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
   const evidence = getEditorialEvidence(term.term);
+  const definition = evidence?.definition ?? term.meaning;
 
   return {
     title: `O que significa ${term.term}?`,
-    description: `${term.term}: ${term.meaning} Entenda contexto, exemplo de uso, variações e região dessa expressão.`,
+    description: `${term.term}: ${definition} Entenda contexto, exemplo de uso, variações e origem da expressão.`,
     alternates: { canonical: url },
     openGraph: {
       title: `O que significa ${term.term}?`,
-      description: term.meaning,
+      description: definition,
       url,
       type: "article",
       ...(evidence ? { modifiedTime: `${evidence.reviewedAt}T12:00:00Z` } : {}),
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary",
       title: `O que significa ${term.term}?`,
-      description: term.meaning,
+      description: definition,
     },
     robots: { index: true, follow: true },
   };
@@ -49,12 +50,13 @@ export default async function SignificadoTermoPage({ params }: Props) {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
   const evidence = getEditorialEvidence(term.term);
+  const definition = evidence?.definition ?? term.meaning;
 
   const definedTermJsonLd = {
     "@context": "https://schema.org",
     "@type": "DefinedTerm",
     name: term.term,
-    description: term.meaning,
+    description: definition,
     url: canonical,
     inDefinedTermSet: `${site}/girias`,
   };
@@ -63,7 +65,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: `O que significa ${term.term}?`,
-    description: term.meaning,
+    description: definition,
     url: canonical,
     inLanguage: "pt-BR",
     isPartOf: { "@type": "WebSite", name: "Gíria AI", url: site },
@@ -82,7 +84,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
       {
         "@type": "Question",
         name: `O que significa ${term.term}?`,
-        acceptedAnswer: { "@type": "Answer", text: term.meaning },
+        acceptedAnswer: { "@type": "Answer", text: definition },
       },
       {
         "@type": "Question",
@@ -121,7 +123,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
       </nav>
 
       <h1 className="text-3xl font-bold">O que significa {term.term}?</h1>
-      <p className="text-lg text-muted-foreground">{term.meaning}</p>
+      <p className="text-lg text-muted-foreground">{definition}</p>
 
       <section className="rounded-lg border p-5 space-y-2">
         <h2 className="font-semibold">Como essa expressão é usada</h2>
