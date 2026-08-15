@@ -21,8 +21,18 @@ elif [[ "${STRICT_GIT_CLEAN}" != "1" ]]; then
   say "STRICT_GIT_CLEAN=${STRICT_GIT_CLEAN}: ignorando working tree suja."
 fi
 
-if rg -n "^(<<<<<<<|=======|>>>>>>>)" --glob '!package-lock.json' --glob '!bun.lock' . >/dev/null; then
-  fail "Marcadores de conflito de merge detectados."
+if command -v rg >/dev/null 2>&1; then
+  if rg -n "^(<<<<<<<|=======|>>>>>>>)" --glob '!package-lock.json' --glob '!bun.lock' . >/dev/null; then
+    fail "Marcadores de conflito de merge detectados."
+  fi
+else
+  if grep -R -n -E "^(<<<<<<<|=======|>>>>>>>)" . \
+    --exclude=package-lock.json \
+    --exclude=bun.lock \
+    --exclude-dir=node_modules \
+    --exclude-dir=.git >/dev/null; then
+    fail "Marcadores de conflito de merge detectados."
+  fi
 fi
 
 npm ci
