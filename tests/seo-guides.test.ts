@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SEO_KEYWORD_CLUSTERS } from "../src/lib/seo-keyword-layer";
 import { ACTIVE_GUIDE_CLUSTERS, DEPRECATED_GUIDE_SLUGS } from "../src/lib/guide-policy";
 import { SLANG_DATA } from "../src/lib/slang-data";
+import { evaluateIndexQuality } from "../src/lib/index-quality";
 import sitemap from "../src/app/sitemap";
 import { GET as editorialIndexGet } from "../src/app/editorial-index.json/route";
 import { GET as seoIndexGet } from "../src/app/seo-index.json/route";
@@ -48,13 +49,23 @@ describe("editorial guide index", () => {
     }
   });
 
-  it("publishes one canonical intent URL for every searchable slang term", () => {
+  it("publishes canonical intent URLs only for terms that pass the quality gate", () => {
     const urls = sitemap().map((entry) => entry.url);
+    const indexableTerms = SLANG_DATA.filter((term) => evaluateIndexQuality(term).indexable);
+    const nonIndexableTerms = SLANG_DATA.filter((term) => !evaluateIndexQuality(term).indexable);
     const intentUrls = urls.filter((url) => url.includes("/o-que-significa/"));
 
-    expect(intentUrls.length).toBeGreaterThanOrEqual(SLANG_DATA.length);
-    for (const term of SLANG_DATA) {
+    expect(intentUrls).toHaveLength(indexableTerms.length);
+
+    for (const term of indexableTerms) {
       expect(urls).toContain(`https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`);
+    }
+
+    for (const term of nonIndexableTerms) {
+      expect(urls).not.toContain(`https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`);
+    }
+
+    for (const term of SLANG_DATA) {
       expect(urls).not.toContain(`https://giria-ai.vercel.app/girias/${encodeURIComponent(term.term)}`);
     }
   });
