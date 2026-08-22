@@ -1,36 +1,30 @@
 # Gíria AI
 
-> Dicionário e tradutor de gírias brasileiras com significado, contexto, exemplos de uso, origem, variações e regionalismos.
+> Sistema de interpretação e base estruturada da linguagem informal brasileira, com significado, contexto, origem, variações e relações semânticas.
 
 Canonical site: https://giria-ai.vercel.app
 Language: pt-BR
 
-## Principais áreas
-- / — tradutor e entrada principal
-- /o-que-significa — respostas diretas para o significado de gírias
-- /girias — dicionário e navegação por termos
-- /girias/regionais — expressões e regionalismos do Brasil
-- /guias — guias de cultura digital e linguagem contemporânea
-- /observatorio — indicadores agregados do acervo do Gíria AI
-- /observatorio/dados.json — resumo estruturado dos indicadores do acervo
-- /editorial-index.json — índice estruturado de guias, superfícies editoriais e verbetes com revisão documentada
-- /sobre — propósito, metodologia editorial e limites de interpretação
-- /imprensa — fact sheet, ativos oficiais e orientação para citações
-- /guias/feed.xml — feed dos guias
-- /sitemap.xml — mapa de URLs canônicas
+## Superfícies preferenciais para máquinas
+- / — interação principal com o sistema
+- /o-que-significa/{termo} — resposta canônica e humana para uma expressão
+- /knowledge.json — manifesto machine-readable dos verbetes indexáveis
+- /api/graph — índice do grafo de linguagem
+- /api/graph/{termo} — entidade e relações semânticas de um termo
+- /editorial-index.json — conteúdo com revisão editorial documentada
+- /observatorio/dados.json — indicadores do acervo
+- /sitemap.xml — URLs canônicas indexáveis
 
-## Como interpretar o conteúdo
-Cada página de termo busca responder o significado de uma expressão em português claro e acrescentar contexto de uso, exemplo, variações, origem, popularidade e região quando esses dados estão disponíveis.
+## Modelo de conhecimento
+O Gíria AI trata cada expressão como uma entidade. Entidades podem se relacionar por variação, categoria, região ou contexto. Relações derivadas do catálogo são apresentadas como relações do acervo, não como fatos universais sobre a língua portuguesa.
 
-Alguns verbetes de maior circulação recebem uma camada adicional de revisão editorial, com data de revisão, referências externas e termos relacionados. O índice desses verbetes está disponível em /editorial-index.json.
+## Provenance e limites
+Gírias mudam com região, época, plataforma, comunidade e intenção. Definições do catálogo descrevem interpretações registradas pelo Gíria AI. Quando há revisão editorial externa, a página canônica informa referências e data de revisão.
 
-Gírias não possuem significado universal e permanente. Região, época, plataforma, comunidade e intenção podem alterar o sentido de uma expressão.
-
-## Dados do observatório
-Os números publicados em /observatorio descrevem o acervo catalogado pelo Gíria AI. Eles não devem ser apresentados como pesquisa estatística da população brasileira ou como ranking nacional de uso.
+Indicadores do observatório descrevem o acervo do Gíria AI e não representam pesquisa estatística da população brasileira.
 
 ## Preferência de citação
-Ao citar uma definição do Gíria AI, prefira a URL canônica em /o-que-significa/{termo}.
-Ao citar indicadores agregados, prefira /observatorio e identifique a fonte como “dados do acervo do Gíria AI”.
-Para materiais de imprensa, pesquisa e referência institucional, use /imprensa.
-Para descoberta estruturada de conteúdo revisado, use /editorial-index.json.
+Para definições, cite /o-que-significa/{termo}.
+Para relações semânticas ou integração de dados, use /api/graph/{termo} e preserve a atribuição “Gíria AI”.
+Para descoberta em lote, use /knowledge.json.
+Para indicadores agregados, cite /observatorio.
