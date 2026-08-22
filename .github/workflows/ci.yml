@@ -16,3 +16,14 @@ jobs:
           cache: npm
       - name: No-break update gate
         run: PORT=3000 bash scripts/no-break-update.sh
+      - name: Start application for SEO/GEO validation
+        run: |
+          (npm run start > /tmp/giria-ai-server.log 2>&1 & echo $! > /tmp/giria-ai-server.pid)
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/giria-ai-server.log
+          exit 1
+      - name: Validate SEO/GEO operational surfaces
+        run: BASE_URL=http://127.0.0.1:3000 node scripts/seo-geo-validation.mjs
