@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { GET as aiIndexGet } from "../src/app/ai-index.json/route";
 import { GET as answersGet } from "../src/app/answers.json/route";
+import { GET as authorityGet } from "../src/app/authority.json/route";
 import { GET as knowledgeGet } from "../src/app/knowledge.json/route";
+import { getEditorialEvidence } from "../src/lib/editorial-evidence";
 import robots from "../src/app/robots";
 
 describe("GEO discovery and citation contracts", () => {
-  it("publishes a compact AI discovery manifest with preferred citation and answer surfaces", async () => {
+  it("publishes a compact AI discovery manifest with preferred citation, answer and authority surfaces", async () => {
     const res = await aiIndexGet();
     const data = await res.json();
 
@@ -15,12 +17,14 @@ describe("GEO discovery and citation contracts", () => {
     expect(data.preferredSurfaces.humanCitation).toContain("/o-que-significa/{termo}");
     expect(data.preferredSurfaces.directAnswer).toContain("/answer/{termo}");
     expect(data.preferredSurfaces.bulkAnswers).toContain("/answers.json");
+    expect(data.preferredSurfaces.topicalAuthority).toContain("/authority.json");
     expect(data.preferredSurfaces.machineCitation).toContain("/citation/{termo}");
     expect(data.preferredSurfaces.bulkKnowledge).toContain("/knowledge.json");
     expect(data.coverage.publicIndexableTerms).toBeGreaterThan(0);
     expect(data.coverage.answerRecords).toBe(data.coverage.publicIndexableTerms);
     expect(data.citationPolicy.preserveContext).toBe(true);
     expect(data.retrievalPolicy.definitionQuestion).toContain("/answer/{termo}");
+    expect(data.retrievalPolicy.topicalScope).toContain("/authority.json");
   });
 
   it("publishes indexable knowledge as DefinedTerm records with evidence signals", async () => {
@@ -64,6 +68,25 @@ describe("GEO discovery and citation contracts", () => {
     expect(first.responsePolicy.readinessEndpoint).toBe(first.authority.citationUrl);
   });
 
+  it("publishes topical authority as an internal coverage signal, not external consensus", async () => {
+    const res = await authorityGet();
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data["@type"]).toBe("Dataset");
+    expect(data.authorityClusters).toBeGreaterThan(0);
+    expect(data.strongestClusters.length).toBeGreaterThan(0);
+    expect(data.editorialOpportunities.length).toBeGreaterThan(0);
+    expect(data.limitations.join(" ").toLowerCase()).toContain("não representa");
+    expect(data.strongestClusters[0]).toHaveProperty("authorityScore");
+    expect(data.strongestClusters[0]).toHaveProperty("coverage");
+  });
+
+  it("expands multi-source editorial evidence for high-value internet slang", () => {
+    expect(getEditorialEvidence("delulu")?.sources.length).toBeGreaterThanOrEqual(2);
+    expect(getEditorialEvidence("brainrot")?.sources.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("keeps public GEO surfaces crawlable while private API surfaces stay blocked", () => {
     const rules = robots().rules;
     expect(Array.isArray(rules)).toBe(false);
@@ -74,6 +97,7 @@ describe("GEO discovery and citation contracts", () => {
     expect(allow).toContain("/api/graph");
     expect(allow).toContain("/answer/");
     expect(allow).toContain("/answers.json");
+    expect(allow).toContain("/authority.json");
     expect(allow).toContain("/citation/");
     expect(disallow).toContain("/api/");
     expect(disallow).toContain("/admin");
