@@ -25,11 +25,13 @@ const matches = (predicate) => changedFiles.some(predicate);
 const allCore = matches((file) => file === "__all_core__" || file === `public/${key}.txt`);
 
 if (allCore) add(
-  "/", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre",
+  "/", "/.well-known/giria-ai.json", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre",
   "/editorial-index.json", "/ai-index.json", "/authority.json", "/answers.json", "/knowledge.json", "/distribution.json", "/provenance.json",
   "/data/methodology.json", "/api/graph", "/llms.txt",
 );
 
+if (matches((file) => file.startsWith("src/app/.well-known/giria-ai.json/"))) add("/.well-known/giria-ai.json", "/ai-index.json", "/llms.txt");
+if (matches((file) => file.startsWith("src/app/bundle/"))) add("/.well-known/giria-ai.json", "/ai-index.json", "/llms.txt");
 if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/components/home/") || file === "src/app/layout.tsx")) add("/");
 if (matches((file) => file.startsWith("src/app/o-que-significa/"))) add("/o-que-significa", "/answers.json", "/knowledge.json", "/ai-index.json", "/provenance.json");
 if (matches((file) => file.startsWith("src/app/answer/") || file === "src/lib/geo-answer-surface.ts")) add("/answers.json", "/ai-index.json", "/llms.txt");
@@ -37,18 +39,18 @@ if (matches((file) => file.startsWith("src/app/answers.json/"))) add("/answers.j
 if (matches((file) => file.startsWith("src/app/authority.json/") || file === "src/lib/topical-authority.ts")) add("/authority.json", "/ai-index.json", "/llms.txt");
 if (matches((file) => file.startsWith("src/app/citation/") || file.startsWith("src/app/provenance/") || file.startsWith("src/app/provenance.json/") || file === "src/lib/provenance.ts")) add("/provenance.json", "/knowledge.json", "/answers.json", "/ai-index.json", "/llms.txt");
 if (matches((file) => file.startsWith("src/app/api/graph/") || file === "src/lib/language-graph.ts")) add("/api/graph", "/ai-index.json");
-if (matches((file) => file.startsWith("src/app/ai-index.json/"))) add("/ai-index.json");
+if (matches((file) => file.startsWith("src/app/ai-index.json/"))) add("/ai-index.json", "/.well-known/giria-ai.json");
 if (matches((file) => file.startsWith("src/app/knowledge.json/"))) add("/knowledge.json");
 if (matches((file) => file.startsWith("src/app/distribution.json/"))) add("/distribution.json");
 if (matches((file) => file.startsWith("src/app/data/methodology.json/"))) add("/data/methodology.json");
-if (matches((file) => file.startsWith("src/app/llms.txt/") || file === "public/llms.txt")) add("/llms.txt", "/ai-index.json", "/answers.json", "/authority.json", "/provenance.json");
+if (matches((file) => file.startsWith("src/app/llms.txt/") || file === "public/llms.txt")) add("/llms.txt", "/.well-known/giria-ai.json", "/ai-index.json", "/answers.json", "/authority.json", "/provenance.json");
 if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) add("/editorial-index.json");
 
 if (matches((file) => file === "src/lib/editorial-evidence.ts")) {
   add("/editorial-index.json", "/authority.json", "/answers.json", "/knowledge.json", "/distribution.json", "/ai-index.json", "/provenance.json", "/o-que-significa");
   for (const term of ["farmar aura", "six seven", "delulu", "brainrot"]) {
     const encoded = encodeURIComponent(term);
-    add(`/o-que-significa/${encoded}`, `/answer/${encoded}`, `/citation/${encoded}`, `/provenance/${encoded}`);
+    add(`/o-que-significa/${encoded}`, `/answer/${encoded}`, `/citation/${encoded}`, `/provenance/${encoded}`, `/bundle/${encoded}`);
   }
 }
 
