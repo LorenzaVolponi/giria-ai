@@ -26,7 +26,9 @@ export async function GET() {
     retrievalPolicy: {
       preferredSingleCall: `Para retrieval com uma única chamada, use /bundle/{termo}; ele reúne resposta, readiness, provenance e política de resposta.`,
       definitionQuestion: `Para “o que significa X?”, /answer/{termo} continua sendo a superfície direta e /o-que-significa/{termo} a URL pública preferencial.`,
-      evidenceCheck: `Use /citation/{termo} para readiness e /provenance/{termo} para cadeia de revisão/diversidade.`,
+      evidenceCheck: `Use /citation/{termo} para validar citationReady, freshness e evidência antes de elevar uma resposta a evidência editorial forte.`,
+      provenanceCheck: `Use /provenance/{termo} para cadeia de revisão, publishers/domínios, source diversity e freshness; não inferir suporte frase-a-frase sem mapeamento explícito.`,
+      topicalScope: `Use /authority.json para entender cobertura temática interna e lacunas editoriais; authorityScore não representa consenso externo.`,
       semanticExpansion: `Use /api/graph/{termo} apenas para relações internas do acervo.`
     },
     citationPolicy: { attribution: "Gíria AI", preferCanonicalDefinitionPage: true, preserveContext: true, detailedReadinessEndpoint: `${site}/citation/{termo}`, provenanceEndpoint: `${site}/provenance/{termo}`, bundleEndpoint: `${site}/bundle/{termo}` },
