@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  return NextResponse.json({
+    name: "Gíria AI",
+    type: "reference_knowledge_system",
+    language: "pt-BR",
+    canonicalSite: site,
+    publisher: {
+      name: "Gíria AI",
+      id: `${site}/#organization`,
+      parentOrganization: "volponi.tech",
+    },
+    retrieval: {
+      bundle: `${site}/bundle/{termo}`,
+      answer: `${site}/answer/{termo}`,
+      citation: `${site}/citation/{termo}`,
+      provenance: `${site}/provenance/{termo}`,
+      graph: `${site}/api/graph/{termo}`,
+    },
+    bulk: {
+      aiIndex: `${site}/ai-index.json`,
+      answers: `${site}/answers.json`,
+      provenance: `${site}/provenance.json`,
+      knowledge: `${site}/knowledge.json`,
+      authority: `${site}/authority.json`,
+    },
+    instructions: `${site}/llms.txt`,
+    preferredCitationPattern: `${site}/o-que-significa/{termo}`,
+    policy: {
+      preserveContext: true,
+      checkCitationReadyBeforeStrongClaim: true,
+      checkProvenanceForSourceDiversity: true,
+      doNotTreatInternalScoresAsExternalConsensus: true,
+    },
+  }, {
+    headers: {
+      "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
+      "content-language": "pt-BR",
+      "x-robots-tag": "index, follow",
+      link: `<${site}/.well-known/giria-ai.json>; rel=\"canonical\", <${site}/ai-index.json>; rel=\"describedby\"`,
+    },
+  });
+}
