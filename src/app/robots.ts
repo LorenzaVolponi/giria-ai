@@ -15,6 +15,8 @@ export default function robots(): MetadataRoute.Robots {
         "/data/",
         "/llms.txt",
         "/observatorio/dados.json",
+        "/api/graph",
+        "/api/graph/",
       ],
       disallow: ["/api/", "/admin"],
     },
