@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { buildEntityAuthority } from "@/lib/entity-authority";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -13,31 +14,29 @@ export const viewport: Viewport = {
 };
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const entityAuthority = buildEntityAuthority(siteUrl);
 
-const globalJsonLd = [
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "Gíria AI",
-    url: siteUrl,
-    logo: `${siteUrl}/logo.svg`,
-    sameAs: ["https://twitter.com/lorenzavolponi"],
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Gíria AI",
-    alternateName: ["Tradutor de Gírias", "Dicionário de Gírias Brasileiras"],
-    url: siteUrl,
-    inLanguage: "pt-BR",
-    publisher: { "@type": "Organization", name: "Gíria AI", url: siteUrl },
-    potentialAction: {
+const globalJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    ...entityAuthority.graph,
+    {
+      "@type": "DefinedTermSet",
+      "@id": entityAuthority.ids.dictionary,
+      name: "Gíria AI — Linguagem informal brasileira",
+      url: `${siteUrl}/o-que-significa`,
+      inLanguage: "pt-BR",
+      publisher: { "@id": entityAuthority.ids.product },
+      creator: { "@id": entityAuthority.ids.aix8c },
+    },
+    {
       "@type": "SearchAction",
       target: `${siteUrl}/o-que-significa/{search_term_string}`,
       "query-input": "required name=search_term_string",
+      potentialActionStatus: "https://schema.org/ActiveActionStatus",
     },
-  },
-] as const;
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -49,8 +48,8 @@ export const metadata: Metadata = {
   category: "education",
   description:
     "Entenda gírias brasileiras, memes e expressões da internet com significado, contexto, exemplos de uso, origem e variações regionais.",
-  authors: [{ name: "Gíria AI" }],
-  creator: "Gíria AI",
+  authors: [{ name: "Gíria AI", url: siteUrl }, { name: "AIX8C", url: "https://volponi.tech" }],
+  creator: "AIX8C",
   publisher: "Gíria AI",
   openGraph: {
     title: "Gíria AI — Dicionário e tradutor de gírias brasileiras",
@@ -80,22 +79,11 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  icons: {
-    icon: "/favicon.svg",
-  },
-  alternates: {
-    canonical: "/",
-    languages: {
-      "pt-BR": "/",
-    },
-  },
+  icons: { icon: "/favicon.svg" },
+  alternates: { canonical: "/", languages: { "pt-BR": "/" } },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className="scroll-smooth" suppressHydrationWarning>
       <head>
@@ -103,13 +91,7 @@ export default function RootLayout({
         <link rel="alternate" type="application/rss+xml" title="Guias de gírias e cultura digital | Gíria AI" href="/guias/feed.xml" />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
-        {globalJsonLd.map((item) => (
-          <script
-            key={item["@type"]}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
-          />
-        ))}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(globalJsonLd) }} />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           {children}
           <Analytics />
