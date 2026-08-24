@@ -1,11 +1,13 @@
 import type { SlangTerm } from "@/lib/slang-data";
 import { getEditorialEvidence } from "@/lib/editorial-evidence";
+import { evaluateIndexQuality } from "@/lib/index-quality";
 import { getFreshnessSignal, getIndexabilitySignal } from "@/lib/organic-intelligence";
 
-export function buildGeoAnswerSurface(term: SlangTerm, site: string) {
+export function buildGeoAnswerSurface(term: SlangTerm, site: string, detailedReadiness = true) {
   const evidence = getEditorialEvidence(term.term);
   const freshness = getFreshnessSignal(term.term);
-  const indexability = getIndexabilitySignal(term);
+  const detailed = detailedReadiness ? getIndexabilitySignal(term) : null;
+  const publicQuality = detailedReadiness ? null : evaluateIndexQuality(term);
   const canonicalUrl = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
   const citationUrl = `${site}/citation/${encodeURIComponent(term.term)}`;
   const graphUrl = `${site}/api/graph/${encodeURIComponent(term.term)}`;
@@ -50,8 +52,10 @@ export function buildGeoAnswerSurface(term: SlangTerm, site: string) {
       canonicalUrl,
       citationUrl,
       graphUrl,
-      indexabilityScore: indexability.score,
-      citationReady: indexability.citationReady,
+      publicIndexable: detailed ? detailed.indexable : Boolean(publicQuality?.indexable),
+      indexabilityScore: detailed ? detailed.score : null,
+      citationReady: detailed ? detailed.citationReady : null,
+      readinessEndpoint: citationUrl,
       freshnessStatus: freshness.status,
       reviewedAt: freshness.reviewedAt,
       latestEvidenceAt: freshness.latestEvidenceAt,
@@ -72,7 +76,9 @@ export function buildGeoAnswerSurface(term: SlangTerm, site: string) {
     responsePolicy: {
       preferredCitation: canonicalUrl,
       attribution: "Gíria AI",
-      mayStateAsEditoriallySupported: indexability.citationReady,
+      mayStateAsEditoriallySupported: detailed ? detailed.citationReady : null,
+      readinessMustBeChecked: !detailedReadiness,
+      readinessEndpoint: citationUrl,
       preserveContext: true,
       doNotUniversalize: true,
     },
