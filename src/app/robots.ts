@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: [
         "/", "/.well-known/giria-ai.json", "/bundle/", "/o-que-significa/", "/answer/", "/answers.json",
-        "/citation/", "/provenance/", "/provenance.json", "/knowledge.json", "/ai-index.json", "/authority.json",
+        "/citation/", "/provenance/", "/provenance.json", "/integrity/", "/integrity.json", "/knowledge.json", "/ai-index.json", "/authority.json",
         "/editorial-index.json", "/distribution.json", "/data/", "/llms.txt", "/observatorio/dados.json", "/api/graph", "/api/graph/",
       ],
       disallow: ["/api/", "/admin"],
