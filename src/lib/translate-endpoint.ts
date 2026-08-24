@@ -5,6 +5,7 @@ import { translateSlang } from "@/lib/translator";
 import { analyzeContext } from "@/lib/context-intelligence";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { isRateLimited } from "@/lib/rate-limit";
+import { recordUnknownQuery } from "@/lib/organic-intelligence";
 import { z } from "zod";
 
 const translateSchema = z.object({
@@ -19,9 +20,7 @@ const TRANSLATE_RATE_LIMIT_WINDOW_SEC = 60;
 export function buildCorsPreflight(req: NextRequest): NextResponse {
   const res = new NextResponse(null, { status: 204 });
   const origin = req.headers.get("origin") || "";
-  if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
-  }
+  if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) res.headers.set("Access-Control-Allow-Origin", origin);
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type");
   return withSecurityHeaders(res);
@@ -62,6 +61,10 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
     const riskLevel = nearestTerm?.riskLevel ?? "green";
     const matchType = exactTerm ? "exact" : nearestTerm ? (intelligence.confidence === "alta" ? "contextual" : "approximate") : "fallback";
 
+    if (!nearestTerm || intelligence.confidence === "baixa" || matchType === "fallback") {
+      recordUnknownQuery(text, intelligence.confidence, nearestTerm?.term ?? null);
+    }
+
     const response = NextResponse.json({
       ...result,
       term: nearestTerm?.term ?? result.normalized,
@@ -79,10 +82,7 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
       variations: nearestTerm?.variations ?? [],
       popularityStatus: nearestTerm?.popularityStatus ?? "em_queda",
       relatedTerms: nearestTerm
-        ? searchTerms(nearestTerm.term)
-            .filter((item) => item.term !== nearestTerm.term)
-            .slice(0, 5)
-            .map((item) => ({ term: item.term, meaning: item.meaning, category: item.category }))
+        ? searchTerms(nearestTerm.term).filter((item) => item.term !== nearestTerm.term).slice(0, 5).map((item) => ({ term: item.term, meaning: item.meaning, category: item.category }))
         : [],
       matchType,
       intelligence: {
@@ -100,14 +100,7 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
     response.headers.set("x-request-id", requestId);
     response.headers.set("X-RateLimit-Remaining", String(rate.remaining));
     const secured = withSecurityHeaders(response);
-    logApiEvent({
-      requestId,
-      route,
-      status: 200,
-      durationMs: Date.now() - startedAt,
-      fallbackUsed: !nearestTerm || intelligence.confidence === "baixa",
-      message: `confidence:${intelligence.confidence};match:${matchType}`,
-    });
+    logApiEvent({ requestId, route, status: 200, durationMs: Date.now() - startedAt, fallbackUsed: !nearestTerm || intelligence.confidence === "baixa", message: `confidence:${intelligence.confidence};match:${matchType}` });
     return secured;
   } catch {
     const errorResponse = withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));
