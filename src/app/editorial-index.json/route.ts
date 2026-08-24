@@ -1,5 +1,5 @@
 import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
-import { getEditorialEvidenceTerms } from "@/lib/editorial-evidence";
+import { getEditorialEvidence, getEditorialEvidenceTerms } from "@/lib/editorial-evidence";
 
 export function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
@@ -12,18 +12,33 @@ export function GET() {
       name: "Gíria AI — índice editorial",
       description:
         "Diretório estruturado dos principais guias, superfícies editoriais e verbetes com revisão documentada do Gíria AI.",
+      publisher: {
+        name: "Gíria AI",
+        id: `${site}/#organization`,
+        canonicalSite: site,
+      },
       updatedAt,
       canonicalIndex: `${site}/guias`,
       dictionary: `${site}/girias`,
       meanings: `${site}/o-que-significa`,
       observatory: `${site}/observatorio`,
-      methodology: `${site}/sobre`,
+      methodology: `${site}/data/methodology.json`,
       press: `${site}/imprensa`,
       sitemap: `${site}/sitemap.xml`,
-      reviewedTerms: getEditorialEvidenceTerms().map((term) => ({
-        term,
-        url: `${site}/o-que-significa/${encodeURIComponent(term)}`,
-      })),
+      aiDiscovery: `${site}/ai-index.json`,
+      knowledgeManifest: `${site}/knowledge.json`,
+      citationPattern: `${site}/citation/{termo}`,
+      reviewedTerms: getEditorialEvidenceTerms().map((term) => {
+        const evidence = getEditorialEvidence(term);
+        return {
+          term,
+          url: `${site}/o-que-significa/${encodeURIComponent(term)}`,
+          citation: `${site}/citation/${encodeURIComponent(term)}`,
+          reviewedAt: evidence?.reviewedAt || null,
+          evidenceCount: evidence?.sources?.length || 0,
+          sources: evidence?.sources?.map(({ publisher, title, url, publishedAt }) => ({ publisher, title, url, publishedAt })) || [],
+        };
+      }),
       guides: ACTIVE_GUIDE_CLUSTERS.map((cluster) => ({
         slug: cluster.slug,
         url: `${site}/guias/${cluster.slug}`,
@@ -36,6 +51,9 @@ export function GET() {
     {
       headers: {
         "cache-control": "public, max-age=3600, s-maxage=86400",
+        "x-robots-tag": "index, follow",
+        "content-language": "pt-BR",
+        "link": `<${site}/editorial-index.json>; rel=\"canonical\"`,
       },
     },
   );
