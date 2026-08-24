@@ -80,7 +80,7 @@ if (matches((file) => file.startsWith("src/app/ai-index.json/"))) add("/ai-index
 if (matches((file) => file.startsWith("src/app/knowledge.json/"))) add("/knowledge.json");
 if (matches((file) => file.startsWith("src/app/distribution.json/"))) add("/distribution.json");
 if (matches((file) => file.startsWith("src/app/data/methodology.json/"))) add("/data/methodology.json");
-if (matches((file) => file === "public/llms.txt")) add("/llms.txt", "/ai-index.json");
+if (matches((file) => file.startsWith("src/app/llms.txt/") || file === "public/llms.txt")) add("/llms.txt", "/ai-index.json");
 
 if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) {
   add("/editorial-index.json");
