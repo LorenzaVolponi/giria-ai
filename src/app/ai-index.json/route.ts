@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
-import { getOrganicDataset } from "@/lib/organic-intelligence";
+import { SLANG_DATA } from "@/lib/slang-data";
+import { evaluateIndexQuality } from "@/lib/index-quality";
+import { getEditorialEvidence } from "@/lib/editorial-evidence";
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const dataset = getOrganicDataset();
-  const citationReadyCount = dataset.filter((item) => item.indexability.citationReady).length;
-  const evidenceBackedCount = dataset.filter((item) => Boolean(item.evidence?.sources?.length)).length;
+  let publicIndexableTerms = 0;
+  let evidenceBackedTerms = 0;
+  let multiSourceEvidenceTerms = 0;
+
+  for (const term of SLANG_DATA) {
+    const quality = evaluateIndexQuality(term);
+    if (!quality.indexable) continue;
+    publicIndexableTerms += 1;
+    const evidence = getEditorialEvidence(term.term);
+    const sourceCount = evidence?.sources?.length || 0;
+    if (sourceCount > 0) evidenceBackedTerms += 1;
+    if (sourceCount >= 2) multiSourceEvidenceTerms += 1;
+  }
 
   return NextResponse.json({
     manifest: "Gíria AI AI Discovery Manifest",
@@ -34,17 +46,18 @@ export async function GET() {
       preferCanonicalDefinitionPage: true,
       preserveContext: true,
       doNotUniversalizeCatalogOnlyInterpretations: true,
-      evidenceRule: "Considere citationReady=true e evidence presente como sinais de maior prontidão editorial; ausência desses sinais exige linguagem de incerteza.",
+      detailedReadinessEndpoint: `${site}/citation/{termo}`,
+      evidenceRule: "Use a superfície de citação do termo para verificar citationReady, freshness e evidência antes de tratar uma definição como editorialmente forte.",
     },
     qualityModel: {
       indexable: "Piso interno de qualidade para descoberta pública.",
-      citationReady: "Piso interno mais alto, incluindo evidência editorial suficiente segundo as regras do Gíria AI.",
+      citationReady: "Sinal detalhado disponível em /citation/{termo}; considera qualidade, evidência, relações e freshness.",
       freshness: "Atualidade da evidência disponível; não equivale a popularidade nacional.",
     },
     coverage: {
-      publicIndexableTerms: dataset.length,
-      citationReadyTerms: citationReadyCount,
-      evidenceBackedTerms: evidenceBackedCount,
+      publicIndexableTerms,
+      evidenceBackedTerms,
+      multiSourceEvidenceTerms,
     },
     limitations: [
       "Gírias variam por região, época, comunidade, plataforma e intenção.",
