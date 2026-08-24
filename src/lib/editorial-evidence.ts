@@ -72,6 +72,62 @@ const EDITORIAL_EVIDENCE: Record<string, EditorialEvidence> = {
       },
     ],
   },
+  "delulu": {
+    reviewedAt: "2026-08-24",
+    definition:
+      "Delulu é uma forma abreviada e bem-humorada de delusional. Pode descrever alguém agindo de modo fantasioso ou excessivamente confiante e, em alguns contextos online, também funciona como autoironia sobre acreditar muito em uma possibilidade improvável.",
+    context:
+      "O termo nasceu e circulou por comunidades de fandom, especialmente K-pop, e depois se espalhou para redes sociais de forma mais ampla. O uso pode variar entre crítica leve, brincadeira e uma ideia positiva de autoconfiança exagerada, por isso o contexto da frase importa.",
+    relatedTerms: ["delusional", "stan", "brainrot", "manifestar"],
+    sources: [
+      {
+        publisher: "Merriam-Webster",
+        title: "DELULU Slang Meaning",
+        url: "https://www.merriam-webster.com/slang/delulu",
+        publishedAt: "2026-01-08",
+      },
+      {
+        publisher: "Dictionary.com",
+        title: "delulu | Slang",
+        url: "https://www.dictionary.com/culture/slang/delulu",
+        publishedAt: "2023-09-14",
+      },
+      {
+        publisher: "Cambridge University Press",
+        title: "Skibidi, delulu, tradwife are new words in the Cambridge Dictionary",
+        url: "https://www.cambridge.org/core/blog/?p=64046",
+        publishedAt: "2025-08-29",
+      },
+    ],
+  },
+  "brainrot": {
+    reviewedAt: "2026-08-24",
+    definition:
+      "Brainrot, também escrito brain rot, descreve conteúdo digital percebido como raso, repetitivo ou viciante e também a fixação intensa nesse tipo de conteúdo. Em uso informal, pode ainda indicar obsessão divertida por um fandom, assunto ou meme.",
+    context:
+      "Na cultura digital recente, brainrot aparece tanto como crítica ao consumo excessivo de conteúdo de baixo valor quanto como rótulo irônico para memes, bordões e obsessões online. Não é um diagnóstico médico e o sentido depende do tom da conversa.",
+    relatedTerms: ["six seven", "skibidi", "meme", "doomscrolling"],
+    sources: [
+      {
+        publisher: "Merriam-Webster",
+        title: "BRAIN ROT Slang Meaning",
+        url: "https://www.merriam-webster.com/slang/brain-rot",
+        publishedAt: "2026-01-06",
+      },
+      {
+        publisher: "Merriam-Webster",
+        title: "BRAINROT Definition & Meaning",
+        url: "https://www.merriam-webster.com/dictionary/brainrot",
+        publishedAt: "2026-02-24",
+      },
+      {
+        publisher: "Dictionary.com",
+        title: "brainrot | Slang",
+        url: "https://www.dictionary.com/culture/slang/brainrot",
+        publishedAt: "2024-11-22",
+      },
+    ],
+  },
 };
 
 export function getEditorialEvidence(term: string): EditorialEvidence | undefined {
