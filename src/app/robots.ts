@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: [
-        "/", "/.well-known/giria-ai.json", "/bundle/", "/o-que-significa/", "/answer/", "/answers.json",
+        "/", "/.well-known/giria-ai.json", "/entity.json", "/bundle/", "/o-que-significa/", "/answer/", "/answers.json",
         "/citation/", "/provenance/", "/provenance.json", "/integrity/", "/integrity.json", "/source-authority/", "/source-authority.json", "/knowledge.json", "/ai-index.json", "/authority.json",
         "/editorial-index.json", "/distribution.json", "/data/", "/llms.txt", "/observatorio/dados.json", "/api/graph", "/api/graph/",
       ],
