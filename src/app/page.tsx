@@ -5,7 +5,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app
 
 export const metadata: Metadata = {
   title: "Gíria AI — entenda gírias brasileiras, memes e expressões",
-  description: "Cole uma gíria, frase ou meme e entenda o significado, a intenção e o contexto em português claro.",
+  description: "Cole uma gíria brasileira, frase ou meme e entenda o significado, a intenção e o contexto em português claro.",
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
@@ -34,6 +34,11 @@ const jsonLd = {
       inLanguage: "pt-BR",
       description: "Sistema de interpretação de gírias, memes e expressões da linguagem informal brasileira.",
       publisher: { "@id": `${siteUrl}/#organization` },
+      mainEntity: { "@id": `${siteUrl}/#dictionary` },
+      subjectOf: [
+        { "@type": "DataFeed", url: `${siteUrl}/knowledge.json`, name: "Gíria AI Knowledge Manifest" },
+        { "@type": "DataFeed", url: `${siteUrl}/ai-index.json`, name: "Gíria AI AI Discovery Manifest" },
+      ],
     },
     {
       "@type": "Organization",
@@ -46,6 +51,14 @@ const jsonLd = {
         url: "https://volponi.tech",
       },
       sameAs: ["https://www.instagram.com/lorenzavolponi"],
+    },
+    {
+      "@type": "DefinedTermSet",
+      "@id": `${siteUrl}/#dictionary`,
+      name: "Gíria AI — Linguagem informal brasileira",
+      url: `${siteUrl}/o-que-significa`,
+      inLanguage: "pt-BR",
+      publisher: { "@id": `${siteUrl}/#organization` },
     },
     {
       "@type": "WebApplication",
