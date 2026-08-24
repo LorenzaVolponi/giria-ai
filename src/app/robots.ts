@@ -5,7 +5,17 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/citation/", "/data/"],
+      allow: [
+        "/",
+        "/o-que-significa/",
+        "/citation/",
+        "/knowledge.json",
+        "/ai-index.json",
+        "/editorial-index.json",
+        "/data/",
+        "/llms.txt",
+        "/observatorio/dados.json",
+      ],
       disallow: ["/api/", "/admin"],
     },
     sitemap: [`${site}/sitemap.xml`, `${site}/sitemap-terms.xml`, `${site}/guias/sitemap.xml`],
