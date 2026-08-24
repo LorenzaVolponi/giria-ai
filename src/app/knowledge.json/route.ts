@@ -1,33 +1,44 @@
 import { NextResponse } from "next/server";
-import { getOrganicDataset } from "@/lib/organic-intelligence";
+import { SLANG_DATA } from "@/lib/slang-data";
+import { evaluateIndexQuality } from "@/lib/index-quality";
+import { getEditorialEvidence } from "@/lib/editorial-evidence";
+import { getFreshnessSignal } from "@/lib/organic-intelligence";
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const generatedAt = new Date().toISOString();
-  const records = getOrganicDataset();
-  const terms = records.map((record) => {
-    const canonical = `${site}/o-que-significa/${encodeURIComponent(record.term)}`;
-    const citation = `${site}/citation/${encodeURIComponent(record.term)}`;
-    return {
+  const terms = SLANG_DATA.flatMap((term) => {
+    const indexQuality = evaluateIndexQuality(term);
+    if (!indexQuality.indexable) return [];
+
+    const evidence = getEditorialEvidence(term.term);
+    const freshness = getFreshnessSignal(term.term);
+    const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
+    const citation = `${site}/citation/${encodeURIComponent(term.term)}`;
+    return [{
       "@type": "DefinedTerm",
       "@id": `${canonical}#term`,
-      term: record.term,
-      definition: record.definition,
-      meaning: record.meaning,
-      context: record.context,
-      example: record.example,
-      category: record.category,
-      region: record.region,
-      variations: record.variations,
-      relatedTerms: record.relatedTerms,
+      term: term.term,
+      definition: evidence?.definition || term.adultTranslation || term.meaning,
+      meaning: term.meaning,
+      context: evidence?.context || term.context,
+      example: term.safeExample,
+      category: term.category,
+      region: term.region,
+      origin: term.origin,
+      variations: term.variations,
       canonical,
       citation,
-      graph: `${site}/api/graph/${encodeURIComponent(record.term)}`,
+      graph: `${site}/api/graph/${encodeURIComponent(term.term)}`,
       publisher: "Gíria AI",
-      freshness: record.freshness,
-      indexability: record.indexability,
-      evidence: record.evidence,
-    };
+      freshness,
+      indexQuality,
+      evidenceBacked: Boolean(evidence?.sources?.length),
+      evidence: evidence ? {
+        reviewedAt: evidence.reviewedAt,
+        sources: evidence.sources.map(({ publisher, title, url, publishedAt }) => ({ publisher, title, url, publishedAt })),
+      } : null,
+    }];
   });
 
   return NextResponse.json({
@@ -50,7 +61,7 @@ export async function GET() {
       preferredHumanSource: `${site}/o-que-significa/{termo}`,
       preferredMachineRecord: `${site}/citation/{termo}`,
       attribution: "Gíria AI",
-      rule: "Não elevar registros sem evidence ou citationReady=false ao mesmo nível de uma definição editorialmente verificada.",
+      rule: "Consulte o registro /citation/{termo} para citation readiness detalhada. Ausência de evidence exige linguagem de incerteza.",
     },
     itemCount: terms.length,
     terms,
@@ -58,6 +69,7 @@ export async function GET() {
     headers: {
       "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
       "X-Robots-Tag": "index, follow",
+      "Content-Language": "pt-BR",
       "Link": `<${site}/knowledge.json>; rel=\"canonical\"`,
     },
   });
