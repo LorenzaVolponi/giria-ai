@@ -8,10 +8,13 @@ export default function robots(): MetadataRoute.Robots {
       allow: [
         "/",
         "/o-que-significa/",
+        "/answer/",
+        "/answers.json",
         "/citation/",
         "/knowledge.json",
         "/ai-index.json",
         "/editorial-index.json",
+        "/distribution.json",
         "/data/",
         "/llms.txt",
         "/observatorio/dados.json",
