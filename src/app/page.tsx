@@ -4,13 +4,13 @@ import EliteHomeLanding from "@/components/home/elite-home-landing";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Gíria AI — entenda gírias, memes e expressões",
+  title: "Gíria AI — entenda gírias brasileiras, memes e expressões",
   description: "Cole uma gíria, frase ou meme e entenda o significado, a intenção e o contexto em português claro.",
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Gíria AI — entenda qualquer gíria",
-    description: "Entenda gírias, memes e expressões pelo significado e pelo contexto.",
+    title: "Gíria AI — entenda gírias brasileiras",
+    description: "Entenda gírias brasileiras, memes e expressões pelo significado e pelo contexto.",
     url: siteUrl,
     type: "website",
     locale: "pt_BR",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gíria AI — entenda qualquer gíria",
+    title: "Gíria AI — entenda gírias brasileiras",
     description: "Cole uma gíria, frase ou meme. A gente explica o que significa e o que quiseram dizer.",
   },
 };

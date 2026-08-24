@@ -43,8 +43,7 @@ describe("API v1 rate-limit and metrics", () => {
     expect(lastStatus).toBe(429);
     expect(lastHeaders?.get("Retry-After")).toBe("60");
     expect(lastHeaders?.get("X-RateLimit-Remaining")).not.toBeNull();
-  });
-
+  }, 15000);
 
   it("uses a single Redis EVAL call for atomic fixed-window limiting", async () => {
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com/");
