@@ -5,7 +5,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app
 
 export const metadata: Metadata = {
   title: "Gíria AI — entenda gírias brasileiras, memes e expressões",
-  description: "Cole uma gíria, frase ou meme e entenda o significado, a intenção e o contexto em português claro.",
+  description: "Cole uma gíria brasileira, frase ou meme e entenda o significado, a intenção e o contexto em português claro.",
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
