@@ -11,6 +11,8 @@ export default function robots(): MetadataRoute.Robots {
         "/answer/",
         "/answers.json",
         "/citation/",
+        "/provenance/",
+        "/provenance.json",
         "/knowledge.json",
         "/ai-index.json",
         "/authority.json",
