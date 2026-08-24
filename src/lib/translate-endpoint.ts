@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { getTerm, RISK_CONFIG, searchTerms } from "@/lib/slang-data";
 import { translateSlang } from "@/lib/translator";
+import { analyzeContext } from "@/lib/context-intelligence";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { isRateLimited } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -55,14 +56,18 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
 
     const result = translateSlang(text);
     const exactTerm = getTerm(result.normalized);
-    const nearestTerm = exactTerm ?? searchTerms(result.normalized)[0] ?? null;
+    const searchedTerm = searchTerms(result.normalized)[0] ?? null;
+    const intelligence = analyzeContext(text, exactTerm ?? searchedTerm);
+    const nearestTerm = intelligence.detectedTerm;
     const riskLevel = nearestTerm?.riskLevel ?? "green";
+    const matchType = exactTerm ? "exact" : nearestTerm ? (intelligence.confidence === "alta" ? "contextual" : "approximate") : "fallback";
 
     const response = NextResponse.json({
       ...result,
       term: nearestTerm?.term ?? result.normalized,
       meaning: nearestTerm?.meaning ?? result.traducaoFormal,
       adultTranslation: nearestTerm?.adultTranslation ?? result.traducaoFormal,
+      contextualMeaning: intelligence.contextualMeaning,
       context: nearestTerm?.context ?? result.explicacaoContextual,
       contextNotes: nearestTerm?.contextNotes ?? result.intencaoSocialEmocional,
       category: nearestTerm?.category ?? "outros",
@@ -73,22 +78,36 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
       region: nearestTerm?.region ?? "Brasil / internet",
       variations: nearestTerm?.variations ?? [],
       popularityStatus: nearestTerm?.popularityStatus ?? "em_queda",
-      relatedTerms: searchTerms(result.normalized)
-        .filter((item) => item.term !== nearestTerm?.term)
-        .slice(0, 5)
-        .map((item) => ({
-          term: item.term,
-          meaning: item.meaning,
-          category: item.category,
-        })),
-      matchType: exactTerm ? "exact" : nearestTerm ? "approximate" : "fallback",
+      relatedTerms: nearestTerm
+        ? searchTerms(nearestTerm.term)
+            .filter((item) => item.term !== nearestTerm.term)
+            .slice(0, 5)
+            .map((item) => ({ term: item.term, meaning: item.meaning, category: item.category }))
+        : [],
+      matchType,
+      intelligence: {
+        confidence: intelligence.confidence,
+        confidenceScore: intelligence.confidenceScore,
+        tone: intelligence.tone,
+        intent: intelligence.intent,
+        platform: intelligence.platform,
+        ambiguity: intelligence.ambiguity,
+        clarificationQuestion: intelligence.clarificationQuestion,
+      },
     });
     const origin = request.headers.get("origin") || "";
     if (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("x-request-id", requestId);
     response.headers.set("X-RateLimit-Remaining", String(rate.remaining));
     const secured = withSecurityHeaders(response);
-    logApiEvent({ requestId, route, status: 200, durationMs: Date.now() - startedAt, fallbackUsed: result.source !== "local" });
+    logApiEvent({
+      requestId,
+      route,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      fallbackUsed: !nearestTerm || intelligence.confidence === "baixa",
+      message: `confidence:${intelligence.confidence};match:${matchType}`,
+    });
     return secured;
   } catch {
     const errorResponse = withSecurityHeaders(NextResponse.json({ error: "Não foi possível processar a tradução agora." }, { status: 500 }));
