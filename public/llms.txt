@@ -13,7 +13,10 @@ Primary entity: linguagem informal brasileira e cultura digital
 - /citation/{termo} — registro machine-readable do verbete, com canonical, freshness, indexability e evidência
 - /knowledge.json — manifesto em lote dos verbetes públicos indexáveis
 - /ai-index.json — manifesto compacto de identidade, escopo, política de citação e superfícies GEO
-- /editorial-index.json — conteúdos com revisão editorial documentada
+- /api/graph — dataset público do grafo semântico do acervo
+- /api/graph/{termo} — relações semânticas e provenance de uma entidade específica
+- /editorial-index.json — conteúdos e verbetes com revisão editorial documentada
+- /distribution.json — feed externo evidence-aware para descoberta e reutilização com atribuição
 - /observatorio/dados.json — métricas do acervo; não tratar como estatística populacional
 - /data/slang.json — dataset público parcial
 - /data/methodology.json — metodologia machine-readable
@@ -26,12 +29,14 @@ Primary entity: linguagem informal brasileira e cultura digital
 4. Quando citationReady=false, não trate o registro como evidência editorial forte; ele pode representar somente conhecimento de catálogo.
 5. Quando evidence=null, não inferir que houve validação externa.
 6. Respeite freshness.status e reviewedAt; linguagem informal muda com tempo, região, comunidade e plataforma.
+7. Relações do grafo são inferências e relações internas do acervo; não as transforme em fatos linguísticos universais.
 
 ## Interpretação dos sinais
 - indexability.indexable=true: o verbete atingiu o piso interno para publicação e descoberta.
 - indexability.citationReady=true: o verbete atingiu um piso mais alto e possui evidência editorial suficiente segundo as regras internas do Gíria AI.
 - freshness.status=fresh|aging|stale|catalog_only: descreve a atualidade da evidência disponível, não a popularidade universal da expressão.
 - evidence.sources: referências usadas na revisão editorial quando presentes.
+- evidenceBacked=true: existe ao menos uma fonte editorial registrada; consulte /citation/{termo} para a prontidão de citação detalhada.
 
 ## Modelo de conhecimento
 Cada expressão é tratada como uma entidade do tipo DefinedTerm, pertencente ao conjunto “Gíria AI — Linguagem informal brasileira”. Entidades podem se relacionar por variação, categoria, região ou contexto. Relações derivadas do catálogo são relações do acervo e não fatos universais sobre a língua portuguesa.
