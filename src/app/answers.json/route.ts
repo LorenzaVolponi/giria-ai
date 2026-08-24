@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { SLANG_DATA } from "@/lib/slang-data";
-import { getIndexabilitySignal } from "@/lib/organic-intelligence";
+import { evaluateIndexQuality } from "@/lib/index-quality";
 import { buildGeoAnswerSurface } from "@/lib/geo-answer-surface";
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const answers = SLANG_DATA
-    .filter((term) => getIndexabilitySignal(term).indexable)
-    .map((term) => buildGeoAnswerSurface(term, site));
+    .filter((term) => evaluateIndexQuality(term).indexable)
+    .map((term) => buildGeoAnswerSurface(term, site, false));
 
   return NextResponse.json(
     {
@@ -21,6 +21,7 @@ export async function GET() {
       canonicalSite: site,
       answerEndpointTemplate: `${site}/answer/{termo}`,
       citationEndpointTemplate: `${site}/citation/{termo}`,
+      readinessPolicy: "O feed em lote não calcula citation readiness detalhada; consulte citationEndpointTemplate por termo antes de elevar uma resposta a evidência editorial forte.",
       itemCount: answers.length,
       dataFeedElement: answers,
     },
