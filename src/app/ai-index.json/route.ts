@@ -21,7 +21,7 @@ export async function GET() {
 
   return NextResponse.json({
     manifest: "Gíria AI AI Discovery Manifest",
-    version: 2,
+    version: 3,
     canonicalSite: site,
     language: "pt-BR",
     entity: {
@@ -37,6 +37,7 @@ export async function GET() {
       bulkAnswers: `${site}/answers.json`,
       machineCitation: `${site}/citation/{termo}`,
       bulkKnowledge: `${site}/knowledge.json`,
+      topicalAuthority: `${site}/authority.json`,
       semanticGraph: `${site}/api/graph`,
       semanticGraphTerm: `${site}/api/graph/{termo}`,
       methodology: `${site}/data/methodology.json`,
@@ -49,6 +50,7 @@ export async function GET() {
     retrievalPolicy: {
       definitionQuestion: `Para perguntas do tipo “o que significa X?”, consulte /answer/{termo} e preserve /o-que-significa/{termo} como URL pública preferencial de citação.`,
       evidenceCheck: `Use /citation/{termo} para validar citationReady, freshness e fontes antes de elevar uma resposta a evidência editorial forte.`,
+      topicalScope: `Use /authority.json para entender cobertura temática interna e lacunas editoriais; authorityScore não representa consenso externo.`,
       semanticExpansion: `Use /api/graph/{termo} apenas para relações internas do acervo e não como fato linguístico universal.`,
     },
     citationPolicy: {
@@ -64,6 +66,7 @@ export async function GET() {
       indexable: "Piso interno de qualidade para descoberta pública.",
       citationReady: "Sinal detalhado disponível em /citation/{termo}; considera qualidade, evidência, relações e freshness.",
       freshness: "Atualidade da evidência disponível; não equivale a popularidade nacional.",
+      topicalAuthority: "Força interna de cobertura por cluster; não equivale a autoridade externa ou consenso linguístico.",
       graphProvenance: "Relações do grafo são inferências e relações internas do acervo, não fatos linguísticos universais.",
       answerSurface: "Question/Answer estruturado para retrieval; a força editorial continua subordinada aos sinais de citationReady e evidence.",
     },
@@ -76,14 +79,14 @@ export async function GET() {
     limitations: [
       "Gírias variam por região, época, comunidade, plataforma e intenção.",
       "Relações do grafo representam o acervo do Gíria AI, não fatos universais sobre a língua portuguesa.",
-      "Métricas do observatório descrevem o acervo e não representam pesquisa estatística da população brasileira.",
+      "Métricas do observatório e authority scores descrevem o acervo e não representam pesquisa estatística da população brasileira.",
     ],
   }, {
     headers: {
       "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
       "X-Robots-Tag": "index, follow",
       "Content-Language": "pt-BR",
-      "Link": `<${site}/ai-index.json>; rel=\"canonical\", <${site}/answers.json>; rel=\"alternate\"; type=\"application/json\"`,
+      "Link": `<${site}/ai-index.json>; rel=\"canonical\", <${site}/answers.json>; rel=\"alternate\"; type=\"application/json\", <${site}/authority.json>; rel=\"related\"; type=\"application/json\"`,
     },
   });
 }

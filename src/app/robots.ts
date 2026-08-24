@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         "/citation/",
         "/knowledge.json",
         "/ai-index.json",
+        "/authority.json",
         "/editorial-index.json",
         "/distribution.json",
         "/data/",
