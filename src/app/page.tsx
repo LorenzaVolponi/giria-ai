@@ -36,6 +36,7 @@ const jsonLd = {
       publisher: { "@id": `${siteUrl}/#organization` },
       mainEntity: { "@id": `${siteUrl}/#dictionary` },
       subjectOf: [
+        { "@type": "DataFeed", url: `${siteUrl}/answers.json`, name: "Gíria AI Answer Feed" },
         { "@type": "DataFeed", url: `${siteUrl}/knowledge.json`, name: "Gíria AI Knowledge Manifest" },
         { "@type": "DataFeed", url: `${siteUrl}/ai-index.json`, name: "Gíria AI AI Discovery Manifest" },
       ],
@@ -45,6 +46,7 @@ const jsonLd = {
       "@id": `${siteUrl}/#organization`,
       name: "Gíria AI",
       url: siteUrl,
+      knowsAbout: ["gírias brasileiras", "memes", "linguagem informal brasileira", "cultura digital"],
       parentOrganization: {
         "@type": "Organization",
         name: "volponi.tech",
