@@ -4,6 +4,7 @@ import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/secur
 import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { recordEditorialFeedbackSignal } from "@/lib/evidence-flywheel";
+import { persistGeoSignal } from "@/lib/geo-signal-store";
 
 const schema = z.object({
   verdict: z.enum(["correct", "incorrect"]),
@@ -44,7 +45,19 @@ export async function POST(request: NextRequest) {
     confidence: payload.confidence,
   });
 
-  console.log(JSON.stringify({ timestamp: new Date().toISOString(), requestId, ...payload }));
+  const persistence = await persistGeoSignal({
+    type: "feedback_gap",
+    key: payload.term || payload.query,
+    term: payload.term || null,
+    query: payload.query || null,
+    payload: {
+      verdict: payload.verdict,
+      matchType: payload.matchType,
+      confidence: payload.confidence,
+    },
+  });
+
+  console.log(JSON.stringify({ timestamp: new Date().toISOString(), requestId, ...payload, geoSignalBackend: persistence.backend, durable: persistence.durable }));
   logApiEvent({ requestId, route: "/api/feedback", status: 202, durationMs: Date.now() - startedAt, message: `feedback:${payload.verdict}:${payload.matchType}:${payload.confidence}` });
 
   const response = NextResponse.json({ accepted: true }, { status: 202 });

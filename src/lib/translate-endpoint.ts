@@ -6,6 +6,7 @@ import { analyzeContext } from "@/lib/context-intelligence";
 import { getRequestId, logApiEvent } from "@/lib/observability";
 import { isRateLimited } from "@/lib/rate-limit";
 import { recordUnknownQuery } from "@/lib/organic-intelligence";
+import { persistGeoSignal } from "@/lib/geo-signal-store";
 import { z } from "zod";
 
 const translateSchema = z.object({
@@ -63,6 +64,18 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
 
     if (!nearestTerm || intelligence.confidence === "baixa" || matchType === "fallback") {
       recordUnknownQuery(text, intelligence.confidence, nearestTerm?.term ?? null);
+      await persistGeoSignal({
+        type: "unknown_query",
+        key: result.normalized || text,
+        term: nearestTerm?.term ?? null,
+        query: text,
+        payload: {
+          confidence: intelligence.confidence,
+          confidenceScore: intelligence.confidenceScore,
+          matchType,
+          candidate: nearestTerm?.term ?? null,
+        },
+      });
     }
 
     const response = NextResponse.json({
