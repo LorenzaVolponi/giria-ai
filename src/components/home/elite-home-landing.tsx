@@ -254,8 +254,8 @@ export default function EliteHomeLanding() {
           </div>
         </section>
 
-        <footer className="mt-auto border-t border-[#173526]/10 bg-white/35 px-6 py-6 md:px-12 lg:px-16">
-          <div className="mx-auto grid max-w-[1320px] items-center gap-5 md:grid-cols-[1fr_auto_1fr]">
+        <footer className="mt-auto border-t border-[#173526]/10 bg-[linear-gradient(180deg,rgba(255,255,255,.35),rgba(247,244,215,.55))] px-6 py-7 md:px-12 lg:px-16">
+          <div className="mx-auto grid max-w-[1320px] items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
             <div className="flex items-center justify-center gap-3 md:justify-start">
               <LogoMark small />
               <div>
@@ -263,14 +263,51 @@ export default function EliteHomeLanding() {
                 <div className="text-[8px] font-bold uppercase tracking-[0.22em] text-[#173526]/42">Fala do seu jeito.</div>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-7 text-[#111]">
-              <Instagram className="h-5 w-5" strokeWidth={1.8} />
-              <TikTokIcon />
-              <XIcon />
-            </div>
-            <div className="text-center text-[12px] leading-5 text-[#222] md:text-right">
-              <div><strong>AIX8C</strong> - Um site do grupo volponi.tech !</div>
-              <div>@lorenzavolponi &nbsp;&nbsp; #01 em tecnologia no Brasil</div>
+
+            <a
+              href="https://www.instagram.com/lorenzavolponi/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram de Lorenza Volponi"
+              className="group mx-auto inline-flex min-h-11 items-center gap-2.5 rounded-full border border-[#173526]/10 bg-white/80 px-4 text-[12px] font-bold text-[#173526] shadow-[0_8px_24px_rgba(23,53,38,.05)] transition hover:-translate-y-0.5 hover:border-[#d8d100]/70 hover:shadow-[0_12px_28px_rgba(23,53,38,.09)]"
+            >
+              <Instagram className="h-4 w-4 text-[#aaa300] transition group-hover:scale-110" strokeWidth={1.9} />
+              Siga @lorenzavolponi <span className="text-[#aaa300]">↗</span>
+            </a>
+
+            <div className="text-center text-[12px] leading-5 text-[#263c31] md:text-right">
+              <div className="font-medium">
+                <a
+                  href="https://volponi.tech"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-black tracking-[0.02em] text-[#173526] transition hover:text-[#9d9700]"
+                >
+                  AIX8C
+                </a>
+                <span className="text-[#173526]/68"> - Uma tecnologia autoral, opensource - </span>
+                <a
+                  href="https://volponi.tech"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-bold text-[#9d9700] underline decoration-[#d8d100]/40 underline-offset-4 transition hover:text-[#6f6a00] hover:decoration-[#d8d100]"
+                >
+                  volponi.tech ↗
+                </a>
+                <span className="text-[#173526]/68"> !</span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[#173526]/62 md:justify-end">
+                <a
+                  href="https://www.instagram.com/lorenzavolponi/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-[#173526] transition hover:text-[#9d9700]"
+                >
+                  @lorenzavolponi ↗
+                </a>
+                <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#d8d100]" />
+                <span className="font-semibold">#01 em tecnologia no Brasil</span>
+              </div>
             </div>
           </div>
         </footer>
