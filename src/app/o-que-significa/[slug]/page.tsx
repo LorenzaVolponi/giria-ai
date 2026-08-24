@@ -33,16 +33,56 @@ export default async function SignificadoTermoPage({ params }: Props) {
   if (!term) notFound();
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
+  const citationUrl = `${site}/citation/${encodeURIComponent(term.term)}`;
+  const graphUrl = `${site}/api/graph/${encodeURIComponent(term.term)}`;
   const evidence = getEditorialEvidence(term.term);
   const definition = evidence?.definition ?? term.meaning;
   const graph = getLanguageGraphNode(term.term);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "DefinedTerm", "@id": `${canonical}#term`, name: term.term, description: definition, url: canonical, inDefinedTermSet: { "@id": `${site}/#dictionary` } },
-      { "@type": "DefinedTermSet", "@id": `${site}/#dictionary`, name: "Gíria AI — Linguagem informal brasileira", url: site, inLanguage: "pt-BR" },
-      { "@type": "WebPage", "@id": `${canonical}#webpage`, name: `O que significa ${term.term}?`, description: definition, url: canonical, inLanguage: "pt-BR", mainEntity: { "@id": `${canonical}#term` }, isPartOf: { "@id": `${site}/#website` }, ...(evidence ? { dateModified: evidence.reviewedAt, citation: evidence.sources.map((source) => source.url) } : {}) },
-      { "@type": "WebSite", "@id": `${site}/#website`, name: "Gíria AI", url: site, inLanguage: "pt-BR" },
+      {
+        "@type": "DefinedTerm",
+        "@id": `${canonical}#term`,
+        identifier: `${canonical}#term`,
+        name: term.term,
+        alternateName: term.variations || [],
+        description: definition,
+        url: canonical,
+        inDefinedTermSet: { "@id": `${site}/#dictionary` },
+        subjectOf: [
+          { "@type": "Dataset", url: citationUrl, name: `Registro de citação: ${term.term}` },
+          { "@type": "Dataset", url: graphUrl, name: `Relações semânticas: ${term.term}` },
+        ],
+      },
+      {
+        "@type": "DefinedTermSet",
+        "@id": `${site}/#dictionary`,
+        name: "Gíria AI — Linguagem informal brasileira",
+        url: `${site}/o-que-significa`,
+        inLanguage: "pt-BR",
+        publisher: { "@id": `${site}/#organization` },
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${canonical}#webpage`,
+        name: `O que significa ${term.term}?`,
+        description: definition,
+        url: canonical,
+        inLanguage: "pt-BR",
+        mainEntity: { "@id": `${canonical}#term` },
+        about: { "@id": `${canonical}#term` },
+        isPartOf: { "@id": `${site}/#website` },
+        publisher: { "@id": `${site}/#organization` },
+        subjectOf: { "@type": "Dataset", url: citationUrl },
+        ...(evidence ? {
+          dateModified: evidence.reviewedAt,
+          citation: evidence.sources.map((source) => source.url),
+          isBasedOn: evidence.sources.map((source) => source.url),
+        } : {}),
+      },
+      { "@type": "WebSite", "@id": `${site}/#website`, name: "Gíria AI", url: site, inLanguage: "pt-BR", publisher: { "@id": `${site}/#organization` } },
+      { "@type": "Organization", "@id": `${site}/#organization`, name: "Gíria AI", url: site },
     ],
   };
 

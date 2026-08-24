@@ -30,17 +30,17 @@ export function retrieveSlang(input: string, limit = 5): RetrievalCandidate[] {
   const exact = exactCandidate(input);
   if (exact) return [exact];
 
-  const candidates = semanticSearchSlang(input, Math.max(limit * 2, 8)).map((result) => {
+  const candidates: RetrievalCandidate[] = semanticSearchSlang(input, Math.max(limit * 2, 8)).map((result) => {
     const evidenceCount = getEditorialEvidence(result.term.term)?.sources.length || 0;
     const evidenceBoost = Math.min(0.08, evidenceCount * 0.02);
     const contextBoost = result.matchedSignals.includes("contexto") || result.matchedSignals.includes("intenção") ? 0.05 : 0;
     const reranked = Math.min(1, result.score + evidenceBoost + contextBoost);
-    const confidence = reranked >= 0.72 ? "alta" : reranked >= 0.42 ? "media" : "baixa";
+    const confidence: RetrievalCandidate["confidence"] = reranked >= 0.72 ? "alta" : reranked >= 0.42 ? "media" : "baixa";
     return {
       term: result.term.term,
       meaning: result.term.meaning,
       score: Number(reranked.toFixed(3)),
-      stage: "reranked" as const,
+      stage: "reranked",
       whyMatched: [...result.matchedSignals, ...(evidenceCount ? ["evidência editorial"] : [])],
       evidenceCount,
       confidence,
