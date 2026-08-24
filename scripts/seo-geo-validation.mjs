@@ -3,7 +3,9 @@ const base = (process.env.BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, ""
 const checks = [
   { path: "/", type: "text", contains: ["Gíria AI"] },
   { path: "/sitemap.xml", type: "text", contains: ["<urlset", "/o-que-significa"] },
-  { path: "/llms.txt", type: "text", contains: ["Gíria AI", "/knowledge.json", "/api/graph"] },
+  { path: "/llms.txt", type: "text", contains: ["Gíria AI", "/knowledge.json", "/api/graph", "/answers.json", "/answer/{termo}"] },
+  { path: "/ai-index.json", type: "json", validate: (body) => body?.preferredSurfaces?.directAnswer && body?.preferredSurfaces?.bulkAnswers && body?.retrievalPolicy?.definitionQuestion },
+  { path: "/answers.json", type: "json", validate: (body) => Array.isArray(body.dataFeedElement) && body.dataFeedElement.length > 0 && body.dataFeedElement.every((item) => item?.["@type"] === "Question" && item.acceptedAnswer?.text && item.authority?.canonicalUrl && item.responsePolicy) },
   { path: "/knowledge.json", type: "json", validate: (body) => Array.isArray(body.terms) && body.terms.every((item) => item.term && item.canonical && item.graph) },
   { path: "/distribution.json", type: "json", validate: (body) => Array.isArray(body.items) && body.items.every((item) => item.canonical && item.attribution === "Gíria AI") },
   { path: "/api/graph", type: "json", validate: (body) => Array.isArray(body.nodes) && body.nodes.every((node) => node.id && node.term) },
