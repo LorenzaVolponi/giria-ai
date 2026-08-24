@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { ArrowRight, CheckCircle2, Copy, Loader2, Search, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Loader2, Search, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 
 type Translation = {
   term?: string;
@@ -31,13 +31,14 @@ export default function EliteHomeLanding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   async function translate(event?: FormEvent, preset?: string) {
     event?.preventDefault();
     const value = (preset ?? query).trim();
     if (!value || loading) return;
-    setQuery(value); setLoading(true); setError(null); setTranslation(null);
+    setQuery(value); setLoading(true); setError(null); setTranslation(null); setFeedback(null);
     try {
       const response = await fetch("/api/translate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slang: value }) });
       const data = (await response.json()) as Translation & { error?: string };
@@ -54,6 +55,27 @@ export default function EliteHomeLanding() {
     setCopied(true); setTimeout(() => setCopied(false), 1800);
   }
 
+  async function sendFeedback(verdict: "correct" | "incorrect") {
+    if (!translation || feedback) return;
+    setFeedback(verdict);
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          verdict,
+          term: translation.term,
+          query,
+          matchType: translation.matchType,
+          confidence: translation.intelligence?.confidence,
+        }),
+        keepalive: true,
+      });
+    } catch {
+      setFeedback(null);
+    }
+  }
+
   const intelligence = translation?.intelligence;
   const confidenceLabel = intelligence ? `Confiança ${intelligence.confidence}` : null;
 
@@ -68,7 +90,7 @@ export default function EliteHomeLanding() {
           <div className="flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/30 dark:text-white/35" /><span className="sr-only">Digite uma expressão ou contexto</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder='Ex.: “ele falou que eu tô cooked depois da reunião”' enterKeyHint="search" autoComplete="off" autoFocus className="h-16 w-full rounded-2xl border-0 bg-[#f5f6f4] pl-12 pr-4 text-base outline-none placeholder:text-black/35 focus:bg-white focus:ring-2 focus:ring-emerald-400 dark:bg-slate-950 dark:placeholder:text-white/35" /></label><button type="submit" disabled={loading || !query.trim()} className="inline-flex h-16 min-w-36 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-7 font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-40 dark:bg-white dark:text-slate-950">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}Entender</button></div>
         </form>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2 text-sm sm:flex-wrap sm:justify-center sm:overflow-visible">{popularTerms.map((term) => <button key={term} type="button" onClick={() => void translate(undefined, term)} className="min-h-11 shrink-0 rounded-full border border-black/10 px-4 py-2 font-medium text-black/60 hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-white/65">{term}</button>)}</div>
-        <div ref={resultRef} aria-live="polite" className="text-left">{error && <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">{error}</div>}{translation && !loading && <article className="mt-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-8"><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">{translation.matchType === "approximate" ? "Melhor aproximação" : translation.matchType === "contextual" ? "Entendi pelo contexto" : "Entendi"}</p>{confidenceLabel ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{confidenceLabel}</span> : null}</div><h2 className="mt-1 text-3xl font-black">“{translation.term || query}”</h2></div><button type="button" onClick={() => void copyResult()} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700" aria-label="Copiar resposta">{copied ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}</button></div><div className="p-5 sm:p-8"><div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/30"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Nesse contexto</p><p className="mt-3 text-lg font-bold leading-8">{translation.contextualMeaning || translation.adultTranslation || translation.meaning}</p>{intelligence ? <p className="mt-3 text-sm leading-6 text-emerald-900/70 dark:text-emerald-100/70">Tom: {intelligence.tone}{intelligence.platform ? ` · Ambiente provável: ${intelligence.platform}` : ""}</p> : null}</div>{intelligence?.clarificationQuestion ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">{intelligence.clarificationQuestion}</div> : null}<div className="mt-6 grid gap-4 sm:grid-cols-2"><ResultCard label="O que significa" value={translation.meaning} /><ResultCard label="Intenção provável" value={intelligence?.intent} /><ResultCard label="Como aparece" value={translation.safeExample} /><ResultCard label="De onde vem" value={translation.origin} /></div></div></article>}</div>
+        <div ref={resultRef} aria-live="polite" className="text-left">{error && <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">{error}</div>}{translation && !loading && <article className="mt-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-8"><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">{translation.matchType === "approximate" ? "Melhor aproximação" : translation.matchType === "contextual" ? "Entendi pelo contexto" : "Entendi"}</p>{confidenceLabel ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{confidenceLabel}</span> : null}</div><h2 className="mt-1 text-3xl font-black">“{translation.term || query}”</h2></div><button type="button" onClick={() => void copyResult()} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700" aria-label="Copiar resposta">{copied ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}</button></div><div className="p-5 sm:p-8"><div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/30"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Nesse contexto</p><p className="mt-3 text-lg font-bold leading-8">{translation.contextualMeaning || translation.adultTranslation || translation.meaning}</p>{intelligence ? <p className="mt-3 text-sm leading-6 text-emerald-900/70 dark:text-emerald-100/70">Tom: {intelligence.tone}{intelligence.platform ? ` · Ambiente provável: ${intelligence.platform}` : ""}</p> : null}</div>{intelligence?.clarificationQuestion ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">{intelligence.clarificationQuestion}</div> : null}<div className="mt-6 grid gap-4 sm:grid-cols-2"><ResultCard label="O que significa" value={translation.meaning} /><ResultCard label="Intenção provável" value={intelligence?.intent} /><ResultCard label="Como aparece" value={translation.safeExample} /><ResultCard label="De onde vem" value={translation.origin} /></div><div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5 text-sm dark:border-slate-800"><span className="mr-1 text-slate-500 dark:text-slate-400">Bateu com o que você quis entender?</span><button type="button" onClick={() => void sendFeedback("correct")} disabled={Boolean(feedback)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 px-4 font-semibold hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-60 dark:border-slate-700"><ThumbsUp className="h-4 w-4" />Acertou</button><button type="button" onClick={() => void sendFeedback("incorrect")} disabled={Boolean(feedback)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 px-4 font-semibold hover:border-amber-400 hover:text-amber-700 disabled:opacity-60 dark:border-slate-700"><ThumbsDown className="h-4 w-4" />Não bateu</button>{feedback ? <span className="ml-1 font-semibold text-emerald-700">Valeu — isso melhora o motor.</span> : null}</div></div></article>}</div>
       </section>
     </div>
   </main>;
