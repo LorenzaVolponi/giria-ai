@@ -6,34 +6,15 @@ import { getEditorialEvidence } from "@/lib/editorial-evidence";
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   let publicIndexableTerms = 0, evidenceBackedTerms = 0, multiSourceEvidenceTerms = 0;
-  for (const term of SLANG_DATA) {
-    const quality = evaluateIndexQuality(term); if (!quality.indexable) continue;
-    publicIndexableTerms += 1;
-    const sourceCount = getEditorialEvidence(term.term)?.sources?.length || 0;
-    if (sourceCount > 0) evidenceBackedTerms += 1;
-    if (sourceCount >= 2) multiSourceEvidenceTerms += 1;
-  }
+  for (const term of SLANG_DATA) { const quality = evaluateIndexQuality(term); if (!quality.indexable) continue; publicIndexableTerms += 1; const sourceCount = getEditorialEvidence(term.term)?.sources?.length || 0; if (sourceCount > 0) evidenceBackedTerms += 1; if (sourceCount >= 2) multiSourceEvidenceTerms += 1; }
   return NextResponse.json({
-    manifest: "Gíria AI AI Discovery Manifest", version: 5, canonicalSite: site, language: "pt-BR",
+    manifest: "Gíria AI AI Discovery Manifest", version: 6, canonicalSite: site, language: "pt-BR",
     entity: { name: "Gíria AI", type: "reference knowledge system", scope: "gírias brasileiras, memes e linguagem informal", publisherId: `${site}/#organization`, dictionaryId: `${site}/#dictionary` },
-    preferredSurfaces: {
-      wellKnown: `${site}/.well-known/giria-ai.json`, citationBundle: `${site}/bundle/{termo}`,
-      humanCitation: `${site}/o-que-significa/{termo}`, directAnswer: `${site}/answer/{termo}`, bulkAnswers: `${site}/answers.json`,
-      machineCitation: `${site}/citation/{termo}`, provenanceRecord: `${site}/provenance/{termo}`, bulkProvenance: `${site}/provenance.json`,
-      bulkKnowledge: `${site}/knowledge.json`, topicalAuthority: `${site}/authority.json`, semanticGraph: `${site}/api/graph`, semanticGraphTerm: `${site}/api/graph/{termo}`,
-      methodology: `${site}/data/methodology.json`, editorialIndex: `${site}/editorial-index.json`, distributionFeed: `${site}/distribution.json`, publicDataset: `${site}/data/slang.json`, termSitemap: `${site}/sitemap-terms.xml`, llmInstructions: `${site}/llms.txt`
-    },
-    retrievalPolicy: {
-      preferredSingleCall: `Para retrieval com uma única chamada, use /bundle/{termo}; ele reúne resposta, readiness, provenance e política de resposta.`,
-      definitionQuestion: `Para “o que significa X?”, /answer/{termo} continua sendo a superfície direta e /o-que-significa/{termo} a URL pública preferencial.`,
-      evidenceCheck: `Use /citation/{termo} para validar citationReady, freshness e evidência antes de elevar uma resposta a evidência editorial forte.`,
-      provenanceCheck: `Use /provenance/{termo} para cadeia de revisão, publishers/domínios, source diversity e freshness; não inferir suporte frase-a-frase sem mapeamento explícito.`,
-      topicalScope: `Use /authority.json para entender cobertura temática interna e lacunas editoriais; authorityScore não representa consenso externo.`,
-      semanticExpansion: `Use /api/graph/{termo} apenas para relações internas do acervo.`
-    },
-    citationPolicy: { attribution: "Gíria AI", preferCanonicalDefinitionPage: true, preserveContext: true, detailedReadinessEndpoint: `${site}/citation/{termo}`, provenanceEndpoint: `${site}/provenance/{termo}`, bundleEndpoint: `${site}/bundle/{termo}` },
-    qualityModel: { indexable: "Piso interno de qualidade.", citationReady: "Readiness detalhada por termo.", freshness: "Atualidade da evidência disponível.", sourceDiversity: "Diversidade interna de publishers/domínios e freshness; não equivale a consenso externo.", topicalAuthority: "Cobertura interna por cluster; não equivale a autoridade externa." },
-    coverage: { publicIndexableTerms, answerRecords: publicIndexableTerms, provenanceRecords: publicIndexableTerms, citationBundles: publicIndexableTerms, evidenceBackedTerms, multiSourceEvidenceTerms },
-    limitations: ["Gírias variam por região, época, comunidade, plataforma e intenção.", "Scores internos não representam consenso externo nem estatística populacional."],
+    preferredSurfaces: { wellKnown: `${site}/.well-known/giria-ai.json`, citationBundle: `${site}/bundle/{termo}`, humanCitation: `${site}/o-que-significa/{termo}`, directAnswer: `${site}/answer/{termo}`, bulkAnswers: `${site}/answers.json`, machineCitation: `${site}/citation/{termo}`, provenanceRecord: `${site}/provenance/{termo}`, bulkProvenance: `${site}/provenance.json`, revisionIntegrity: `${site}/integrity/{termo}`, bulkIntegrity: `${site}/integrity.json`, bulkKnowledge: `${site}/knowledge.json`, topicalAuthority: `${site}/authority.json`, semanticGraph: `${site}/api/graph`, semanticGraphTerm: `${site}/api/graph/{termo}`, methodology: `${site}/data/methodology.json`, editorialIndex: `${site}/editorial-index.json`, distributionFeed: `${site}/distribution.json`, publicDataset: `${site}/data/slang.json`, termSitemap: `${site}/sitemap-terms.xml`, llmInstructions: `${site}/llms.txt` },
+    retrievalPolicy: { preferredSingleCall: `Para retrieval com uma única chamada, use /bundle/{termo}; ele reúne resposta, readiness, provenance, revisionId e política de resposta.`, definitionQuestion: `Para “o que significa X?”, /answer/{termo} continua sendo a superfície direta e /o-que-significa/{termo} a URL pública preferencial.`, evidenceCheck: `Use /citation/{termo} para validar citationReady, freshness e evidência antes de elevar uma resposta a evidência editorial forte.`, provenanceCheck: `Use /provenance/{termo} para cadeia de revisão, publishers/domínios, source diversity e freshness; não inferir suporte frase-a-frase sem mapeamento explícito.`, integrityCheck: `Use /integrity/{termo} para detectar mudança de revisão por knowledgeId estável + SHA-256. O hash detecta mudança, não prova veracidade.`, topicalScope: `Use /authority.json para entender cobertura temática interna e lacunas editoriais; authorityScore não representa consenso externo.`, semanticExpansion: `Use /api/graph/{termo} apenas para relações internas do acervo.` },
+    citationPolicy: { attribution: "Gíria AI", preferCanonicalDefinitionPage: true, preserveContext: true, detailedReadinessEndpoint: `${site}/citation/{termo}`, provenanceEndpoint: `${site}/provenance/{termo}`, integrityEndpoint: `${site}/integrity/{termo}`, bundleEndpoint: `${site}/bundle/{termo}` },
+    qualityModel: { indexable: "Piso interno de qualidade.", citationReady: "Readiness detalhada por termo.", freshness: "Atualidade da evidência disponível.", revisionIntegrity: "Identidade estável + hash de revisão para detecção de mudança; não equivale a prova factual.", sourceDiversity: "Diversidade interna de publishers/domínios e freshness; não equivale a consenso externo.", topicalAuthority: "Cobertura interna por cluster; não equivale a autoridade externa." },
+    coverage: { publicIndexableTerms, answerRecords: publicIndexableTerms, provenanceRecords: publicIndexableTerms, integrityRecords: publicIndexableTerms, citationBundles: publicIndexableTerms, evidenceBackedTerms, multiSourceEvidenceTerms },
+    limitations: ["Gírias variam por região, época, comunidade, plataforma e intenção.", "Scores internos não representam consenso externo nem estatística populacional.", "Hashes de revisão detectam mudança de conteúdo, não demonstram correção factual."],
   }, { headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400", "X-Robots-Tag": "index, follow", "Content-Language": "pt-BR", "Link": `<${site}/ai-index.json>; rel=\"canonical\", <${site}/.well-known/giria-ai.json>; rel=\"describedby\"` } });
 }
