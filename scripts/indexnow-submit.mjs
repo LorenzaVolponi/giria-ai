@@ -41,7 +41,23 @@ const matches = (predicate) => changedFiles.some(predicate);
 const allCore = matches((file) => file === "__all_core__" || file === `public/${key}.txt`);
 
 if (allCore) {
-  add("/", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre", "/editorial-index.json");
+  add(
+    "/",
+    "/o-que-significa",
+    "/girias",
+    "/girias/regionais",
+    "/guias",
+    "/observatorio",
+    "/imprensa",
+    "/sobre",
+    "/editorial-index.json",
+    "/ai-index.json",
+    "/knowledge.json",
+    "/distribution.json",
+    "/data/methodology.json",
+    "/api/graph",
+    "/llms.txt",
+  );
 }
 
 if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/components/home/") || file === "src/app/layout.tsx")) {
@@ -49,8 +65,22 @@ if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/compon
 }
 
 if (matches((file) => file.startsWith("src/app/o-que-significa/"))) {
-  add("/o-que-significa");
+  add("/o-que-significa", "/knowledge.json", "/ai-index.json");
 }
+
+if (matches((file) => file.startsWith("src/app/citation/"))) {
+  add("/knowledge.json", "/ai-index.json");
+}
+
+if (matches((file) => file.startsWith("src/app/api/graph/") || file === "src/lib/language-graph.ts")) {
+  add("/api/graph", "/ai-index.json");
+}
+
+if (matches((file) => file.startsWith("src/app/ai-index.json/"))) add("/ai-index.json");
+if (matches((file) => file.startsWith("src/app/knowledge.json/"))) add("/knowledge.json");
+if (matches((file) => file.startsWith("src/app/distribution.json/"))) add("/distribution.json");
+if (matches((file) => file.startsWith("src/app/data/methodology.json/"))) add("/data/methodology.json");
+if (matches((file) => file === "public/llms.txt")) add("/llms.txt", "/ai-index.json");
 
 if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) {
   add("/editorial-index.json");
@@ -59,6 +89,9 @@ if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file =
 if (matches((file) => file === "src/lib/editorial-evidence.ts")) {
   add(
     "/editorial-index.json",
+    "/knowledge.json",
+    "/distribution.json",
+    "/ai-index.json",
     "/o-que-significa",
     "/o-que-significa/farmar%20aura",
     "/o-que-significa/six%20seven",
@@ -79,7 +112,16 @@ if (matches((file) => file.startsWith("src/app/imprensa/"))) add("/imprensa");
 if (matches((file) => file.startsWith("src/app/sobre/"))) add("/sobre");
 
 if (matches((file) => /^src\/lib\/slang-(data|extra|regional|real|generated)/.test(file))) {
-  add("/o-que-significa", "/girias", "/girias/regionais", "/observatorio");
+  add(
+    "/o-que-significa",
+    "/girias",
+    "/girias/regionais",
+    "/observatorio",
+    "/knowledge.json",
+    "/distribution.json",
+    "/api/graph",
+    "/ai-index.json",
+  );
 }
 
 const urlList = [...routes].map((path) => new URL(path, origin).toString());
