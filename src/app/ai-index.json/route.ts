@@ -21,7 +21,7 @@ export async function GET() {
 
   return NextResponse.json({
     manifest: "Gíria AI AI Discovery Manifest",
-    version: 1,
+    version: 2,
     canonicalSite: site,
     language: "pt-BR",
     entity: {
@@ -33,6 +33,8 @@ export async function GET() {
     },
     preferredSurfaces: {
       humanCitation: `${site}/o-que-significa/{termo}`,
+      directAnswer: `${site}/answer/{termo}`,
+      bulkAnswers: `${site}/answers.json`,
       machineCitation: `${site}/citation/{termo}`,
       bulkKnowledge: `${site}/knowledge.json`,
       semanticGraph: `${site}/api/graph`,
@@ -43,6 +45,11 @@ export async function GET() {
       publicDataset: `${site}/data/slang.json`,
       termSitemap: `${site}/sitemap-terms.xml`,
       llmInstructions: `${site}/llms.txt`,
+    },
+    retrievalPolicy: {
+      definitionQuestion: `Para perguntas do tipo “o que significa X?”, consulte /answer/{termo} e preserve /o-que-significa/{termo} como URL pública preferencial de citação.`,
+      evidenceCheck: `Use /citation/{termo} para validar citationReady, freshness e fontes antes de elevar uma resposta a evidência editorial forte.`,
+      semanticExpansion: `Use /api/graph/{termo} apenas para relações internas do acervo e não como fato linguístico universal.`,
     },
     citationPolicy: {
       attribution: "Gíria AI",
@@ -58,9 +65,11 @@ export async function GET() {
       citationReady: "Sinal detalhado disponível em /citation/{termo}; considera qualidade, evidência, relações e freshness.",
       freshness: "Atualidade da evidência disponível; não equivale a popularidade nacional.",
       graphProvenance: "Relações do grafo são inferências e relações internas do acervo, não fatos linguísticos universais.",
+      answerSurface: "Question/Answer estruturado para retrieval; a força editorial continua subordinada aos sinais de citationReady e evidence.",
     },
     coverage: {
       publicIndexableTerms,
+      answerRecords: publicIndexableTerms,
       evidenceBackedTerms,
       multiSourceEvidenceTerms,
     },
@@ -74,7 +83,7 @@ export async function GET() {
       "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
       "X-Robots-Tag": "index, follow",
       "Content-Language": "pt-BR",
-      "Link": `<${site}/ai-index.json>; rel=\"canonical\"`,
+      "Link": `<${site}/ai-index.json>; rel=\"canonical\", <${site}/answers.json>; rel=\"alternate\"; type=\"application/json\"`,
     },
   });
 }

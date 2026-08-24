@@ -19,9 +19,7 @@ function readChangedFiles() {
   const after = process.env.GITHUB_SHA || "HEAD";
   let before = process.env.BEFORE_SHA || "";
 
-  if (!before || /^0+$/.test(before)) {
-    before = `${after}^`;
-  }
+  if (!before || /^0+$/.test(before)) before = `${after}^`;
 
   try {
     return execFileSync("git", ["diff", "--name-only", before, after], { encoding: "utf8" })
@@ -42,59 +40,37 @@ const allCore = matches((file) => file === "__all_core__" || file === `public/${
 
 if (allCore) {
   add(
-    "/",
-    "/o-que-significa",
-    "/girias",
-    "/girias/regionais",
-    "/guias",
-    "/observatorio",
-    "/imprensa",
-    "/sobre",
-    "/editorial-index.json",
-    "/ai-index.json",
-    "/knowledge.json",
-    "/distribution.json",
-    "/data/methodology.json",
-    "/api/graph",
-    "/llms.txt",
+    "/", "/o-que-significa", "/girias", "/girias/regionais", "/guias", "/observatorio", "/imprensa", "/sobre",
+    "/editorial-index.json", "/ai-index.json", "/answers.json", "/knowledge.json", "/distribution.json",
+    "/data/methodology.json", "/api/graph", "/llms.txt",
   );
 }
 
-if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/components/home/") || file === "src/app/layout.tsx")) {
-  add("/");
-}
+if (matches((file) => file === "src/app/page.tsx" || file.startsWith("src/components/home/") || file === "src/app/layout.tsx")) add("/");
 
 if (matches((file) => file.startsWith("src/app/o-que-significa/"))) {
-  add("/o-que-significa", "/knowledge.json", "/ai-index.json");
+  add("/o-que-significa", "/answers.json", "/knowledge.json", "/ai-index.json");
 }
 
-if (matches((file) => file.startsWith("src/app/citation/"))) {
-  add("/knowledge.json", "/ai-index.json");
+if (matches((file) => file.startsWith("src/app/answer/") || file === "src/lib/geo-answer-surface.ts")) {
+  add("/answers.json", "/ai-index.json", "/llms.txt");
 }
 
-if (matches((file) => file.startsWith("src/app/api/graph/") || file === "src/lib/language-graph.ts")) {
-  add("/api/graph", "/ai-index.json");
-}
-
+if (matches((file) => file.startsWith("src/app/answers.json/"))) add("/answers.json", "/ai-index.json", "/llms.txt");
+if (matches((file) => file.startsWith("src/app/citation/"))) add("/knowledge.json", "/answers.json", "/ai-index.json");
+if (matches((file) => file.startsWith("src/app/api/graph/") || file === "src/lib/language-graph.ts")) add("/api/graph", "/ai-index.json");
 if (matches((file) => file.startsWith("src/app/ai-index.json/"))) add("/ai-index.json");
 if (matches((file) => file.startsWith("src/app/knowledge.json/"))) add("/knowledge.json");
 if (matches((file) => file.startsWith("src/app/distribution.json/"))) add("/distribution.json");
 if (matches((file) => file.startsWith("src/app/data/methodology.json/"))) add("/data/methodology.json");
-if (matches((file) => file.startsWith("src/app/llms.txt/") || file === "public/llms.txt")) add("/llms.txt", "/ai-index.json");
+if (matches((file) => file.startsWith("src/app/llms.txt/") || file === "public/llms.txt")) add("/llms.txt", "/ai-index.json", "/answers.json");
 
-if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) {
-  add("/editorial-index.json");
-}
+if (matches((file) => file.startsWith("src/app/editorial-index.json/") || file === "src/app/seo-index.json/route.ts")) add("/editorial-index.json");
 
 if (matches((file) => file === "src/lib/editorial-evidence.ts")) {
   add(
-    "/editorial-index.json",
-    "/knowledge.json",
-    "/distribution.json",
-    "/ai-index.json",
-    "/o-que-significa",
-    "/o-que-significa/farmar%20aura",
-    "/o-que-significa/six%20seven",
+    "/editorial-index.json", "/answers.json", "/knowledge.json", "/distribution.json", "/ai-index.json", "/o-que-significa",
+    "/o-que-significa/farmar%20aura", "/answer/farmar%20aura", "/o-que-significa/six%20seven", "/answer/six%20seven",
   );
 }
 
@@ -103,25 +79,13 @@ if (matches((file) => file.startsWith("src/app/girias/"))) {
   if (matches((file) => file.startsWith("src/app/girias/regionais"))) add("/girias/regionais");
 }
 
-if (matches((file) => file.startsWith("src/app/guias/") || file === "src/lib/seo-keyword-layer.ts")) {
-  add("/guias");
-}
-
+if (matches((file) => file.startsWith("src/app/guias/") || file === "src/lib/seo-keyword-layer.ts")) add("/guias");
 if (matches((file) => file.startsWith("src/app/observatorio/"))) add("/observatorio");
 if (matches((file) => file.startsWith("src/app/imprensa/"))) add("/imprensa");
 if (matches((file) => file.startsWith("src/app/sobre/"))) add("/sobre");
 
 if (matches((file) => /^src\/lib\/slang-(data|extra|regional|real|generated)/.test(file))) {
-  add(
-    "/o-que-significa",
-    "/girias",
-    "/girias/regionais",
-    "/observatorio",
-    "/knowledge.json",
-    "/distribution.json",
-    "/api/graph",
-    "/ai-index.json",
-  );
+  add("/o-que-significa", "/girias", "/girias/regionais", "/observatorio", "/answers.json", "/knowledge.json", "/distribution.json", "/api/graph", "/ai-index.json");
 }
 
 const urlList = [...routes].map((path) => new URL(path, origin).toString());
@@ -135,12 +99,7 @@ if (urlList.length === 0) {
   process.exit(0);
 }
 
-const payload = {
-  host: siteUrl.host,
-  key,
-  keyLocation,
-  urlList,
-};
+const payload = { host: siteUrl.host, key, keyLocation, urlList };
 
 if (process.env.INDEXNOW_DRY_RUN === "1") {
   console.log("[indexnow] Dry run concluído.");

@@ -33,6 +33,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
   if (!term) notFound();
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
+  const answerUrl = `${site}/answer/${encodeURIComponent(term.term)}`;
   const citationUrl = `${site}/citation/${encodeURIComponent(term.term)}`;
   const graphUrl = `${site}/api/graph/${encodeURIComponent(term.term)}`;
   const evidence = getEditorialEvidence(term.term);
@@ -51,9 +52,27 @@ export default async function SignificadoTermoPage({ params }: Props) {
         url: canonical,
         inDefinedTermSet: { "@id": `${site}/#dictionary` },
         subjectOf: [
+          { "@type": "Dataset", url: answerUrl, name: `Resposta estruturada: ${term.term}` },
           { "@type": "Dataset", url: citationUrl, name: `Registro de citação: ${term.term}` },
           { "@type": "Dataset", url: graphUrl, name: `Relações semânticas: ${term.term}` },
         ],
+      },
+      {
+        "@type": "Question",
+        "@id": `${canonical}#question`,
+        name: `O que significa ${term.term}?`,
+        text: `O que significa ${term.term}?`,
+        url: canonical,
+        about: { "@id": `${canonical}#term` },
+        acceptedAnswer: {
+          "@type": "Answer",
+          "@id": `${canonical}#answer`,
+          text: definition,
+          url: canonical,
+          inLanguage: "pt-BR",
+          author: { "@id": `${site}/#organization` },
+          ...(evidence ? { citation: evidence.sources.map((source) => source.url) } : {}),
+        },
       },
       {
         "@type": "DefinedTermSet",
@@ -70,11 +89,14 @@ export default async function SignificadoTermoPage({ params }: Props) {
         description: definition,
         url: canonical,
         inLanguage: "pt-BR",
-        mainEntity: { "@id": `${canonical}#term` },
+        mainEntity: { "@id": `${canonical}#question` },
         about: { "@id": `${canonical}#term` },
         isPartOf: { "@id": `${site}/#website` },
         publisher: { "@id": `${site}/#organization` },
-        subjectOf: { "@type": "Dataset", url: citationUrl },
+        subjectOf: [
+          { "@type": "Dataset", url: answerUrl },
+          { "@type": "Dataset", url: citationUrl },
+        ],
         ...(evidence ? {
           dateModified: evidence.reviewedAt,
           citation: evidence.sources.map((source) => source.url),
@@ -82,7 +104,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
         } : {}),
       },
       { "@type": "WebSite", "@id": `${site}/#website`, name: "Gíria AI", url: site, inLanguage: "pt-BR", publisher: { "@id": `${site}/#organization` } },
-      { "@type": "Organization", "@id": `${site}/#organization`, name: "Gíria AI", url: site },
+      { "@type": "Organization", "@id": `${site}/#organization`, name: "Gíria AI", url: site, knowsAbout: ["gírias brasileiras", "memes", "linguagem informal brasileira", "cultura digital"] },
     ],
   };
 

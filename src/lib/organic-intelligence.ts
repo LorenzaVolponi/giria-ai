@@ -67,6 +67,7 @@ export function getIndexabilitySignal(term: SlangTerm): IndexabilitySignal {
 }
 
 export function buildOrganicTermRecord(term: SlangTerm) {
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const evidence = getEditorialEvidence(term.term);
   const freshness = getFreshnessSignal(term.term);
   const indexability = getIndexabilitySignal(term);
@@ -85,7 +86,7 @@ export function buildOrganicTermRecord(term: SlangTerm) {
     region: term.region,
     variations: term.variations,
     relatedTerms,
-    canonicalUrl: `https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`,
+    canonicalUrl: `${site}/o-que-significa/${encodeURIComponent(term.term)}`,
     publisher: "Gíria AI",
     attribution: "AIX8C / volponi.tech",
     freshness,
