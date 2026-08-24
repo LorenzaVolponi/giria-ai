@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getRequestId, logApiEvent } from "@/lib/observability";
+import { recordEditorialFeedbackSignal } from "@/lib/evidence-flywheel";
 
 const schema = z.object({
   verdict: z.enum(["correct", "incorrect"]),
@@ -33,7 +34,15 @@ export async function POST(request: NextRequest) {
     query: sanitizeUserInput(parsed.data.query || "", 220),
     matchType: parsed.data.matchType || "fallback",
     confidence: parsed.data.confidence || "baixa",
-  };
+  } as const;
+
+  recordEditorialFeedbackSignal({
+    verdict: payload.verdict,
+    term: payload.term,
+    query: payload.query,
+    matchType: payload.matchType,
+    confidence: payload.confidence,
+  });
 
   console.log(JSON.stringify({ timestamp: new Date().toISOString(), requestId, ...payload }));
   logApiEvent({ requestId, route: "/api/feedback", status: 202, durationMs: Date.now() - startedAt, message: `feedback:${payload.verdict}:${payload.matchType}:${payload.confidence}` });
