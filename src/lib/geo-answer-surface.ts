@@ -10,6 +10,7 @@ export function buildGeoAnswerSurface(term: SlangTerm, site: string, detailedRea
   const publicQuality = detailedReadiness ? null : evaluateIndexQuality(term);
   const canonicalUrl = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
   const citationUrl = `${site}/citation/${encodeURIComponent(term.term)}`;
+  const provenanceUrl = `${site}/provenance/${encodeURIComponent(term.term)}`;
   const graphUrl = `${site}/api/graph/${encodeURIComponent(term.term)}`;
   const definition = evidence?.definition || term.adultTranslation || term.meaning;
   const context = evidence?.context || term.context;
@@ -51,11 +52,13 @@ export function buildGeoAnswerSurface(term: SlangTerm, site: string, detailedRea
       publisherId: `${site}/#organization`,
       canonicalUrl,
       citationUrl,
+      provenanceUrl,
       graphUrl,
       publicIndexable: detailed ? detailed.indexable : Boolean(publicQuality?.indexable),
       indexabilityScore: detailed ? detailed.score : null,
       citationReady: detailed ? detailed.citationReady : null,
       readinessEndpoint: citationUrl,
+      provenanceEndpoint: provenanceUrl,
       freshnessStatus: freshness.status,
       reviewedAt: freshness.reviewedAt,
       latestEvidenceAt: freshness.latestEvidenceAt,
@@ -79,6 +82,7 @@ export function buildGeoAnswerSurface(term: SlangTerm, site: string, detailedRea
       mayStateAsEditoriallySupported: detailed ? detailed.citationReady : null,
       readinessMustBeChecked: !detailedReadiness,
       readinessEndpoint: citationUrl,
+      provenanceEndpoint: provenanceUrl,
       preserveContext: true,
       doNotUniversalize: true,
     },
