@@ -41,7 +41,7 @@ describe("GEO discovery and citation contracts", () => {
     expect(first).toHaveProperty("evidenceBacked");
   });
 
-  it("publishes Question and Answer records without manufacturing evidence", async () => {
+  it("publishes Question and Answer records without manufacturing bulk readiness", async () => {
     const res = await answersGet();
     const data = await res.json();
 
@@ -49,6 +49,7 @@ describe("GEO discovery and citation contracts", () => {
     expect(data["@type"]).toBe("DataFeed");
     expect(data.itemCount).toBeGreaterThan(0);
     expect(data.dataFeedElement).toHaveLength(data.itemCount);
+    expect(data.readinessPolicy).toContain("citation");
 
     const first = data.dataFeedElement[0];
     expect(first["@type"]).toBe("Question");
@@ -56,9 +57,11 @@ describe("GEO discovery and citation contracts", () => {
     expect(first.acceptedAnswer.text.length).toBeGreaterThan(20);
     expect(first.authority.canonicalUrl).toContain("/o-que-significa/");
     expect(first.authority.citationUrl).toContain("/citation/");
+    expect(first.authority.citationReady).toBeNull();
     expect(first.responsePolicy.preferredCitation).toBe(first.authority.canonicalUrl);
-    expect(typeof first.responsePolicy.mayStateAsEditoriallySupported).toBe("boolean");
-    if (!first.evidence) expect(first.responsePolicy.mayStateAsEditoriallySupported).toBe(false);
+    expect(first.responsePolicy.mayStateAsEditoriallySupported).toBeNull();
+    expect(first.responsePolicy.readinessMustBeChecked).toBe(true);
+    expect(first.responsePolicy.readinessEndpoint).toBe(first.authority.citationUrl);
   });
 
   it("keeps public GEO surfaces crawlable while private API surfaces stay blocked", () => {
