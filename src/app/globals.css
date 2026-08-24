@@ -116,7 +116,243 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior-y: none;
+  }
+  button,
+  a,
+  input {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a {
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    outline: 3px solid rgb(216 209 0 / 45%);
+    outline-offset: 3px;
+  }
+}
+
+/* Mobile polish for the approved Gíria AI home. Desktop composition stays untouched. */
+@media (max-width: 639px) {
+  main {
+    min-height: 100dvh;
+  }
+
+  main header {
+    height: 72px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  main header [aria-label="Gíria AI"] {
+    gap: 10px;
+  }
+
+  main header [aria-label="Gíria AI"] > span {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  main header [aria-label="Gíria AI"] > div > div:first-child {
+    font-size: 21px !important;
+  }
+
+  main header [aria-label="Gíria AI"] > div > div:last-child {
+    font-size: 8px !important;
+    letter-spacing: .2em !important;
+  }
+
+  main > div.relative > section:first-of-type {
+    padding-top: 32px !important;
+    padding-bottom: 18px !important;
+  }
+
+  main > div.relative > section:first-of-type > div:first-child {
+    height: 36px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    font-size: 10px !important;
+  }
+
+  main > div.relative > section:first-of-type h1 {
+    margin-top: 18px !important;
+    font-size: clamp(2.55rem, 12vw, 3.25rem) !important;
+    line-height: .96 !important;
+    letter-spacing: -.055em !important;
+  }
+
+  main > div.relative > section:first-of-type h1 + p {
+    margin-top: 18px !important;
+    max-width: 340px;
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+  }
+
+  main > div.relative > section:first-of-type form {
+    margin-top: 26px !important;
+    border-radius: 18px !important;
+    padding: 7px !important;
+    box-shadow: 0 14px 34px rgb(78 64 20 / 8%) !important;
+  }
+
+  main > div.relative > section:first-of-type form label {
+    min-height: 58px;
+  }
+
+  main > div.relative > section:first-of-type form input {
+    height: 58px !important;
+    min-height: 58px;
+    font-size: 16px !important;
+    padding-left: 48px !important;
+    padding-right: 68px !important;
+  }
+
+  main > div.relative > section:first-of-type form label > svg {
+    left: 16px !important;
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  main > div.relative > section:first-of-type form label > span:last-child {
+    right: 14px !important;
+    font-size: 12px !important;
+  }
+
+  main > div.relative > section:first-of-type form button[type="submit"] {
+    width: 100%;
+    min-height: 54px;
+    border-radius: 13px !important;
+  }
+
+  #populares {
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+    padding-left: 20px;
+    padding-right: 20px;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #populares::-webkit-scrollbar,
+  #como-funciona > div::-webkit-scrollbar {
+    display: none;
+  }
+
+  #populares > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  #populares button {
+    min-height: 42px;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  [aria-live="polite"] {
+    scroll-margin-top: 14px !important;
+  }
+
+  [aria-live="polite"] article {
+    margin-top: 22px !important;
+    border-radius: 20px !important;
+  }
+
+  [aria-live="polite"] article > div:first-child {
+    padding: 18px !important;
+  }
+
+  [aria-live="polite"] article > div:last-child {
+    padding: 18px !important;
+  }
+
+  [aria-live="polite"] article h2 {
+    max-width: calc(100vw - 110px);
+    overflow-wrap: anywhere;
+  }
+
+  [aria-live="polite"] article button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #como-funciona {
+    margin-top: 20px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  #como-funciona > div {
+    display: flex !important;
+    gap: 10px;
+    overflow-x: auto;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding-left: 20px;
+    padding-right: 20px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #como-funciona > div > div {
+    flex: 0 0 min(78vw, 290px);
+    min-height: 116px !important;
+    border: 1px solid #ded9c7 !important;
+    border-radius: 17px;
+    background: rgb(255 255 255 / 92%);
+    padding: 22px !important;
+    scroll-snap-align: center;
+    box-shadow: 0 8px 24px rgb(78 64 20 / 3%);
+  }
+
+  #sobre {
+    margin-top: 28px !important;
+    margin-bottom: 28px !important;
+  }
+
+  #sobre > div {
+    min-height: auto !important;
+    gap: 22px !important;
+    padding: 24px 22px !important;
+    border-radius: 20px !important;
+  }
+
+  #sobre h2 {
+    font-size: 27px !important;
+    line-height: 1.08 !important;
+  }
+
+  main footer {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
   }
 }
