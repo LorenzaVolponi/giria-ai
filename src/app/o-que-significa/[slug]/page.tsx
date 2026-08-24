@@ -51,8 +51,8 @@ export default async function SignificadoTermoPage({ params }: Props) {
         url: canonical,
         inDefinedTermSet: { "@id": `${site}/#dictionary` },
         subjectOf: [
-          { "@type": "DataFeedItem", url: citationUrl, name: `Registro de citação: ${term.term}` },
-          { "@type": "DataFeedItem", url: graphUrl, name: `Relações semânticas: ${term.term}` },
+          { "@type": "Dataset", url: citationUrl, name: `Registro de citação: ${term.term}` },
+          { "@type": "Dataset", url: graphUrl, name: `Relações semânticas: ${term.term}` },
         ],
       },
       {
@@ -74,7 +74,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
         about: { "@id": `${canonical}#term` },
         isPartOf: { "@id": `${site}/#website` },
         publisher: { "@id": `${site}/#organization` },
-        subjectOf: { "@type": "DataFeedItem", url: citationUrl },
+        subjectOf: { "@type": "Dataset", url: citationUrl },
         ...(evidence ? {
           dateModified: evidence.reviewedAt,
           citation: evidence.sources.map((source) => source.url),
