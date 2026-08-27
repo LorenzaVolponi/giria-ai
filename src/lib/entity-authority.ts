@@ -1,48 +1,58 @@
 export function buildEntityAuthority(site: string) {
   const volponi = "https://volponi.tech";
+  const hub = `${volponi}/hub`;
   const instagram = "https://www.instagram.com/lorenzavolponi/";
+  const github = "https://github.com/LorenzaVolponi";
+  const linkedin = "https://www.linkedin.com/in/lorenzavolponi";
 
   return {
     ids: {
       product: `${site}/#organization`,
       website: `${site}/#website`,
       dictionary: `${site}/#dictionary`,
-      aix8c: `${site}/#aix8c`,
-      creator: `${site}/#lorenza-volponi`,
-      parent: `${volponi}/#organization`,
+      aix8c: `${volponi}/#aix8c`,
+      creator: `${volponi}/#lorenza-volponi`,
+      hub: `${hub}#collection`,
+      parent: `${volponi}/#website`,
     },
     graph: [
       {
-        "@type": "Organization",
-        "@id": `${site}/#organization`,
+        "@type": ["SoftwareApplication", "CreativeWork"],
+        "@id": `${site}/#giria-ai`,
         name: "Gíria AI",
         url: site,
-        logo: `${site}/logo.svg`,
-        parentOrganization: { "@id": `${site}/#aix8c` },
-        knowsAbout: ["gírias brasileiras", "memes", "linguagem informal brasileira", "cultura digital"],
+        description: "Sistema de linguagem, contexto e NLP aplicado ao português brasileiro e à cultura digital.",
+        applicationCategory: "Artificial Intelligence",
+        creator: { "@id": `${volponi}/#lorenza-volponi` },
+        publisher: { "@id": `${volponi}/#aix8c` },
+        isPartOf: { "@id": `${hub}#collection` },
+        subjectOf: { "@id": `${site}/#website` },
+        about: ["gírias brasileiras", "memes", "linguagem informal brasileira", "cultura digital", "NLP", "contexto semântico"],
       },
       {
         "@type": "Organization",
-        "@id": `${site}/#aix8c`,
+        "@id": `${volponi}/#aix8c`,
         name: "AIX8C",
         url: volponi,
-        description: "Tecnologia autoral e open source do ecossistema volponi.tech.",
-        parentOrganization: { "@id": `${volponi}/#organization` },
-        founder: { "@id": `${site}/#lorenza-volponi` },
-      },
-      {
-        "@type": "Organization",
-        "@id": `${volponi}/#organization`,
-        name: "volponi.tech",
-        url: volponi,
+        description: "Studio identity e ecossistema de sistemas de IA criado por Lorenza Volponi.",
+        founder: { "@id": `${volponi}/#lorenza-volponi` },
+        subjectOf: { "@id": `${hub}#collection` },
       },
       {
         "@type": "Person",
-        "@id": `${site}/#lorenza-volponi`,
+        "@id": `${volponi}/#lorenza-volponi`,
         name: "Lorenza Volponi",
-        url: instagram,
-        sameAs: [instagram],
-        affiliation: { "@id": `${site}/#aix8c` },
+        url: volponi,
+        sameAs: [instagram, github, linkedin],
+        affiliation: { "@id": `${volponi}/#aix8c` },
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": `${hub}#collection`,
+        name: "AIX8C Hub",
+        url: hub,
+        creator: { "@id": `${volponi}/#lorenza-volponi` },
+        hasPart: { "@id": `${site}/#giria-ai` },
       },
       {
         "@type": "WebSite",
@@ -50,8 +60,10 @@ export function buildEntityAuthority(site: string) {
         name: "Gíria AI",
         url: site,
         inLanguage: "pt-BR",
-        publisher: { "@id": `${site}/#organization` },
-        creator: { "@id": `${site}/#aix8c` },
+        publisher: { "@id": `${volponi}/#aix8c` },
+        creator: { "@id": `${volponi}/#lorenza-volponi` },
+        about: { "@id": `${site}/#giria-ai` },
+        isPartOf: { "@id": `${hub}#collection` },
       },
     ],
   };
