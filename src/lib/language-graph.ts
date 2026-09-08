@@ -1,4 +1,4 @@
-import type { SlangTerm } from "@/lib/slang-data";
+import { SLANG_DATA, type SlangTerm } from "@/lib/slang-data";
 import { getRelatedTerms, resolveIndexedTerm, searchIndexedTerms } from "@/lib/slang-index";
 
 export type LanguageEdgeType =
@@ -89,7 +89,7 @@ export function getLanguageGraphNode(value: string): LanguageGraphNode | null {
 }
 
 export function getLanguageGraphIndex() {
-  return searchIndexedTerms("brasil", 100).map((term) => ({
+  return SLANG_DATA.map((term) => ({
     id: normalizeTerm(term.term),
     term: term.term,
     category: term.category,
