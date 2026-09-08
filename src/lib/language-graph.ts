@@ -1,4 +1,5 @@
-import { SLANG_DATA, type SlangTerm } from "@/lib/slang-data";
+import type { SlangTerm } from "@/lib/slang-data";
+import { getRelatedTerms, resolveIndexedTerm, searchIndexedTerms } from "@/lib/slang-index";
 
 export type LanguageEdgeType =
   | "variation_of"
@@ -42,10 +43,15 @@ function overlapScore(a: string, b: string) {
 }
 
 function inferEdges(term: SlangTerm): LanguageGraphEdge[] {
-  const candidates = SLANG_DATA.filter((item) => item.term !== term.term);
+  const candidates = new Map<string, SlangTerm>();
+  for (const candidate of getRelatedTerms(term, 32)) candidates.set(candidate.term, candidate);
+  for (const candidate of searchIndexedTerms(`${term.term} ${term.meaning} ${term.context}`, 48)) {
+    if (candidate.term !== term.term) candidates.set(candidate.term, candidate);
+  }
+
   const edges: LanguageGraphEdge[] = [];
 
-  for (const candidate of candidates) {
+  for (const candidate of candidates.values()) {
     const target = normalizeTerm(candidate.term);
     if (term.variations.some((variation) => normalizeTerm(variation) === target)) {
       edges.push({ target, type: "variation_of", weight: 1 });
@@ -61,8 +67,7 @@ function inferEdges(term: SlangTerm): LanguageGraphEdge[] {
 }
 
 export function getLanguageGraphNode(value: string): LanguageGraphNode | null {
-  const normalized = normalizeTerm(value);
-  const term = SLANG_DATA.find((item) => normalizeTerm(item.term) === normalized || item.variations.some((variation) => normalizeTerm(variation) === normalized));
+  const term = resolveIndexedTerm(value);
   if (!term) return null;
 
   return {
@@ -84,7 +89,7 @@ export function getLanguageGraphNode(value: string): LanguageGraphNode | null {
 }
 
 export function getLanguageGraphIndex() {
-  return SLANG_DATA.map((term) => ({
+  return searchIndexedTerms("brasil", 100).map((term) => ({
     id: normalizeTerm(term.term),
     term: term.term,
     category: term.category,
