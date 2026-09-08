@@ -110,6 +110,7 @@
   "overrides": {
     "postcss": "^8.5.18",
     "prismjs": "^1.30.0",
-    "sharp": "$sharp"
+    "sharp": "$sharp",
+    "browserslist": "^4.28.7"
   }
 }
