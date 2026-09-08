@@ -1,4 +1,4 @@
-import { getTerm, searchTerms } from "@/lib/slang-data";
+import { getIndexedTerm, searchIndexedTerms } from "@/lib/slang-index";
 import type { InformalityLevel, TranslationResponse } from "@/types/translation";
 import { sanitizeUserInput } from "@/lib/security";
 
@@ -15,7 +15,7 @@ export function translateSlang(input: string): TranslationResponse {
   const normalized = sanitizeUserInput(input.toLowerCase(), MAX_TEXT);
   if (!normalized) throw new Error("EMPTY_INPUT");
 
-  const exact = getTerm(normalized);
+  const exact = getIndexedTerm(normalized);
   if (exact) {
     return {
       input,
@@ -28,7 +28,7 @@ export function translateSlang(input: string): TranslationResponse {
     };
   }
 
-  const related = searchTerms(normalized).slice(0, 3);
+  const related = searchIndexedTerms(normalized, 3);
   if (related.length > 0) {
     const top = related[0];
     return {
