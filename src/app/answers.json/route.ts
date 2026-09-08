@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCachedGeoAnswers } from "@/lib/organic-cache";
+import { SLANG_DATA } from "@/lib/slang-data";
+import { evaluateIndexQuality } from "@/lib/index-quality";
+import { buildGeoAnswerSurface } from "@/lib/geo-answer-surface";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const answers = await getCachedGeoAnswers();
+  const answers = SLANG_DATA
+    .filter((term) => evaluateIndexQuality(term).indexable)
+    .map((term) => buildGeoAnswerSurface(term, site, false));
 
   return NextResponse.json(
     {
