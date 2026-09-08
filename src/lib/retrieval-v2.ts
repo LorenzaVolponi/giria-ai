@@ -1,4 +1,4 @@
-import { SLANG_DATA } from "@/lib/slang-data";
+import { resolveIndexedTerm } from "@/lib/slang-index";
 import { semanticSearchSlang } from "@/lib/semantic-search";
 import { getEditorialEvidence } from "@/lib/editorial-evidence";
 
@@ -14,13 +14,8 @@ export interface RetrievalCandidate {
   confidence: "alta" | "media" | "baixa";
 }
 
-function normalize(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-}
-
 function exactCandidate(input: string): RetrievalCandidate | null {
-  const normalized = normalize(input);
-  const term = SLANG_DATA.find((item) => normalize(item.term) === normalized || item.variations.some((variation) => normalize(variation) === normalized));
+  const term = resolveIndexedTerm(input);
   if (!term) return null;
   const evidenceCount = getEditorialEvidence(term.term)?.sources.length || 0;
   return { term: term.term, meaning: term.meaning, score: 1, stage: "exact", whyMatched: ["termo ou variação exata"], evidenceCount, confidence: "alta" };
