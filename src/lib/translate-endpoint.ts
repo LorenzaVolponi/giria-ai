@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp, sanitizeUserInput, withSecurityHeaders } from "@/lib/security";
-import { getTerm, RISK_CONFIG, searchTerms } from "@/lib/slang-data";
+import { RISK_CONFIG } from "@/lib/slang-data";
+import { getIndexedTerm, getRelatedTerms, searchIndexedTerms } from "@/lib/slang-index";
 import { translateSlang } from "@/lib/translator";
 import { analyzeContext } from "@/lib/context-intelligence";
 import { getRequestId, logApiEvent } from "@/lib/observability";
@@ -55,8 +56,8 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
     }
 
     const result = translateSlang(text);
-    const exactTerm = getTerm(result.normalized);
-    const searchedTerm = searchTerms(result.normalized)[0] ?? null;
+    const exactTerm = getIndexedTerm(result.normalized);
+    const searchedTerm = exactTerm ? null : (searchIndexedTerms(result.normalized, 1)[0] ?? null);
     const intelligence = analyzeContext(text, exactTerm ?? searchedTerm);
     const nearestTerm = intelligence.detectedTerm;
     const riskLevel = nearestTerm?.riskLevel ?? "green";
@@ -95,7 +96,7 @@ export async function handleTranslatePost(request: NextRequest, route = "/api/tr
       variations: nearestTerm?.variations ?? [],
       popularityStatus: nearestTerm?.popularityStatus ?? "em_queda",
       relatedTerms: nearestTerm
-        ? searchTerms(nearestTerm.term).filter((item) => item.term !== nearestTerm.term).slice(0, 5).map((item) => ({ term: item.term, meaning: item.meaning, category: item.category }))
+        ? getRelatedTerms(nearestTerm, 5).map((item) => ({ term: item.term, meaning: item.meaning, category: item.category }))
         : [],
       matchType,
       intelligence: {
