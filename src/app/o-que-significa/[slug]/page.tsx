@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getTerm } from "@/lib/slang-data";
+import { resolveIndexedTerm } from "@/lib/slang-index";
 import { getEditorialEvidence } from "@/lib/editorial-evidence";
 import { evaluateIndexQuality } from "@/lib/index-quality";
 import { getLanguageGraphNode } from "@/lib/language-graph";
@@ -10,7 +10,7 @@ interface Props { params: Promise<{ slug: string }>; }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const term = getTerm(decodeURIComponent(slug));
+  const term = resolveIndexedTerm(slug);
   if (!term) return { title: "Termo não encontrado", robots: { index: false, follow: false } };
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const evidence = getEditorialEvidence(term.term);
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SignificadoTermoPage({ params }: Props) {
   const { slug } = await params;
-  const term = getTerm(decodeURIComponent(slug));
+  const term = resolveIndexedTerm(slug);
   if (!term) notFound();
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
