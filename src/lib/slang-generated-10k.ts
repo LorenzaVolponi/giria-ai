@@ -72,18 +72,22 @@ function buildTerm(family: typeof families[number], modifier: string, intensity:
   };
 }
 
+const LIMIT = 8_200;
 const generated: SlangTerm[] = [];
 let i = 0;
+
+outer:
 for (const region of regions) {
   for (const family of families) {
     for (const modifier of modifiers) {
       for (const intensity of intensities) {
         i += 1;
         generated.push(buildTerm(family, modifier, intensity, region, i));
+        if (generated.length >= LIMIT) break outer;
       }
     }
   }
 }
 
-export const GENERATED_SLANG_10K: SlangTerm[] = generated.slice(0, 8_200);
+export const GENERATED_SLANG_10K: SlangTerm[] = generated;
 export default GENERATED_SLANG_10K;
