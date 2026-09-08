@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCachedOrganicDataset } from "@/lib/organic-cache";
+import { getOrganicDataset } from "@/lib/organic-intelligence";
 import { recordCrawlerHit } from "@/lib/crawler-intelligence";
+
+export const dynamic = "force-dynamic";
 
 function xmlEscape(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
@@ -8,8 +10,7 @@ function xmlEscape(value: string) {
 
 export async function GET(request: NextRequest) {
   recordCrawlerHit(request.headers.get("user-agent"), "/sitemap-terms.xml");
-  const dataset = await getCachedOrganicDataset();
-  const urls = dataset
+  const urls = getOrganicDataset()
     .filter((item) => item.indexability.indexable)
     .map((item) => {
       const lastmod = item.evidence?.reviewedAt ? `<lastmod>${xmlEscape(item.evidence.reviewedAt)}</lastmod>` : "";
