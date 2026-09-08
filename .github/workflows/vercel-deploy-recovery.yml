@@ -2,8 +2,8 @@ name: Vercel deployment recovery
 
 on:
   schedule:
-    # Runs hourly, but only triggers a deployment when the latest main commit
-    # has a failed Vercel status or has been pending for too long.
+    # Runs hourly. Rate-limit failures are held for their cooldown and then
+    # retried at most once per 24h window, avoiding an hourly redeploy loop.
     - cron: "17 * * * *"
   workflow_dispatch:
 
@@ -79,19 +79,44 @@ jobs:
             const rateLimited =
               /rate.?limit|too many deployments|retry in \d+ hours?/.test(description) ||
               targetUrl.includes("build-rate-limit") ||
-              targetUrl.includes("upgradeToPro=build-rate-limit".toLowerCase());
-            const shouldRetry = !rateLimited && (failed || stale);
+              targetUrl.includes("upgradetopro=build-rate-limit");
+
+            const hoursMatch = description.match(/retry in\s+(\d+)\s+hours?/);
+            const cooldownMinutes = Math.max(60, Number(hoursMatch?.[1] || 24) * 60);
+            const retryEveryMinutes = 24 * 60;
+            const cooldownExpired = rateLimited && ageMinutes >= cooldownMinutes;
+            const minutesAfterCooldown = Math.max(0, ageMinutes - cooldownMinutes);
+            const inRateLimitRetryWindow =
+              cooldownExpired && (minutesAfterCooldown % retryEveryMinutes) < 60;
+
+            const shouldRetry = rateLimited
+              ? failed && inRateLimitRetryWindow
+              : failed || stale;
 
             core.info(
               `Latest Vercel status for ${sha}: ${latest.state} (${ageMinutes} minutes old).`,
             );
-            if (rateLimited) {
-              core.notice("Vercel is rate limited. Recovery deploy suppressed to avoid an hourly redeploy loop.");
+
+            if (rateLimited && !cooldownExpired) {
+              core.notice(
+                `Vercel is rate limited. Recovery suppressed until the ${cooldownMinutes}-minute cooldown expires.`,
+              );
+            } else if (rateLimited && inRateLimitRetryWindow) {
+              core.notice(
+                "Vercel rate-limit cooldown expired. One recovery deployment is allowed in this 24h retry window.",
+              );
+            } else if (rateLimited) {
+              core.notice(
+                "Vercel remains rate limited. Recovery is outside the single allowed 24h retry window and will stay suppressed.",
+              );
             }
+
             core.setOutput("retry", String(shouldRetry));
             core.setOutput("state", latest.state);
             core.setOutput("rate_limited", String(rateLimited));
+            core.setOutput("cooldown_expired", String(cooldownExpired));
             core.setOutput("age_minutes", String(ageMinutes));
+            core.setOutput("cooldown_minutes", String(cooldownMinutes));
             core.setOutput("target_url", latest.target_url || "");
 
       - name: Trigger recovery deployment
@@ -116,7 +141,7 @@ jobs:
           set -e
 
           if [ "$curl_exit" -ne 0 ]; then
-            echo "::warning title=Vercel recovery unavailable::The deploy hook could not be reached. A later scheduled check can retry if Vercel is not rate limited."
+            echo "::warning title=Vercel recovery unavailable::The deploy hook could not be reached. A later scheduled recovery window can retry."
             exit 0
           fi
 
@@ -127,7 +152,7 @@ jobs:
 
           case "$http_code" in
             402|409|423|429|503)
-              echo "::warning title=Vercel recovery deferred::Vercel returned HTTP $http_code. No immediate retry will be performed by this run."
+              echo "::warning title=Vercel recovery deferred::Vercel returned HTTP $http_code. The next attempt will wait for a later recovery window."
               ;;
             *)
               echo "Vercel response: $response_body"
@@ -144,10 +169,10 @@ jobs:
             echo
             if [ "${{ steps.config.outputs.configured }}" != "true" ]; then
               echo "Recovery is installed but inactive because the repository secret is missing."
-            elif [ "${{ steps.deployment.outputs.rate_limited }}" = "true" ]; then
-              echo "Recovery was intentionally suppressed because Vercel reported a rate limit."
+            elif [ "${{ steps.deployment.outputs.rate_limited }}" = "true" ] && [ "${{ steps.deployment.outputs.retry }}" != "true" ]; then
+              echo "Recovery is intentionally suppressed while respecting the Vercel rate-limit cooldown/window."
               echo
-              echo "This prevents the scheduled workflow from creating an hourly redeploy loop."
+              echo "Cooldown: \`${{ steps.deployment.outputs.cooldown_minutes }}\` minutes; status age: \`${{ steps.deployment.outputs.age_minutes }}\` minutes."
             elif [ "${{ steps.deployment.outputs.retry }}" = "true" ]; then
               echo "A recovery attempt was requested for \`${{ steps.deployment.outputs.sha }}\`."
               echo
