@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { getCachedOrganicDataset } from "@/lib/organic-cache";
+import { getOrganicDataset } from "@/lib/organic-intelligence";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 const esc = (v: string) => v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&apos;");
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  const dataset = await getCachedOrganicDataset();
-  const urls = dataset.filter((item) => item.indexability.citationReady && item.evidence).flatMap((item) => {
+  const urls = getOrganicDataset().filter((item) => item.indexability.citationReady && item.evidence).flatMap((item) => {
     const slug = encodeURIComponent(item.term.toLowerCase().trim().replace(/\s+/g,"-"));
     const lastmod = item.evidence?.reviewedAt ? `<lastmod>${esc(item.evidence.reviewedAt)}</lastmod>` : "";
     return [
