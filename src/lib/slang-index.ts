@@ -105,9 +105,29 @@ export function getIndexedTerm(value: string): SlangTerm | undefined {
   return exactIndex!.get(key);
 }
 
+export function resolveIndexedTerm(value: string): SlangTerm | undefined {
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  })();
+
+  const direct = getIndexedTerm(decoded);
+  if (direct) return direct;
+
+  if (decoded.includes("-")) {
+    const slugExpanded = getIndexedTerm(decoded.replace(/-/g, " "));
+    if (slugExpanded) return slugExpanded;
+  }
+
+  return undefined;
+}
+
 export function getRelatedTerms(termOrValue: SlangTerm | string, limit = 5): SlangTerm[] {
   ensurePrimaryIndexes();
-  const base = typeof termOrValue === "string" ? getIndexedTerm(termOrValue) : termOrValue;
+  const base = typeof termOrValue === "string" ? resolveIndexedTerm(termOrValue) : termOrValue;
   if (!base) return [];
   return (categoryIndex!.get(base.category) ?? []).filter((term) => term.term !== base.term).slice(0, Math.max(0, limit));
 }
