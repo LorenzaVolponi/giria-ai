@@ -1,4 +1,5 @@
 import { SLANG_DATA, type SlangTerm } from "@/lib/slang-data";
+import { searchIndexedTerms } from "@/lib/slang-index";
 
 export interface SemanticSearchResult {
   term: SlangTerm;
@@ -28,7 +29,10 @@ export function semanticSearchSlang(input: string, limit = 5): SemanticSearchRes
   const query = tokens(input);
   if (!query.size) return [];
 
-  return SLANG_DATA.map((term) => {
+  const preselected = searchIndexedTerms(input, Math.max(48, Math.min(100, limit * 10)));
+  const candidatePool = preselected.length >= Math.min(3, limit) ? preselected : SLANG_DATA;
+
+  return candidatePool.map((term) => {
     const signals: Array<[string, number, string]> = [
       [term.term, 1.2, "termo"],
       [term.variations.join(" "), 1.05, "variação"],
