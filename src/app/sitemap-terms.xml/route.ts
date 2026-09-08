@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrganicDataset } from "@/lib/organic-intelligence";
+import { getCachedOrganicDataset } from "@/lib/organic-cache";
 import { recordCrawlerHit } from "@/lib/crawler-intelligence";
 
 function xmlEscape(value: string) {
@@ -8,7 +8,8 @@ function xmlEscape(value: string) {
 
 export async function GET(request: NextRequest) {
   recordCrawlerHit(request.headers.get("user-agent"), "/sitemap-terms.xml");
-  const urls = getOrganicDataset()
+  const dataset = await getCachedOrganicDataset();
+  const urls = dataset
     .filter((item) => item.indexability.indexable)
     .map((item) => {
       const lastmod = item.evidence?.reviewedAt ? `<lastmod>${xmlEscape(item.evidence.reviewedAt)}</lastmod>` : "";
@@ -17,6 +18,9 @@ export async function GET(request: NextRequest) {
     .join("");
 
   return new NextResponse(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, {
-    headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=300, s-maxage=3600" },
+    headers: {
+      "content-type": "application/xml; charset=utf-8",
+      "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
+    },
   });
 }
