@@ -74,13 +74,23 @@ jobs:
             );
             const failed = latest.state === "failure" || latest.state === "error";
             const stale = latest.state === "pending" && ageMinutes >= 45;
-            const shouldRetry = failed || stale;
+            const description = String(latest.description || "").toLowerCase();
+            const targetUrl = String(latest.target_url || "").toLowerCase();
+            const rateLimited =
+              /rate.?limit|too many deployments|retry in \d+ hours?/.test(description) ||
+              targetUrl.includes("build-rate-limit") ||
+              targetUrl.includes("upgradeToPro=build-rate-limit".toLowerCase());
+            const shouldRetry = !rateLimited && (failed || stale);
 
             core.info(
               `Latest Vercel status for ${sha}: ${latest.state} (${ageMinutes} minutes old).`,
             );
+            if (rateLimited) {
+              core.notice("Vercel is rate limited. Recovery deploy suppressed to avoid an hourly redeploy loop.");
+            }
             core.setOutput("retry", String(shouldRetry));
             core.setOutput("state", latest.state);
+            core.setOutput("rate_limited", String(rateLimited));
             core.setOutput("age_minutes", String(ageMinutes));
             core.setOutput("target_url", latest.target_url || "");
 
@@ -106,7 +116,7 @@ jobs:
           set -e
 
           if [ "$curl_exit" -ne 0 ]; then
-            echo "::warning title=Vercel recovery unavailable::The deploy hook could not be reached. The scheduled workflow will try again."
+            echo "::warning title=Vercel recovery unavailable::The deploy hook could not be reached. A later scheduled check can retry if Vercel is not rate limited."
             exit 0
           fi
 
@@ -117,7 +127,7 @@ jobs:
 
           case "$http_code" in
             402|409|423|429|503)
-              echo "::warning title=Vercel still limited::Vercel returned HTTP $http_code. Automatic recovery will try again on the next scheduled run."
+              echo "::warning title=Vercel recovery deferred::Vercel returned HTTP $http_code. No immediate retry will be performed by this run."
               ;;
             *)
               echo "Vercel response: $response_body"
@@ -134,6 +144,10 @@ jobs:
             echo
             if [ "${{ steps.config.outputs.configured }}" != "true" ]; then
               echo "Recovery is installed but inactive because the repository secret is missing."
+            elif [ "${{ steps.deployment.outputs.rate_limited }}" = "true" ]; then
+              echo "Recovery was intentionally suppressed because Vercel reported a rate limit."
+              echo
+              echo "This prevents the scheduled workflow from creating an hourly redeploy loop."
             elif [ "${{ steps.deployment.outputs.retry }}" = "true" ]; then
               echo "A recovery attempt was requested for \`${{ steps.deployment.outputs.sha }}\`."
               echo
