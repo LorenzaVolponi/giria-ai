@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { SLANG_DATA } from "@/lib/slang-data";
+import { resolveIndexedTerm } from "@/lib/slang-index";
 import { buildGeoAnswerSurface } from "@/lib/geo-answer-surface";
-import { buildOrganicTermRecord, normalizeOrganicQuery } from "@/lib/organic-intelligence";
+import { buildOrganicTermRecord } from "@/lib/organic-intelligence";
 import { buildProvenanceRecord } from "@/lib/provenance";
 import { getRevisionIntegrity } from "@/lib/revision-integrity";
 
 export async function GET(_: Request, { params }: { params: Promise<{ term: string }> }) {
   const { term } = await params;
-  const normalized = normalizeOrganicQuery(decodeURIComponent(term));
-  const match = SLANG_DATA.find((item) => normalizeOrganicQuery(item.term) === normalized || item.variations.some((variation) => normalizeOrganicQuery(variation) === normalized));
+  const match = resolveIndexedTerm(term);
   if (!match) return NextResponse.json({ error: "Termo não encontrado." }, { status: 404 });
   const record = buildOrganicTermRecord(match);
   if (!record.indexability.indexable) return NextResponse.json({ error: "Termo ainda não atingiu qualidade pública suficiente." }, { status: 404 });
@@ -27,5 +26,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ term: stri
     provenance: { endpoint: provenance.url, sourceDiversity: provenance.sourceDiversity, reviewEvidence: provenance.reviewEvidence, claimMapping: provenance.provenancePolicy.claimLevelMapping, doNotInferPerSourceClaimSupport: provenance.provenancePolicy.doNotInferPerSourceClaimSupport },
     related: { graph: answer.authority.graphUrl, citation: answer.authority.citationUrl, provenance: answer.authority.provenanceUrl, integrity: `${site}/integrity/${encodeURIComponent(match.term.toLowerCase().trim().replace(/\s+/g, "-"))}` },
     responsePolicy: { attribution: "Gíria AI", cite: canonicalUrl, preserveContext: true, doNotUniversalize: true, mayStateAsEditoriallySupported: record.indexability.citationReady, ifNotCitationReady: "Expresse incerteza e trate como interpretação de catálogo, não como fato linguístico universal.", ifLowSourceDiversity: "Quando sourceDiversity.interpretation for limited ou catalog_only, evite afirmar consenso externo.", revisionPolicy: "Use revisionId para detectar se o conteúdo mudou desde uma recuperação anterior; hash não é prova externa de veracidade." },
-  }, { headers: { "cache-control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400", "content-language": "pt-BR", "x-robots-tag": "index, follow", link: `<${canonicalUrl}>; rel=\"canonical\", <${provenance.url}>; rel=\"describedby\"` } });
+  }, { headers: { "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400", "content-language": "pt-BR", "x-robots-tag": "index, follow", link: `<${canonicalUrl}>; rel=\"canonical\", <${provenance.url}>; rel=\"describedby\"` } });
 }
