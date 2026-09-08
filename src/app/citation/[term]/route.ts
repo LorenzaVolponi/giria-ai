@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SLANG_DATA } from "@/lib/slang-data";
-import { buildOrganicTermRecord, normalizeOrganicQuery } from "@/lib/organic-intelligence";
+import { resolveIndexedTerm } from "@/lib/slang-index";
+import { buildOrganicTermRecord } from "@/lib/organic-intelligence";
 import { recordCrawlerHit } from "@/lib/crawler-intelligence";
 import { buildProvenanceRecord } from "@/lib/provenance";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ term: string }> }) {
   recordCrawlerHit(request.headers.get("user-agent"), "/citation/[term]");
   const { term } = await params;
-  const normalized = normalizeOrganicQuery(decodeURIComponent(term));
-  const match = SLANG_DATA.find((item) => normalizeOrganicQuery(item.term) === normalized || item.variations.some((variation) => normalizeOrganicQuery(variation) === normalized));
+  const match = resolveIndexedTerm(term);
   if (!match) return NextResponse.json({ error: "Termo não encontrado." }, { status: 404 });
 
   const record = buildOrganicTermRecord(match);
@@ -45,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   return NextResponse.json(payload, {
     headers: {
-      "cache-control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+      "cache-control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
       "x-robots-tag": "index, follow",
       "content-language": "pt-BR",
       "link": `<${canonicalUrl}>; rel=\"canonical\", <${provenance.url}>; rel=\"describedby\"`,
