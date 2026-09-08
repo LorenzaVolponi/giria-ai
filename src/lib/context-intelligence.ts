@@ -1,5 +1,5 @@
 import type { SlangTerm } from "@/lib/slang-data";
-import { containsIndexedExpression, getIndexedTerm, getRelatedTerms, normalizeSlangKey, searchIndexedTerms } from "@/lib/slang-index";
+import { containsIndexedExpression, getIndexedTerm, getRelatedTerms, normalizeSlangKey } from "@/lib/slang-index";
 
 export type ConfidenceLevel = "alta" | "media" | "baixa";
 export type ToneLabel = "positivo" | "neutro" | "ironico" | "provocativo" | "sensivel";
@@ -14,21 +14,38 @@ function detectFromNgrams(input: string): SlangTerm | null {
   const normalized = normalize(input);
   if (!normalized) return null;
 
+  // A query that is itself a term/variation remains a direct O(1) lookup.
   const direct = getIndexedTerm(normalized);
   if (direct) return direct;
 
   const tokens = normalized.split(/\s+/).filter(Boolean);
   const maxGram = Math.min(6, tokens.length);
+  let best: { term: SlangTerm; score: number } | null = null;
 
   for (let size = maxGram; size >= 1; size--) {
     for (let start = 0; start <= tokens.length - size; start++) {
       const candidate = tokens.slice(start, start + size).join(" ");
       const match = getIndexedTerm(candidate);
-      if (match) return match;
+      if (!match) continue;
+
+      const canonicalMatch = normalize(match.term) === candidate;
+
+      // Inside a full sentence, a generic one-word variation (for example
+      // "falou") is too weak a signal. Standalone variations are still
+      // supported by the direct lookup above.
+      if (!canonicalMatch && size === 1) continue;
+
+      // Prefer canonical expressions, then longer/more specific matches.
+      // This preserves the old longest-expression behavior without scanning
+      // every catalog entry or compiling regexes per request.
+      const score = (canonicalMatch ? 10_000 : 5_000) + size * 100 + candidate.length;
+      if (!best || score > best.score) best = { term: match, score };
     }
   }
 
-  return searchIndexedTerms(normalized, 1)[0] ?? null;
+  // Do not fuzzy-search arbitrary prose here. Approximate retrieval belongs to
+  // the translation/retrieval layer, which can pass a fallbackTerm explicitly.
+  return best?.term ?? null;
 }
 
 export function detectTermInContext(input: string): SlangTerm | null {
