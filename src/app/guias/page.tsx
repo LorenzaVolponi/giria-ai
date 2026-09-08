@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
 export const metadata: Metadata = {
   title: "Guias de gírias, memes e cultura digital",

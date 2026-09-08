@@ -1,5 +1,5 @@
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const hub = "https://volponi.tech/hub";
   const body = `# Gíria AI
 

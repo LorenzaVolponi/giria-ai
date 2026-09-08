@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Termo não encontrado ou ainda não indexável." }, { status: 404 });
   }
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const canonicalUrl = `${site}/o-que-significa/${encodeURIComponent(match.term)}`;
   const payload = buildGeoAnswerSurface(match, site);
 

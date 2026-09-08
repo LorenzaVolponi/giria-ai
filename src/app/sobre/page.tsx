@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
 export const metadata: Metadata = {
   title: "Sobre e metodologia",

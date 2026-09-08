@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const term = resolveIndexedTerm(slug);
   if (!term) return { title: "Termo não encontrado", robots: { index: false, follow: false } };
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const evidence = getEditorialEvidence(term.term);
   const definition = evidence?.definition ?? term.meaning;
   const quality = evaluateIndexQuality(term);
@@ -31,7 +31,7 @@ export default async function SignificadoTermoPage({ params }: Props) {
   const { slug } = await params;
   const term = resolveIndexedTerm(slug);
   if (!term) notFound();
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(term.term)}`;
   const answerUrl = `${site}/answer/${encodeURIComponent(term.term)}`;
   const citationUrl = `${site}/citation/${encodeURIComponent(term.term)}`;

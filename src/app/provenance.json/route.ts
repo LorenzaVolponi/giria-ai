@@ -4,7 +4,7 @@ import { evaluateIndexQuality } from "@/lib/index-quality";
 import { buildProvenanceRecord } from "@/lib/provenance";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const records = SLANG_DATA
     .filter((term) => evaluateIndexQuality(term).indexable)
     .map((term) => buildProvenanceRecord(term, site))

@@ -11,7 +11,7 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
 export function generateStaticParams() {
   return getSeoKeywordClusterSlugs().map((slug) => ({ slug }));

@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ter
   const node = getLanguageGraphNode(decoded);
   if (!node) return NextResponse.json({ error: "Termo não encontrado no grafo." }, { status: 404 });
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const canonical = `${site}/o-que-significa/${encodeURIComponent(node.term)}`;
   const citation = `${site}/citation/${encodeURIComponent(node.term)}`;
   const graphUrl = `${site}/api/graph/${encodeURIComponent(node.term)}`;

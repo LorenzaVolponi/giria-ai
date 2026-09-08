@@ -27,12 +27,12 @@ bash scripts/vercel-deploy.sh || { echo "❌ Deploy falhou"; exit 1; }
 
 echo "✨ Validando saúde da aplicação..."
 sleep 5
-if curl -f https://giria-ai.vercel.app/api/v1/health > /dev/null 2>&1; then
+if curl -f https://giria-ai.volponi.tech/api/v1/health > /dev/null 2>&1; then
   echo "✅ Health check OK!"
 else
   echo "⚠️  Health check falhou (pode levar alguns segundos)"
 fi
 
 echo "🎉 Deploy completo e bem-sucedido!"
-echo "📍 URL: https://giria-ai.vercel.app"
+echo "📍 URL: https://giria-ai.volponi.tech"
 echo "⏰ $(date -Iseconds)"

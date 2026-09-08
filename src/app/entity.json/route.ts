@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { buildEntityAuthority } from "@/lib/entity-authority";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const authority = buildEntityAuthority(site);
   return NextResponse.json({
     "@context": "https://schema.org",

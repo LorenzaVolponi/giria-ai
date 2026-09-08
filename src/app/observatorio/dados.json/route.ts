@@ -14,7 +14,7 @@ function rank(values: string[], limit = 12) {
 }
 
 export function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const totalTerms = SLANG_DATA.length;
   const totalVariations = SLANG_DATA.reduce((sum, term) => sum + (term.variations?.length || 0), 0);
   const categories = new Set(SLANG_DATA.map((term) => term.category).filter(Boolean)).size;

@@ -6,7 +6,7 @@ import { buildGeoAnswerSurface } from "@/lib/geo-answer-surface";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const answers = SLANG_DATA
     .filter((term) => evaluateIndexQuality(term).indexable)
     .map((term) => buildGeoAnswerSurface(term, site, false));

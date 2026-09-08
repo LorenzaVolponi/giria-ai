@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import EliteHomeLanding from "@/components/home/elite-home-landing";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
 export const metadata: Metadata = {
   title: "Gíria AI — entenda gírias brasileiras, memes e expressões",

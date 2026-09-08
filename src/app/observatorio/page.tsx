@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SLANG_DATA } from "@/lib/slang-data";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
 export const metadata: Metadata = {
   title: "Observatório de gírias e cultura digital",

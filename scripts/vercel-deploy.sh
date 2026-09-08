@@ -41,4 +41,4 @@ else
 fi
 
 echo "✅ Deploy finalizado!"
-echo "🌐 URL: https://giria-ai.vercel.app"
+echo "🌐 URL: https://giria-ai.volponi.tech"

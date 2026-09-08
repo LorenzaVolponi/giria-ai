@@ -5,7 +5,7 @@ import { getEditorialEvidence } from "@/lib/editorial-evidence";
 import { getFreshnessSignal } from "@/lib/organic-intelligence";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const generatedAt = new Date().toISOString();
   const terms = SLANG_DATA.flatMap((term) => {
     const indexQuality = evaluateIndexQuality(term);

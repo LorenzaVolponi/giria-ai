@@ -10,7 +10,7 @@ function xmlEscape(value: string): string {
 }
 
 export function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const urls = [
     {
       loc: `${site}/guias`,

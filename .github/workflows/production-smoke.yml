@@ -6,7 +6,7 @@ on:
       target_url:
         description: "URL do ambiente para smoke test"
         required: true
-        default: "https://giria-ai.vercel.app"
+        default: "https://giria-ai.volponi.tech"
   push:
     branches: [main]
 
@@ -33,7 +33,7 @@ jobs:
           fi
 
           if [ -z "$BASE_URL" ]; then
-            BASE_URL="https://giria-ai.vercel.app"
+            BASE_URL="https://giria-ai.volponi.tech"
           fi
 
           BASE_URL="${BASE_URL%/}"

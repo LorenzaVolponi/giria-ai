@@ -4,7 +4,7 @@ import { SLANG_DATA } from "@/lib/slang-data";
 import { evaluateIndexQuality } from "@/lib/index-quality";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${site}/`, changeFrequency: "daily", priority: 1 },

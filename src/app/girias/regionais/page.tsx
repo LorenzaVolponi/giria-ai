@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Gírias Regionais do Brasil | Gíria AI",
   description: "Explore gírias regionais do Brasil, com camada dedicada a Paraná, Curitiba e expressões paranaenses.",
   keywords: ["gírias regionais", "gírias do Paraná", "Paraná", "Curitiba", "gírias paranaenses", "regionalismo brasileiro"],
-  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias/regionais` },
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech"}/girias/regionais` },
 };
 
 type RegionKey = "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul" | "Brasil";

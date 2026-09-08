@@ -5,7 +5,7 @@ import { getRevisionIntegrity } from "@/lib/revision-integrity";
 
 export async function GET(_: Request, { params }: { params: Promise<{ term: string }> }) {
   const { term } = await params;
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const entry = resolveIndexedTerm(term);
   if (!entry || !evaluateIndexQuality(entry).indexable) return NextResponse.json({ error: "Termo não encontrado ou não indexável." }, { status: 404 });
   const integrity = getRevisionIntegrity(entry, site);

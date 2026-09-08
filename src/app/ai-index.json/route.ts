@@ -4,7 +4,7 @@ import { getCachedDiscoveryCoverage } from "@/lib/organic-cache";
 export const revalidate = 21600;
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const { publicIndexableTerms, evidenceBackedTerms, multiSourceEvidenceTerms } = await getCachedDiscoveryCoverage();
 
   return NextResponse.json({

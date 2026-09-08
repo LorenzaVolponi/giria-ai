@@ -4,7 +4,7 @@ import { buildProvenanceRecord } from "../src/lib/provenance";
 import { GET as provenanceFeedGet } from "../src/app/provenance.json/route";
 import robots from "../src/app/robots";
 
-const site = "https://giria-ai.vercel.app";
+const site = "https://giria-ai.volponi.tech";
 
 describe("GEO provenance", () => {
   it("exposes review-set provenance without manufacturing per-source claim support", () => {

@@ -35,7 +35,7 @@ jobs:
         run: |
           SITE_URL="${{ vars.PRODUCTION_BASE_URL }}"
           if [ -z "$SITE_URL" ]; then
-            SITE_URL="https://giria-ai.vercel.app"
+            SITE_URL="https://giria-ai.volponi.tech"
           fi
           SITE_URL="${SITE_URL%/}"
           echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"

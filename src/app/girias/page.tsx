@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Dicionário de gírias brasileiras",
   description:
     "Explore gírias brasileiras por significado, contexto, uso e região. Encontre expressões de internet, escola, games, memes e redes sociais em linguagem clara.",
-  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/girias` },
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech"}/girias` },
 };
 
 export default function GiriasPage() {

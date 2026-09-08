@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const record = buildOrganicTermRecord(match);
   if (!record.indexability.indexable) return NextResponse.json({ error: "Termo ainda não atingiu qualidade pública suficiente." }, { status: 404 });
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const canonicalUrl = `${site}/o-que-significa/${encodeURIComponent(match.term)}`;
   const citationUrl = `${site}/citation/${encodeURIComponent(match.term)}`;
   const graphUrl = `${site}/api/graph/${encodeURIComponent(match.term)}`;

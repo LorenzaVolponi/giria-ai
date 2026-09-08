@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getLanguageGraphIndex } from "@/lib/language-graph";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   return NextResponse.json({
     "@context": "https://schema.org",
     "@type": "Dataset",

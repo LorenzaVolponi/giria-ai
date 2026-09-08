@@ -11,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ term: stri
   if (!match) return NextResponse.json({ error: "Termo não encontrado." }, { status: 404 });
   const record = buildOrganicTermRecord(match);
   if (!record.indexability.indexable) return NextResponse.json({ error: "Termo ainda não atingiu qualidade pública suficiente." }, { status: 404 });
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const answer = buildGeoAnswerSurface(match, site, true);
   const provenance = buildProvenanceRecord(match, site);
   const integrity = getRevisionIntegrity(match, site);

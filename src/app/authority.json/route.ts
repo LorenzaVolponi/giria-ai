@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getTopicalAuthoritySummary } from "@/lib/topical-authority";
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const summary = getTopicalAuthoritySummary();
 
   return NextResponse.json(

@@ -10,7 +10,7 @@ function xmlEscape(value: string): string {
 }
 
 export function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const updatedAt = new Date(
     Math.max(...ACTIVE_GUIDE_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime())),
   ).toUTCString();

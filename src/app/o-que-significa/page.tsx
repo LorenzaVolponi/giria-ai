@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "O que significa? Gírias brasileiras explicadas",
   description:
     "Descubra o significado de gírias brasileiras, memes e expressões da internet com contexto, exemplos de uso e explicações diretas em português claro.",
-  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app"}/o-que-significa` },
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech"}/o-que-significa` },
 };
 
 export default function OQueSignificaIndexPage() {

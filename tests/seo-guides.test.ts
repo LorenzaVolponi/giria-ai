@@ -41,11 +41,11 @@ describe("editorial guide index", () => {
     const urls = sitemap().map((entry) => entry.url);
 
     for (const cluster of ACTIVE_GUIDE_CLUSTERS) {
-      expect(urls).toContain(`https://giria-ai.vercel.app/guias/${cluster.slug}`);
+      expect(urls).toContain(`https://giria-ai.volponi.tech/guias/${cluster.slug}`);
     }
 
     for (const slug of DEPRECATED_GUIDE_SLUGS) {
-      expect(urls).not.toContain(`https://giria-ai.vercel.app/guias/${slug}`);
+      expect(urls).not.toContain(`https://giria-ai.volponi.tech/guias/${slug}`);
     }
   });
 
@@ -58,15 +58,15 @@ describe("editorial guide index", () => {
     expect(intentUrls).toHaveLength(indexableTerms.length);
 
     for (const term of indexableTerms) {
-      expect(urls).toContain(`https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`);
+      expect(urls).toContain(`https://giria-ai.volponi.tech/o-que-significa/${encodeURIComponent(term.term)}`);
     }
 
     for (const term of nonIndexableTerms) {
-      expect(urls).not.toContain(`https://giria-ai.vercel.app/o-que-significa/${encodeURIComponent(term.term)}`);
+      expect(urls).not.toContain(`https://giria-ai.volponi.tech/o-que-significa/${encodeURIComponent(term.term)}`);
     }
 
     for (const term of SLANG_DATA) {
-      expect(urls).not.toContain(`https://giria-ai.vercel.app/girias/${encodeURIComponent(term.term)}`);
+      expect(urls).not.toContain(`https://giria-ai.volponi.tech/girias/${encodeURIComponent(term.term)}`);
     }
   });
 
@@ -89,15 +89,15 @@ describe("editorial guide index", () => {
     const editorialRes = editorialIndexGet();
     const json = await editorialRes.json();
 
-    expect(json.canonicalIndex).toBe("https://giria-ai.vercel.app/guias");
-    expect(json.sitemap).toBe("https://giria-ai.vercel.app/sitemap.xml");
+    expect(json.canonicalIndex).toBe("https://giria-ai.volponi.tech/guias");
+    expect(json.sitemap).toBe("https://giria-ai.volponi.tech/sitemap.xml");
     expect(json.guides).toHaveLength(ACTIVE_GUIDE_CLUSTERS.length);
     expect(json.reviewedTerms.length).toBeGreaterThanOrEqual(2);
     expect(json).not.toHaveProperty("organicKeywords");
 
-    const legacyRes = seoIndexGet(new Request("https://giria-ai.vercel.app/seo-index.json"));
+    const legacyRes = seoIndexGet(new Request("https://giria-ai.volponi.tech/seo-index.json"));
     expect(legacyRes.status).toBe(308);
-    expect(legacyRes.headers.get("location")).toBe("https://giria-ai.vercel.app/editorial-index.json");
+    expect(legacyRes.headers.get("location")).toBe("https://giria-ai.volponi.tech/editorial-index.json");
   });
 
   it("publishes an RSS feed for active guide updates", async () => {

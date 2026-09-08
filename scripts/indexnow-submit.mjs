@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-const DEFAULT_SITE_URL = "https://giria-ai.vercel.app";
+const DEFAULT_SITE_URL = "https://giria-ai.volponi.tech";
 const DEFAULT_INDEXNOW_KEY = "7d9e3b6a2f414c88a5d791e6b4c2f3a8";
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
 const siteUrl = new URL(process.env.SITE_URL || process.env.PRODUCTION_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL);

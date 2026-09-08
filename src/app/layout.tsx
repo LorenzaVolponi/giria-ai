@@ -13,7 +13,7 @@ export const viewport: Viewport = {
   themeColor: "#059669",
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
 const entityAuthority = buildEntityAuthority(siteUrl);
 
 const globalJsonLd = {

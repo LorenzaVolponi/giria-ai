@@ -71,7 +71,7 @@ export function getIndexabilitySignal(term: SlangTerm): IndexabilitySignal {
 }
 
 export function buildOrganicTermRecord(term: SlangTerm) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const evidence = getEditorialEvidence(term.term);
   const freshness = getFreshnessSignal(term.term);
   const indexability = getIndexabilitySignal(term);

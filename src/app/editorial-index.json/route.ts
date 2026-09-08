@@ -2,7 +2,7 @@ import { ACTIVE_GUIDE_CLUSTERS } from "@/lib/guide-policy";
 import { getEditorialEvidence, getEditorialEvidenceTerms } from "@/lib/editorial-evidence";
 
 export function GET() {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   const updatedAt = new Date(
     Math.max(...ACTIVE_GUIDE_CLUSTERS.map((cluster) => new Date(cluster.updatedAt).getTime())),
   ).toISOString();

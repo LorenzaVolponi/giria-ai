@@ -3,7 +3,7 @@ import { recordCrawlerHit } from "@/lib/crawler-intelligence";
 
 export async function GET(request: NextRequest) {
   recordCrawlerHit(request.headers.get("user-agent"), "/data/methodology.json");
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.volponi.tech";
   return NextResponse.json({
     publisher: "Gíria AI",
     publisherId: `${site}/#organization`,

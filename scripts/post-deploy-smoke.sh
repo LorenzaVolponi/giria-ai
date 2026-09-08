@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-${BASE_URL:-https://giria-ai.vercel.app}}"
+BASE_URL="${1:-${BASE_URL:-https://giria-ai.volponi.tech}}"
 BASE_URL="${BASE_URL%/}"
 ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-}"
 EXPECTED_COMMIT_SHA="${EXPECTED_COMMIT_SHA:-}"
 
-CURL_RETRY=(--retry 12 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30)
+CURL_RETRY=(--location --retry 12 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30)
 
 echo "[smoke] Base URL: $BASE_URL"
 
@@ -20,7 +20,7 @@ check_release_commit() {
   local body actual
 
   for attempt in $(seq 1 18); do
-    body="$(curl -fsS --connect-timeout 10 --max-time 20 "$BASE_URL/api/v1/health" 2>/dev/null || true)"
+    body="$(curl -fsS --location --connect-timeout 10 --max-time 20 "$BASE_URL/api/v1/health" 2>/dev/null || true)"
     actual="$(printf '%s' "$body" | node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { try { process.stdout.write(JSON.parse(input).commit || ""); } catch {} });')"
 
     if [[ "$actual" == "$expected" ]]; then
