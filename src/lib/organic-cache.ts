@@ -1,5 +1,3 @@
-import "server-only";
-
 import { unstable_cache } from "next/cache";
 import { SLANG_DATA } from "@/lib/slang-data";
 import { evaluateIndexQuality } from "@/lib/index-quality";
