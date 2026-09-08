@@ -1,4 +1,5 @@
-import { SLANG_DATA, searchTerms, type SlangTerm } from "@/lib/slang-data";
+import { SLANG_DATA, type SlangTerm } from "@/lib/slang-data";
+import { getRelatedTerms } from "@/lib/slang-index";
 import { getEditorialEvidence } from "@/lib/editorial-evidence";
 
 export type FreshnessSignal = {
@@ -17,7 +18,10 @@ export type IndexabilitySignal = {
 };
 
 const DAY = 86_400_000;
+const ORGANIC_CACHE_TTL_MS = 60 * 60 * 1000;
 const unknownQueries = new Map<string, { count: number; firstSeenAt: string; lastSeenAt: string; confidence: string; candidate: string | null }>();
+let organicDatasetCache: ReturnType<typeof buildOrganicDataset> | null = null;
+let organicDatasetCacheAt = 0;
 
 export function normalizeOrganicQuery(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
@@ -44,7 +48,7 @@ export function getFreshnessSignal(term: string): FreshnessSignal {
 export function getIndexabilitySignal(term: SlangTerm): IndexabilitySignal {
   const evidence = getEditorialEvidence(term.term);
   const freshness = getFreshnessSignal(term.term);
-  const related = searchTerms(term.term).filter((item) => item.term !== term.term).slice(0, 5);
+  const related = getRelatedTerms(term, 5);
   let score = 0;
   const reasons: string[] = [];
 
@@ -71,10 +75,7 @@ export function buildOrganicTermRecord(term: SlangTerm) {
   const evidence = getEditorialEvidence(term.term);
   const freshness = getFreshnessSignal(term.term);
   const indexability = getIndexabilitySignal(term);
-  const relatedTerms = searchTerms(term.term)
-    .filter((item) => item.term !== term.term)
-    .slice(0, 5)
-    .map((item) => item.term);
+  const relatedTerms = getRelatedTerms(term, 5).map((item) => item.term);
 
   return {
     term: term.term,
@@ -98,8 +99,16 @@ export function buildOrganicTermRecord(term: SlangTerm) {
   };
 }
 
-export function getOrganicDataset() {
+function buildOrganicDataset() {
   return SLANG_DATA.map(buildOrganicTermRecord).filter((item) => item.indexability.indexable);
+}
+
+export function getOrganicDataset() {
+  const now = Date.now();
+  if (organicDatasetCache && now - organicDatasetCacheAt < ORGANIC_CACHE_TTL_MS) return organicDatasetCache;
+  organicDatasetCache = buildOrganicDataset();
+  organicDatasetCacheAt = now;
+  return organicDatasetCache;
 }
 
 export function getVerifiedTrendReport() {
