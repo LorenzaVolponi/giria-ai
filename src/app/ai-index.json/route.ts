@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { SLANG_DATA } from "@/lib/slang-data";
-import { evaluateIndexQuality } from "@/lib/index-quality";
-import { getEditorialEvidence } from "@/lib/editorial-evidence";
+import { getCachedDiscoveryCoverage } from "@/lib/organic-cache";
+
+export const revalidate = 21600;
 
 export async function GET() {
   const site = process.env.NEXT_PUBLIC_SITE_URL || "https://giria-ai.vercel.app";
-  let publicIndexableTerms = 0, evidenceBackedTerms = 0, multiSourceEvidenceTerms = 0;
-  for (const term of SLANG_DATA) { const quality = evaluateIndexQuality(term); if (!quality.indexable) continue; publicIndexableTerms += 1; const sourceCount = getEditorialEvidence(term.term)?.sources?.length || 0; if (sourceCount > 0) evidenceBackedTerms += 1; if (sourceCount >= 2) multiSourceEvidenceTerms += 1; }
+  const { publicIndexableTerms, evidenceBackedTerms, multiSourceEvidenceTerms } = await getCachedDiscoveryCoverage();
+
   return NextResponse.json({
     manifest: "Gíria AI AI Discovery Manifest", version: 7, canonicalSite: site, language: "pt-BR",
     entity: { name: "Gíria AI", type: "reference knowledge system", scope: "gírias brasileiras, memes e linguagem informal", publisherId: `${site}/#organization`, dictionaryId: `${site}/#dictionary` },
