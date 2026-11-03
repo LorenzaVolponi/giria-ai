@@ -42,6 +42,13 @@ npm run build
 PORT="${PORT}" npm run smoke
 bash scripts/security-check.sh
 
+# Next.js may regenerate this tracked declaration during production builds.
+# Restore only this generated file; all other dirty files still fail the gate.
+if ! git diff --quiet -- next-env.d.ts; then
+  say "Restaurando next-env.d.ts gerado automaticamente pelo Next.js."
+  git restore -- next-env.d.ts
+fi
+
 if [[ "${STRICT_GIT_CLEAN}" == "1" && -n "$(git status --porcelain)" ]]; then
   git status --short
   fail "Após checks, o repositório ficou com alterações locais."
