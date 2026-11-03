@@ -1,16 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordChatFeedback } from "@/lib/metrics";
 import { withSecurityHeaders } from "@/lib/security";
+import { z } from "zod";
+import { getClientIp } from "@/lib/security";
+import { isRateLimited } from "@/lib/rate-limit";
+
+const feedbackSchema = z.object({
+  helpful: z.boolean(),
+  reason: z.string().trim().max(60).optional(),
+});
 
 export async function POST(request: NextRequest) {
+  const rate = await isRateLimited(`chat-feedback:${getClientIp(request)}`, 20, 60);
+  if (rate.limited) {
+    const response = withSecurityHeaders(NextResponse.json({ error: "Muitas avaliações. Tente novamente em instantes." }, { status: 429 }));
+    response.headers.set("Retry-After", "60");
+    return response;
+  }
+  const body = await request.json().catch(() => null);
+  const parsed = feedbackSchema.safeParse(body);
+  if (!parsed.success) {
+    return withSecurityHeaders(NextResponse.json({ error: "Feedback inválido. Informe helpful como booleano." }, { status: 400 }));
+  }
+
   try {
-    const body = await request.json();
-    const helpful = Boolean(body?.helpful);
-    const reason = typeof body?.reason === "string" ? body.reason.slice(0, 60) : undefined;
-    recordChatFeedback(helpful, reason);
+    recordChatFeedback(parsed.data.helpful, parsed.data.reason);
     return withSecurityHeaders(NextResponse.json({ ok: true }));
   } catch {
-    return withSecurityHeaders(NextResponse.json({ error: "Falha ao registrar feedback." }, { status: 400 }));
+    return withSecurityHeaders(NextResponse.json({ error: "Falha ao registrar feedback." }, { status: 500 }));
   }
 }
-

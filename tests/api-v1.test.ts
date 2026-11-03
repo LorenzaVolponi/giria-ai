@@ -41,12 +41,20 @@ describe("API v1 integration", () => {
     const postRes = await visitsPost(postReq);
     expect(postRes.status).toBe(200);
 
-    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    process.env.ADMIN_API_TOKEN = "test-analytics-token";
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, { "x-admin-token": "test-analytics-token" });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();
 
     expect(getRes.status).toBe(200);
     expect(data).toHaveProperty("totalVisits");
+  });
+
+  it("visits GET stays protected even when no admin token is configured", async () => {
+    delete process.env.ADMIN_API_TOKEN;
+    const req = makeRequest("http://localhost/api/v1/visits", "GET");
+    const res = await visitsGet(req);
+    expect(res.status).toBe(401);
   });
 
   it("visits GET blocks when admin token is configured and missing", async () => {

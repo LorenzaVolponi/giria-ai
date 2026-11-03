@@ -28,8 +28,8 @@ export async function redisGet(key: string) {
 export async function redisSetEx(key: string, ttlSeconds: number, value: string) {
   const c = await getClient().catch(() => null);
   if (!c) return false;
-  await c.setEx(key, ttlSeconds, value).catch(() => null);
-  return true;
+  const result = await c.setEx(key, ttlSeconds, value).catch(() => null);
+  return result === "OK";
 }
 
 export async function redisIncrBy(key: string, by = 1, ttlSeconds = 0) {
