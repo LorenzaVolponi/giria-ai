@@ -21,6 +21,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Update npm for dependency resolution
+        run: npm install -g npm@11
       - name: Install locked dependencies
         run: npm ci
       - name: Repair non-breaking dependency advisories
