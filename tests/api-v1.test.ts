@@ -49,6 +49,13 @@ describe("API v1 integration", () => {
     expect(data).toHaveProperty("totalVisits");
   });
 
+  it("visits GET stays protected even when no admin token is configured", async () => {
+    delete process.env.ADMIN_API_TOKEN;
+    const req = makeRequest("http://localhost/api/v1/visits", "GET");
+    const res = await visitsGet(req);
+    expect(res.status).toBe(401);
+  });
+
   it("visits GET blocks when admin token is configured and missing", async () => {
     process.env.ADMIN_API_TOKEN = "secret-token";
     const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
