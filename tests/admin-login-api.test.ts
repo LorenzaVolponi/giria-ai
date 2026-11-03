@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { authenticator } from "otplib";
 import { POST } from "../src/app/api/v1/admin/login/route";
-import { GET, POST as SESSION_POST } from "../src/app/api/v1/admin/session/route";
+import { GET, POST as SESSION_POST, DELETE as SESSION_DELETE } from "../src/app/api/v1/admin/session/route";
 import { requireAdminToken } from "../src/lib/admin-guard";
 
 describe("admin login api", () => {
@@ -132,6 +132,15 @@ describe("admin login api", () => {
     });
     const blockedRes = await POST(blockedReq);
     expect(blockedRes.status).toBe(429);
+  });
+
+  it("rejects logout when no authenticated session exists", async () => {
+    const req = new NextRequest("http://localhost/api/v1/admin/session", {
+      method: "DELETE",
+      headers: { "x-csrf-token": "forged" },
+    });
+    const res = await SESSION_DELETE(req);
+    expect(res.status).toBe(401);
   });
 
   it("rejects legacy session POST login path", async () => {
