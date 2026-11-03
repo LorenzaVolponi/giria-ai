@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const unauthorized = requireAdminToken(request);
+  if (unauthorized) return unauthorized;
   const csrfBlocked = requireAdminCsrf(request);
   if (csrfBlocked) return csrfBlocked;
   return clearAdminSessionResponse(request);
