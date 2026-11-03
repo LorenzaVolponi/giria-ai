@@ -41,7 +41,8 @@ describe("API v1 integration", () => {
     const postRes = await visitsPost(postReq);
     expect(postRes.status).toBe(200);
 
-    const getReq = makeRequest("http://localhost/api/v1/visits", "GET");
+    process.env.ADMIN_API_TOKEN = "test-analytics-token";
+    const getReq = makeRequest("http://localhost/api/v1/visits", "GET", undefined, { "x-admin-token": "test-analytics-token" });
     const getRes = await visitsGet(getReq);
     const data = await getRes.json();
 
