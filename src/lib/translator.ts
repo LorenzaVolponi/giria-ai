@@ -49,6 +49,6 @@ export function translateSlang(input: string): TranslationResponse {
     explicacaoContextual: "Pode ser uma variação local, meme novo ou grafia alternativa.",
     intencaoSocialEmocional: "Possível tentativa de humor, aproximação social ou reforço de identidade de grupo.",
     nivelInformalidade: detectInformality(normalized),
-    source: process.env.TRANSLATION_PROVIDER ? "external" : "local",
+    source: "local",
   };
 }
